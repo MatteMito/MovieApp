@@ -1,0 +1,349 @@
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var MoviesController_1;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MoviesController = void 0;
+const common_1 = require("@nestjs/common");
+const movies_service_1 = require("./movies.service");
+let MoviesController = MoviesController_1 = class MoviesController {
+    constructor(moviesService) {
+        this.moviesService = moviesService;
+        this.logger = new common_1.Logger(MoviesController_1.name);
+    }
+    async healthCheck() {
+        try {
+            this.logger.log('🏥 health check richiesto');
+            const health = await this.moviesService.healthCheck();
+            return {
+                success: true,
+                data: health,
+                message: 'sistema operativo',
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore health check: ${error.message}`);
+            return {
+                success: false,
+                message: 'sistema degradato',
+                timestamp: new Date().toISOString(),
+                debug: { error: error.message },
+            };
+        }
+    }
+    async getCacheStats() {
+        try {
+            this.logger.log('📊 statistiche cache richieste');
+            const stats = await this.moviesService.getStats();
+            return {
+                success: true,
+                data: stats,
+                message: 'statistiche recuperate',
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore statistiche: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: 'errore recupero statistiche',
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async enrichMovies(body) {
+        try {
+            this.logger.log(`🎬 richiesta enrichment per ${body.movies.length} film`);
+            if (!body.movies || body.movies.length === 0) {
+                throw new common_1.HttpException({
+                    success: false,
+                    message: 'nessun film fornito per enrichment',
+                    timestamp: new Date().toISOString(),
+                }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            const result = await this.moviesService.enrichMovies(body.movies);
+            const enrichedCount = result.successfulMovies.filter((m) => m.tmdb_id).length;
+            this.logger.log(`✅ enrichment completato: ${enrichedCount}/${body.movies.length} film`);
+            return {
+                success: true,
+                data: result,
+                message: `enrichment completato: ${enrichedCount}/${body.movies.length} film arricchiti`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`❌ errore enrichment: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: `errore enrichment: ${error.message}`,
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async batchUpload(body) {
+        try {
+            this.logger.log(`📦 batch upload: ${body.watchlist.length} watchlist + ${body.watched.length} watched`);
+            const result = await this.moviesService.batchUpload(body.watchlist, body.watched);
+            this.logger.log(`✅ batch upload completato: ${result.summary.totalEnriched} film arricchiti`);
+            return {
+                success: true,
+                data: result,
+                message: `batch completato: ${result.summary.totalMovies} film processati`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`❌ errore batch upload: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: `errore batch upload: ${error.message}`,
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getAllMovies() {
+        try {
+            this.logger.log('📚 richiesta tutti i film');
+            const movies = await this.moviesService.getAllMovies();
+            return {
+                success: true,
+                data: { movies },
+                message: `recuperati ${movies.length} film`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore recupero film: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: 'errore recupero film',
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getMovieById(id) {
+        try {
+            this.logger.log(`🎬 richiesta film: ${id}`);
+            const movie = await this.moviesService.getMovieById(id);
+            if (!movie) {
+                throw new common_1.HttpException({
+                    success: false,
+                    message: 'film non trovato',
+                    timestamp: new Date().toISOString(),
+                }, common_1.HttpStatus.NOT_FOUND);
+            }
+            return {
+                success: true,
+                data: movie,
+                message: 'film recuperato',
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore recupero film ${id}: ${error.message}`);
+            if (error instanceof common_1.HttpException) {
+                throw error;
+            }
+            throw new common_1.HttpException({
+                success: false,
+                message: 'errore recupero film',
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getUnenrichedMovies() {
+        try {
+            this.logger.log('📊 richiesta film non arricchiti');
+            const movies = await this.moviesService.getUnenrichedMovies();
+            return {
+                success: true,
+                data: { movies },
+                message: `trovati ${movies.length} film da arricchire`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore recupero film non arricchiti: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: 'errore recupero film',
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async deleteAllMovies() {
+        try {
+            this.logger.log('🗑️ richiesta eliminazione tutti i film');
+            await this.moviesService.deleteAllMovies();
+            return {
+                success: true,
+                message: 'tutti i film eliminati',
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore eliminazione film: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: 'errore eliminazione film',
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async searchMovies(query, genre, year, director, minRating, maxRating, watched, sortBy, sortOrder, limit, offset) {
+        try {
+            this.logger.log(`🔍 ricerca film: query="${query}"`);
+            const filters = {
+                query,
+                genre,
+                year: year ? parseInt(year) : undefined,
+                director,
+                minRating: minRating ? parseFloat(minRating) : undefined,
+                maxRating: maxRating ? parseFloat(maxRating) : undefined,
+                watched: watched !== undefined ? watched === 'true' : undefined,
+                sortBy: sortBy || 'title',
+                sortOrder: sortOrder || 'ASC',
+                limit: limit ? parseInt(limit) : 50,
+                offset: offset ? parseInt(offset) : 0,
+            };
+            const result = await this.moviesService.searchMovies(filters);
+            return {
+                success: true,
+                data: {
+                    movies: result.movies,
+                    total: result.total,
+                    filters,
+                },
+                message: `trovati ${result.total} film`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore ricerca: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: 'errore ricerca film',
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async initializeApp() {
+        try {
+            this.logger.log('🚀 inizializzazione app client');
+            const [movies, stats] = await Promise.all([
+                this.moviesService.getAllMovies(),
+                this.moviesService.getStats(),
+            ]);
+            const enrichedCount = movies.filter((m) => m.tmdb_id).length;
+            this.logger.log(`✅ inizializzazione completata: ${movies.length} film (${enrichedCount} arricchiti)`);
+            return {
+                success: true,
+                data: {
+                    movies,
+                    stats: stats.database,
+                },
+                message: `app inizializzata con ${movies.length} film`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore inizializzazione: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: 'errore inizializzazione app',
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+};
+exports.MoviesController = MoviesController;
+__decorate([
+    (0, common_1.Get)('health'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "healthCheck", null);
+__decorate([
+    (0, common_1.Get)('cache/stats'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "getCacheStats", null);
+__decorate([
+    (0, common_1.Post)('enrich'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "enrichMovies", null);
+__decorate([
+    (0, common_1.Post)('batch'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "batchUpload", null);
+__decorate([
+    (0, common_1.Get)('all'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "getAllMovies", null);
+__decorate([
+    (0, common_1.Get)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "getMovieById", null);
+__decorate([
+    (0, common_1.Get)('filter/unenriched'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "getUnenrichedMovies", null);
+__decorate([
+    (0, common_1.Delete)('all'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "deleteAllMovies", null);
+__decorate([
+    (0, common_1.Get)('search'),
+    __param(0, (0, common_1.Query)('q')),
+    __param(1, (0, common_1.Query)('genre')),
+    __param(2, (0, common_1.Query)('year')),
+    __param(3, (0, common_1.Query)('director')),
+    __param(4, (0, common_1.Query)('minRating')),
+    __param(5, (0, common_1.Query)('maxRating')),
+    __param(6, (0, common_1.Query)('watched')),
+    __param(7, (0, common_1.Query)('sortBy')),
+    __param(8, (0, common_1.Query)('sortOrder')),
+    __param(9, (0, common_1.Query)('limit')),
+    __param(10, (0, common_1.Query)('offset')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String]),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "searchMovies", null);
+__decorate([
+    (0, common_1.Get)('initialize'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "initializeApp", null);
+exports.MoviesController = MoviesController = MoviesController_1 = __decorate([
+    (0, common_1.Controller)('api/v1/movies'),
+    __metadata("design:paramtypes", [movies_service_1.MoviesService])
+], MoviesController);
+//# sourceMappingURL=movies.controller.js.map
