@@ -36,93 +36,29 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const core_1 = require("@nestjs/core");
 const common_1 = require("@nestjs/common");
 const app_module_1 = require("./app.module");
-const config_1 = require("@nestjs/config");
-const os = __importStar(require("os"));
-function getLocalNetworkIP() {
-    const interfaces = os.networkInterfaces();
-    const priorityOrder = ['Wi-Fi', 'WiFi', 'en0', 'eth0', 'Ethernet'];
-    for (const priority of priorityOrder) {
-        const iface = interfaces[priority];
-        if (iface) {
-            for (const details of iface) {
-                if (details.family === 'IPv4' && !details.internal) {
-                    return details.address;
-                }
-            }
-        }
-    }
-    for (const name of Object.keys(interfaces)) {
-        if (name.includes('vEthernet') || name.includes('VirtualBox') || name.includes('VMware')) {
-            continue;
-        }
-        const iface = interfaces[name];
-        if (iface) {
-            for (const details of iface) {
-                if (details.family === 'IPv4' && !details.internal) {
-                    return details.address;
-                }
-            }
-        }
-    }
-    return null;
-}
+const bodyParser = __importStar(require("body-parser"));
 async function bootstrap() {
     const logger = new common_1.Logger('Bootstrap');
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         logger: ['error', 'warn', 'log'],
     });
-    const configService = app.get(config_1.ConfigService);
-    app.useGlobalPipes(new common_1.ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-    }));
+    app.use(bodyParser.json({ limit: '50mb' }));
+    app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
     app.enableCors({
         origin: '*',
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         allowedHeaders: 'Content-Type,Authorization',
     });
-    app.setGlobalPrefix('');
-    const port = configService.get('PORT', 3001);
-    const host = configService.get('HOST', '0.0.0.0');
+    const port = process.env.PORT || 3001;
+    const host = process.env.HOST || '0.0.0.0';
     await app.listen(port, host);
-    const localIP = getLocalNetworkIP();
-    logger.log('='.repeat(70));
-    logger.log('🚀 MOVIEAPP BACKEND v2.0');
-    logger.log('='.repeat(70));
-    logger.log(`📊 Database: PostgreSQL | 🔐 Auth: JWT | ⚡ Cache: Attiva`);
-    logger.log('');
-    logger.log('📍 URL DISPONIBILI:');
-    logger.log(`   Localhost:     http://localhost:${port}`);
-    if (localIP) {
-        logger.log(`   Network IP:    http://${localIP}:${port}`);
-    }
-    else {
-        logger.warn('   Network IP:    Non rilevato');
-    }
-    logger.log('');
-    logger.log('⚡ WEBSOCKET:');
-    logger.log(`   Localhost:     ws://localhost:${port}/ws`);
-    if (localIP) {
-        logger.log(`   Network IP:    ws://${localIP}:${port}/ws`);
-    }
-    logger.log('');
-    logger.log('📋 ENDPOINT:');
-    logger.log(`   GET  /api/v1/movies/health`);
-    logger.log(`   GET  /api/v1/movies/all`);
-    logger.log(`   POST /api/v1/movies/enrich`);
-    logger.log(`   POST /api/v1/movies/batch`);
-    logger.log('');
-    if (localIP) {
-        logger.log(`💡 Usa questo IP per Android: ${localIP}:${port}`);
-    }
-    else {
-        logger.warn('⚠️  IP rete locale non rilevato. Verifica WiFi.');
-    }
-    logger.log('='.repeat(70));
-    logger.log('✅ SISTEMA PRONTO!');
-    logger.log('='.repeat(70));
+    logger.log(`🚀 MovieApp Backend v2.1 attivo su http://${host}:${port}`);
+    logger.log(`📚 Database: PostgreSQL`);
+    logger.log(`🔄 WebSocket: attivo`);
+    logger.log(`📦 Body Parser Limit: 50MB`);
+    logger.log(`✅ CORS: abilitato per tutti gli origin`);
+    logger.log(`\n=== Backend pronto per ricevere richieste ===\n`);
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

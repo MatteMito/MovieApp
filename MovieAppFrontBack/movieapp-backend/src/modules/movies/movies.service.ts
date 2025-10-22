@@ -69,9 +69,11 @@ export class MoviesService {
             source: movie.source,
           };
 
+          //utilizza dati esistenti
           alreadyEnriched.push(merged);
           result.cacheHits++;
         } else {
+          //dati da arricchire con TMDB
           needEnrichment.push(movie);
         }
       }

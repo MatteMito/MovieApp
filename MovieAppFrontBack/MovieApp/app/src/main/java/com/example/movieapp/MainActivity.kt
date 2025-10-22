@@ -14,7 +14,7 @@ import androidx.navigation.ui.setupWithNavController
 import com.example.movieapp.databinding.ActivityMainBinding
 import com.example.movieapp.config.AppConfig
 import com.example.movieapp.data.network.ApiService
-import com.example.movieapp.data.cache.CacheService
+// ❌ RIMOSSO: import com.example.movieapp.data.cache.CacheService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -22,8 +22,10 @@ import kotlinx.coroutines.withContext
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
- * main activity con bottom navigation che inizializza tutti i servizi app
- * include menu logout e info account nella toolbar
+ * Main Activity con bottom navigation - SEMPLIFICATA
+ *
+ * ❌ RIMOSSO: Inizializzazione CacheService (non serve più!)
+ * ✅ Il database backend è già la cache
  */
 class MainActivity : AppCompatActivity() {
 
@@ -70,6 +72,7 @@ class MainActivity : AppCompatActivity() {
 
         Log.d(TAG, "=== movieapp v${AppConfig.APP_VERSION} avviata ===")
         Log.d(TAG, "backend: ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT}")
+        Log.d(TAG, "💾 architettura semplificata: database = cache")
     }
 
     /**
@@ -190,7 +193,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * inizializza tutti i servizi critici
+     * inizializza tutti i servizi critici - SEMPLIFICATO
+     *
+     * ❌ RIMOSSO: CacheService (non serve più!)
+     * ✅ Il database PostgreSQL backend è già la cache
      */
     private fun initializeServices() {
         try {
@@ -198,16 +204,16 @@ class MainActivity : AppCompatActivity() {
 
             //api service
             ApiService.initialize(applicationContext)
-            Log.d(TAG, "apiservice inizializzato")
+            Log.d(TAG, "✅ apiservice inizializzato")
 
-            //cache service
-            CacheService.getInstance(applicationContext).init(applicationContext)
-            Log.d(TAG, "cacheservice inizializzato")
+            // ❌ RIMOSSO: CacheService.getInstance(applicationContext).init(applicationContext)
+            // Non serve più! Il database è già la cache.
+            Log.d(TAG, "💾 cache = database backend (nessuna duplicazione)")
 
             //test backend connectivity
             testBackendConnection()
 
-            Log.d(TAG, "tutti i servizi inizializzati")
+            Log.d(TAG, "✅ tutti i servizi inizializzati (architettura semplificata)")
 
         } catch (e: Exception) {
             Log.e(TAG, "errore inizializzazione servizi", e)
@@ -224,9 +230,9 @@ class MainActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     if (isConnected) {
-                        Log.i(TAG, "backend ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT} raggiungibile")
+                        Log.i(TAG, "✅ backend ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT} raggiungibile")
                     } else {
-                        Log.w(TAG, "backend ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT} non raggiungibile")
+                        Log.w(TAG, "⚠️ backend ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT} non raggiungibile")
                     }
                 }
             } catch (e: Exception) {

@@ -1,6 +1,9 @@
 package com.example.movieapp.data.network
 
 import android.util.Log
+import com.example.movieapp.config.AppConfig
+import io.socket.client.IO
+import io.socket.client.Socket
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -8,10 +11,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+import java.net.URISyntaxException
 
 /**
- * servizio websocket per notifiche real-time dal backend locale
- * fixed: ip mascherato e logging sicuro
+ * Servizio WebSocket REALE per notifiche real-time dal backend
+ *
+ * IMPORTANTE: Ricevi aggiornamenti in tempo reale durante l'enrichment!
+ *
+ * Installa le dipendenze necessarie in build.gradle:
+ * implementation("io.socket:socket.io-client:2.1.0")
  */
 class WebSocketService private constructor() {
 
@@ -29,9 +38,8 @@ class WebSocketService private constructor() {
     private val _systemNotifications = MutableStateFlow<SystemNotification?>(null)
     val systemNotifications: StateFlow<SystemNotification?> = _systemNotifications.asStateFlow()
 
-    //url mascherato per logging sicuro
-    private val BACKEND_URL = "ws://backend_locale:3001"
-    private var isConnected = false
+    // 🔌 Socket.IO client reale
+    private var socket: Socket? = null
     private var currentSessionId: String? = null
     private var reconnectAttempts = 0
     private val maxReconnectAttempts = 5
@@ -48,245 +56,309 @@ class WebSocketService private constructor() {
     }
 
     init {
-        Log.d(TAG, "websocket service inizializzato per backend locale")
+        Log.d(TAG, "🔌 WebSocket Service inizializzato")
+        Log.d(TAG, "Backend URL: ${AppConfig.WEBSOCKET_URL}")
     }
 
     /**
-     * connette al backend websocket locale
+     * Connette al backend WebSocket usando Socket.IO
      */
     fun connect(sessionId: String? = null) {
-        Log.d(TAG, "connessione websocket al backend locale")
+        if (socket != null && socket!!.connected()) {
+            Log.d(TAG, "⚠️ WebSocket già connesso")
+            return
+        }
+
+        Log.d(TAG, "🔌 Connessione a ${AppConfig.WEBSOCKET_URL}")
         currentSessionId = sessionId
         _connectionStatus.value = ConnectionStatus.CONNECTING
 
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                delay(1500) //simula connessione
+        try {
+            val opts = IO.Options().apply {
+                reconnection = true
+                reconnectionAttempts = maxReconnectAttempts
+                reconnectionDelay = 2000
+                timeout = 10000
+            }
 
-                isConnected = true
-                reconnectAttempts = 0
+            socket = IO.socket(AppConfig.WEBSOCKET_URL, opts)
+
+            setupSocketListeners()
+
+            socket?.connect()
+
+        } catch (e: URISyntaxException) {
+            Log.e(TAG, "❌ Errore URI WebSocket", e)
+            _connectionStatus.value = ConnectionStatus.ERROR
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Errore connessione WebSocket", e)
+            _connectionStatus.value = ConnectionStatus.ERROR
+        }
+    }
+
+    /**
+     * Setup listeners per tutti gli eventi WebSocket
+     */
+    private fun setupSocketListeners() {
+        socket?.apply {
+            // === EVENTI CONNESSIONE ===
+            on(Socket.EVENT_CONNECT) {
+                Log.d(TAG, "✅ WebSocket connesso!")
                 _connectionStatus.value = ConnectionStatus.CONNECTED
+                reconnectAttempts = 0
 
-                if (sessionId != null) {
-                    simulateConnectionMessage(sessionId)
-                } else {
-                    notifySystemStatus("backend locale v2.0 connesso - grafici e notifiche attivi")
-                }
+                notifySystemStatus("✅ Backend connesso")
+            }
 
-                Log.d(TAG, "connessione backend locale stabilita!")
+            on(Socket.EVENT_DISCONNECT) {
+                Log.d(TAG, "❌ WebSocket disconnesso")
+                _connectionStatus.value = ConnectionStatus.DISCONNECTED
+            }
 
-            } catch (e: Exception) {
-                Log.e(TAG, "errore connessione backend locale: ${e.message}")
+            on(Socket.EVENT_CONNECT_ERROR) { args ->
+                Log.e(TAG, "❌ Errore connessione: ${args.firstOrNull()}")
                 _connectionStatus.value = ConnectionStatus.ERROR
-                scheduleReconnect()
+            }
+
+            // === EVENTI ENRICHMENT (QUESTI SONO FONDAMENTALI PER LA PROGRESS BAR!) ===
+
+            /**
+             * 📊 Aggiornamento progresso enrichment in tempo reale
+             * Questo evento viene emesso dal backend per ogni film processato
+             */
+            on("enrichment:progress") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val sessionId = data.getString("sessionId")
+                    val processed = data.getInt("processed")
+                    val total = data.getInt("total")
+                    val percentage = data.getInt("percentage")
+                    val message = data.getString("message")
+                    val currentMovie = data.optString("currentMovie", "")
+
+                    val update = EnrichmentUpdate(
+                        sessionId = sessionId,
+                        type = "progress",
+                        total = total,
+                        processed = processed,
+                        currentMovie = currentMovie,
+                        message = message,
+                        percentage = percentage
+                    )
+
+                    _enrichmentUpdates.value = update
+
+                    Log.d(TAG, "📊 Progress: $processed/$total ($percentage%) - $currentMovie")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Errore parsing progress", e)
+                }
+            }
+
+            /**
+             * ✅ Enrichment completato
+             */
+            on("enrichment:completed") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val sessionId = data.getString("sessionId")
+                    val total = data.getInt("total")
+                    val successful = data.getInt("successful")
+                    val message = data.getString("message")
+
+                    val update = EnrichmentUpdate(
+                        sessionId = sessionId,
+                        type = "completed",
+                        total = total,
+                        processed = total,
+                        message = message,
+                        percentage = 100
+                    )
+
+                    _enrichmentUpdates.value = update
+
+                    Log.d(TAG, "✅ Enrichment completato: $successful/$total")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Errore parsing completed", e)
+                }
+            }
+
+            /**
+             * ❌ Errore enrichment
+             */
+            on("enrichment:error") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val sessionId = data.getString("sessionId")
+                    val error = data.getString("error")
+                    val message = data.getString("message")
+
+                    val update = EnrichmentUpdate(
+                        sessionId = sessionId,
+                        type = "error",
+                        message = message,
+                        percentage = 0
+                    )
+
+                    _enrichmentUpdates.value = update
+
+                    Log.e(TAG, "❌ Errore enrichment: $error")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Errore parsing error", e)
+                }
+            }
+
+            // === EVENTI BATCH ===
+            on("batch:completed") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val message = data.getString("message")
+                    notifySystemStatus(message)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Errore parsing batch", e)
+                }
+            }
+
+            // === EVENTI GRAFICI ===
+            on("chart:update") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val chartType = data.getString("type")
+                    val dataPoints = data.getInt("dataPoints")
+                    val message = data.getString("message")
+
+                    val chartUpdate = ChartUpdate(
+                        type = chartType,
+                        status = "generated",
+                        dataPoints = dataPoints,
+                        message = message
+                    )
+
+                    _chartUpdates.value = chartUpdate
+
+                    Log.d(TAG, "📈 Grafico aggiornato: $chartType")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Errore parsing chart", e)
+                }
+            }
+
+            on("chart:error") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val chartType = data.getString("type")
+                    val error = data.getString("error")
+
+                    val chartUpdate = ChartUpdate(
+                        type = chartType,
+                        status = "error",
+                        dataPoints = 0,
+                        message = error,
+                        error = error
+                    )
+
+                    _chartUpdates.value = chartUpdate
+
+                    Log.e(TAG, "❌ Errore grafico: $chartType")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Errore parsing chart error", e)
+                }
+            }
+
+            // === EVENTI SISTEMA ===
+            on("system:notification") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val type = data.getString("type")
+                    val message = data.getString("message")
+
+                    notifySystemStatus(message)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Errore parsing system", e)
+                }
+            }
+
+            // === MESSAGGIO CONNESSIONE ===
+            on("connection") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val message = data.getString("message")
+                    Log.d(TAG, "💬 Backend: $message")
+                    notifySystemStatus(message)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Errore parsing connection", e)
+                }
             }
         }
     }
 
+    /**
+     * Disconnette dal WebSocket
+     */
     fun disconnect() {
-        Log.d(TAG, "disconnessione websocket dal backend locale")
+        Log.d(TAG, "🔌 Disconnessione WebSocket")
+        socket?.disconnect()
+        socket?.off()
+        socket = null
         _connectionStatus.value = ConnectionStatus.DISCONNECTED
-        isConnected = false
         currentSessionId = null
         reconnectAttempts = 0
     }
 
-    private fun scheduleReconnect() {
-        if (reconnectAttempts < maxReconnectAttempts) {
-            reconnectAttempts++
-            val delay = (reconnectAttempts * 2000L).coerceAtMost(10000L)
-
-            Log.d(TAG, "tentativo riconnessione #$reconnectAttempts in ${delay}ms")
-
-            CoroutineScope(Dispatchers.IO).launch {
-                delay(delay)
-                if (!isConnected) {
-                    connect(currentSessionId)
-                }
-            }
-        } else {
-            Log.e(TAG, "massimo numero tentativi riconnessione raggiunto")
-            notifySystemStatus("connessione backend locale fallita dopo $maxReconnectAttempts tentativi")
-        }
-    }
-
-    private fun simulateConnectionMessage(sessionId: String) {
-        val update = EnrichmentUpdate(
-            sessionId = sessionId,
-            type = "connected",
-            message = "connesso al backend locale v2.0 - database room + cache + grafici",
-            percentage = 0
-        )
-
-        _enrichmentUpdates.value = update
-        notifySystemStatus("websocket connesso - session: $sessionId")
-        Log.d(TAG, "messaggio connessione simulato per sessione: $sessionId")
-    }
-
-    fun notifyChartGenerated(chartType: String, dataPoints: Int) {
-        val chartUpdate = ChartUpdate(
-            type = chartType,
-            status = "generated",
-            dataPoints = dataPoints,
-            message = "grafico $chartType generato con $dataPoints elementi"
-        )
-
-        _chartUpdates.value = chartUpdate
-        Log.d(TAG, "notifica grafico generato: $chartType ($dataPoints punti)")
-    }
-
-    fun notifyChartError(chartType: String, error: String) {
-        val chartUpdate = ChartUpdate(
-            type = chartType,
-            status = "error",
-            dataPoints = 0,
-            message = "errore grafico $chartType: $error",
-            error = error
-        )
-
-        _chartUpdates.value = chartUpdate
-        Log.e(TAG, "errore grafico $chartType: $error")
-    }
-
+    /**
+     * Notifica sistema
+     */
     private fun notifySystemStatus(message: String) {
         val notification = SystemNotification(
-            type = "status",
+            type = "system",
             message = message,
             timestamp = System.currentTimeMillis()
         )
-
         _systemNotifications.value = notification
-        Log.d(TAG, "notifica sistema: $message")
     }
 
-    fun simulateEnrichmentUpdate(sessionId: String, processed: Int, total: Int, currentMovie: String? = null) {
-        val percentage = if (total > 0) (processed * 100) / total else 0
+    /**
+     * Controlla se connesso
+     */
+    fun isConnected(): Boolean = socket?.connected() ?: false
 
-        val update = EnrichmentUpdate(
-            sessionId = sessionId,
-            type = "progress",
-            total = total,
-            processed = processed,
-            successful = processed,
-            failed = 0,
-            currentMovie = currentMovie,
-            message = "backend locale: processati $processed/$total film",
-            percentage = percentage
-        )
-
-        _enrichmentUpdates.value = update
-        Log.d(TAG, "update backend locale simulato: ${update.message}")
-
-        if (percentage > 80) {
-            notifySystemStatus("preparazione grafici in corso...")
-        }
-    }
-
-    fun simulateEnrichmentCompleted(
-        sessionId: String,
-        total: Int,
-        successful: Int,
-        cacheHits: Int = 0
-    ) {
-        val backendProcessed = successful - cacheHits
-        val limitInfo = if (total > 25) " (elaborati in batch di 25)" else ""
-
-        val update = EnrichmentUpdate(
-            sessionId = sessionId,
-            type = "completed",
-            total = total,
-            processed = total,
-            successful = successful,
-            failed = total - successful,
-            message = "✅ arricchimento completato$limitInfo\n" +
-                    "📊 ${successful}/${total} film elaborati\n" +
-                    "💾 cache hits: $cacheHits\n" +
-                    "🔄 nuovi dal backend locale: $backendProcessed\n" +
-                    "🎯 i tuoi grafici sono pronti!",
-            percentage = 100
-        )
-
-        _enrichmentUpdates.value = update
-        Log.d(TAG, "enrichment completato con backend locale: ${update.message}")
-
-        CoroutineScope(Dispatchers.IO).launch {
-            delay(1000)
-            notifySystemStatus("🎨 aggiornamento grafici in corso...")
-
-            delay(800)
-            notifyChartGenerated("generi-pie", 8)
-
-            delay(500)
-            notifyChartGenerated("anni-bar", 12)
-
-            delay(500)
-            notifyChartGenerated("registi-bar", 6)
-
-            delay(300)
-            notifySystemStatus("🎉 tutti i grafici sono stati aggiornati con i nuovi dati!")
-        }
-    }
-
-    fun simulateEnrichmentError(sessionId: String, error: String) {
-        val update = EnrichmentUpdate(
-            sessionId = sessionId,
-            type = "error",
-            message = "errore backend locale: $error",
-            error = error,
-            percentage = 0
-        )
-
-        _enrichmentUpdates.value = update
-        Log.e(TAG, "errore backend locale simulato:$error")
-    }
-    fun isWebSocketConnected(): Boolean {
-        return isConnected && _connectionStatus.value == ConnectionStatus.CONNECTED
-    }
-
-    fun getCurrentStatus(): ConnectionStatus {
-        return _connectionStatus.value
-    }
-
-    fun getConnectionInfo(): Map<String, Any> {
-        return mapOf(
-            "status" to _connectionStatus.value.name,
-            "connected" to isConnected,
-            "backend" to "locale",
-            "session_id" to (currentSessionId ?: "none"),
-            "reconnect_attempts" to reconnectAttempts
-        )
-    }
-
-    enum class ConnectionStatus {
-        DISCONNECTED,
-        CONNECTING,
-        CONNECTED,
-        ERROR
+    /**
+     * Reset tutti gli stati
+     */
+    fun reset() {
+        _enrichmentUpdates.value = null
+        _chartUpdates.value = null
+        _systemNotifications.value = null
     }
 }
-//data classes websocket
+
+// === DATA CLASSES ===
+
+enum class ConnectionStatus {
+    DISCONNECTED,
+    CONNECTING,
+    CONNECTED,
+    ERROR
+}
+
 data class EnrichmentUpdate(
     val sessionId: String,
-    val type: String,
-    val total: Int? = null,
-    val processed: Int? = null,
-    val successful: Int? = null,
-    val failed: Int? = null,
-    val currentMovie: String? = null,
+    val type: String, // "progress", "completed", "error", "connected"
+    val total: Int = 0,
+    val processed: Int = 0,
+    val currentMovie: String = "",
     val message: String,
-    val percentage: Int? = null,
-    val error: String? = null
+    val percentage: Int
 )
+
 data class ChartUpdate(
     val type: String,
-    val status: String,
+    val status: String, // "generating", "generated", "error"
     val dataPoints: Int,
     val message: String,
     val error: String? = null
 )
+
 data class SystemNotification(
     val type: String,
     val message: String,
-    val timestamp: Long,
-    val data: Map<String, Any>? = null
+    val timestamp: Long
 )

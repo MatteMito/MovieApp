@@ -181,6 +181,7 @@ export class TmdbService {
           is_watched: movie.is_watched,
           source: movie.source,
         };
+        //CACHE HIT dal database!
         results.successfulMovies.push(merged);
         this.logger.debug(`skip enrichment (già fatto): ${movie.title}`);
       } else {
