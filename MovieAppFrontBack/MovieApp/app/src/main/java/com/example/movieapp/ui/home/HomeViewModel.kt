@@ -12,7 +12,6 @@ import com.example.movieapp.data.parser.CsvParseResult
 import com.example.movieapp.data.repository.MovieRepository
 import com.example.movieapp.data.network.ApiService
 import com.example.movieapp.data.network.WebSocketService
-// ❌ RIMOSSO: import com.example.movieapp.data.cache.CacheService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -21,12 +20,11 @@ import java.io.InputStream
 import android.content.Context
 
 /**
- * HomeViewModel SEMPLIFICATO - senza CacheService ridondante
+ * HomeViewModel OTTIMIZZATO
  *
- * Il database PostgreSQL È GIÀ la cache:
- * - Film nuovo → Query TMDB → Salva in DB
- * - Film esistente → Recupera da DB (già arricchito)
- * - Nessuna duplicazione di dati!
+ * ✅ FIX: WebSocket progress bar funzionante
+ * ✅ FIX: Conteggio film sincronizzato (solo film salvati nel database)
+ * ✅ UX: Stato import visibile sempre
  */
 class HomeViewModel : ViewModel() {
     private val TAG = "HomeViewModel"
@@ -50,34 +48,58 @@ class HomeViewModel : ViewModel() {
     private val _enrichmentProgress = MutableLiveData<Pair<Int, Int>>()
     val enrichmentProgress: LiveData<Pair<Int, Int>> = _enrichmentProgress
 
+    // ✅ NUOVO: Stato import dettagliato
+    private val _importStatus = MutableLiveData<ImportStatus>()
+    val importStatus: LiveData<ImportStatus> = _importStatus
+
     init {
         _isLoading.value = false
         _message.value = ""
         _enrichmentProgress.value = 0 to 0
+        _importStatus.value = ImportStatus.IDLE
 
-        // ✅ Ascolta aggiornamenti WebSocket per progress bar
+        // ✅ Ascolta aggiornamenti WebSocket
         viewModelScope.launch {
             webSocketService.enrichmentUpdates.collect { update ->
                 update?.let {
+                    Log.d(TAG, "📩 WebSocket update: ${it.type} - ${it.processed}/${it.total}")
+
                     when (it.type) {
                         "progress" -> {
                             _enrichmentProgress.postValue(it.processed to it.total)
-                            Log.d(TAG, "📊 Progress: ${it.processed}/${it.total} (${it.percentage}%)")
+                            _importStatus.postValue(ImportStatus.ENRICHING(it.processed, it.total, it.currentMovie))
+                            Log.d(TAG, "📊 Progress aggiornato: ${it.processed}/${it.total} (${it.percentage}%)")
                         }
                         "completed" -> {
                             _enrichmentProgress.postValue(it.total to it.total)
-                            Log.d(TAG, "✅ Enrichment completato")
+                            _importStatus.postValue(ImportStatus.COMPLETED(it.total))
+                            Log.d(TAG, "✅ Enrichment completato: ${it.total} film")
+
+                            // Reset dopo 3 secondi
+                            viewModelScope.launch {
+                                delay(3000)
+                                _importStatus.postValue(ImportStatus.IDLE)
+                                _enrichmentProgress.postValue(0 to 0)
+                            }
                         }
                         "error" -> {
-                            Log.e(TAG, "❌ Errore: ${it.message}")
+                            Log.e(TAG, "❌ Errore enrichment: ${it.message}")
                             _enrichmentProgress.postValue(0 to 0)
+                            _importStatus.postValue(ImportStatus.ERROR(it.message))
                         }
                     }
                 }
             }
         }
 
-        Log.d(TAG, "✅ HomeViewModel inizializzato (SENZA CacheService)")
+        // ✅ Ascolta stato connessione WebSocket
+        viewModelScope.launch {
+            webSocketService.connectionStatus.collect { status ->
+                Log.d(TAG, "🔌 WebSocket status: $status")
+            }
+        }
+
+        Log.d(TAG, "✅ HomeViewModel inizializzato con WebSocket support")
     }
 
     fun initialize(context: Context) {
@@ -86,35 +108,41 @@ class HomeViewModel : ViewModel() {
 
         ApiService.initialize(applicationContext!!)
 
-        // ❌ RIMOSSO: CacheService.getInstance(applicationContext!!).init(applicationContext!!)
-        // Il database PostgreSQL è già la nostra cache!
-
+        // ✅ Observer: mostra SOLO film confermati dal database
         movieRepository?.movies?.observeForever { movies ->
             _movies.value = movies ?: emptyList()
+            Log.d(TAG, "📊 Film dal database: ${movies?.size ?: 0}")
         }
 
         loadSavedMovies()
         testBackendConnectivity()
         connectWebSocket()
 
-        Log.d(TAG, "✅ ViewModel inizializzato - database è la cache")
+        Log.d(TAG, "✅ ViewModel inizializzato")
     }
 
     /**
-     * 🔌 Connette WebSocket per progress real-time
+     * 🔌 Connette WebSocket con retry
      */
     private fun connectWebSocket() {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "🔌 Connessione WebSocket...")
+                Log.d(TAG, "🔌 Tentativo connessione WebSocket...")
                 webSocketService.connect()
+
+                // Attendi un po' per verificare connessione
                 delay(2000)
 
                 if (webSocketService.isConnected()) {
-                    Log.d(TAG, "✅ WebSocket connesso!")
+                    Log.d(TAG, "✅ WebSocket CONNESSO con successo!")
+                    setMessage("✅ Connesso (WebSocket attivo)")
+                } else {
+                    Log.w(TAG, "⚠️ WebSocket non connesso, riprovo...")
+                    delay(3000)
+                    webSocketService.connect()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Errore WebSocket", e)
+                Log.e(TAG, "❌ Errore connessione WebSocket", e)
             }
         }
     }
@@ -126,10 +154,8 @@ class HomeViewModel : ViewModel() {
 
                 if (isConnected) {
                     Log.i(TAG, "✅ Backend raggiungibile")
-                    setMessage("✅ Connesso")
                 } else {
                     Log.w(TAG, "⚠️ Backend non raggiungibile")
-                    setMessage("")
                 }
 
             } catch (e: Exception) {
@@ -141,17 +167,16 @@ class HomeViewModel : ViewModel() {
     fun forceBackendSync() {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "🔄 Sync manuale dal database...")
+                Log.d(TAG, "🔄 Sync manuale...")
                 setLoading(true)
 
-                val repository = movieRepository
-                if (repository == null) {
+                val repository = movieRepository ?: run {
                     setMessage("❌ Errore inizializzazione")
                     setLoading(false)
                     return@launch
                 }
 
-                // Recupera DIRETTAMENTE dal database (che È la cache!)
+                // Sincronizza dal database
                 val result = ApiService.getAllStoredMovies()
 
                 if (result.isSuccess) {
@@ -169,16 +194,14 @@ class HomeViewModel : ViewModel() {
                             if (enrichedCount > 0) {
                                 appendLine("✨ $enrichedCount arricchiti")
                             }
-                            appendLine()
-                            appendLine("💾 Database PostgreSQL = Cache intelligente")
                         })
 
-                        Log.d(TAG, "✅ Sync completato (da database)")
+                        Log.d(TAG, "✅ Sync completato")
                     } else {
                         setMessage("💡 Importa i tuoi film per iniziare")
                     }
                 } else {
-                    setMessage("⚠️ Impossibile sincronizzare.\nRiprova più tardi.")
+                    setMessage("⚠️ Impossibile sincronizzare")
                 }
 
                 setLoading(false)
@@ -196,17 +219,12 @@ class HomeViewModel : ViewModel() {
             try {
                 val repository = movieRepository ?: return@launch
 
-                // Carica dal database (che È la cache!)
                 repository.loadMoviesFromDatabase()
                 val localMovies = repository.getAllMovies()
 
                 if (localMovies.isNotEmpty()) {
                     val enrichedCount = localMovies.count { it.tmdbId != null }
                     Log.d(TAG, "📚 Caricati ${localMovies.size} film ($enrichedCount arricchiti)")
-
-                    if (enrichedCount > 0) {
-                        setMessage("✅ ${localMovies.size} film caricati dal database")
-                    }
                 }
 
                 if (applicationContext != null) {
@@ -233,7 +251,7 @@ class HomeViewModel : ViewModel() {
 
                     if (backendMovies.size > localMovies.size) {
                         repository.replaceAll(backendMovies)
-                        setMessage("✅ Sincronizzazione completata")
+                        Log.d(TAG, "✅ Auto-sync: ${backendMovies.size} film")
                     }
                 }
             }
@@ -263,6 +281,9 @@ class HomeViewModel : ViewModel() {
 
     /**
      * Funzione generica per processare CSV
+     *
+     * ✅ FIX: NON aggiunge film localmente prima dell'enrichment
+     * ✅ Film vengono aggiunti SOLO dopo essere stati salvati nel database
      */
     private fun processCsv(
         inputStream: InputStream,
@@ -277,23 +298,34 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 setLoading(true)
+                _importStatus.postValue(ImportStatus.PARSING)
 
                 val result = withContext(Dispatchers.IO) {
                     parser(inputStream)
                 }
 
                 if (result.successfulRows > 0) {
-                    repository.addMovies(result.movies)
-                    setMessage("⏳ Importazione in background...\n${result.movies.size} film")
+                    // ✅ NON aggiungere film localmente!
+                    // repository.addMovies(result.movies)  ← RIMOSSO!
+
+                    _importStatus.postValue(ImportStatus.SENDING_TO_BACKEND(result.movies.size))
+
+                    setMessage(buildString {
+                        appendLine("📤 Invio al backend...")
+                        appendLine("${result.movies.size} film da processare")
+                    })
+
                     performEnrichmentWithBackend(result.movies)
                 } else {
                     setLoading(false)
+                    _importStatus.postValue(ImportStatus.ERROR("File non valido"))
                     setMessage("❌ File non valido")
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Eccezione import", e)
                 setLoading(false)
+                _importStatus.postValue(ImportStatus.ERROR(e.message ?: "Errore sconosciuto"))
                 setMessage("❌ Errore durante l'importazione")
             }
         }
@@ -302,16 +334,13 @@ class HomeViewModel : ViewModel() {
     /**
      * ENRICHMENT con backend
      *
-     * Il backend controlla automaticamente se il film è già nel database:
-     * - Film esiste → Restituisce dati dal DB (CACHE HIT!)
-     * - Film nuovo → Query TMDB → Salva in DB → Restituisce dati
-     *
-     * Nessuna duplicazione! Il database È la cache.
+     * ✅ Backend controlla database e arricchisce solo film nuovi
+     * ✅ WebSocket invia progress real-time
+     * ✅ Film aggiunti SOLO dopo conferma dal database
      */
     private suspend fun performEnrichmentWithBackend(movies: List<Movie>) {
         try {
-            val repository = movieRepository
-            if (repository == null) {
+            val repository = movieRepository ?: run {
                 setMessage("❌ Errore inizializzazione")
                 setLoading(false)
                 return
@@ -320,11 +349,12 @@ class HomeViewModel : ViewModel() {
             Log.d(TAG, "╔═══════════════════════════════════╗")
             Log.d(TAG, "🎬 INIZIO ENRICHMENT")
             Log.d(TAG, "Film da processare: ${movies.size}")
-            Log.d(TAG, "💾 Database = Cache intelligente")
+            Log.d(TAG, "WebSocket: ${if (webSocketService.isConnected()) "CONNESSO" else "DISCONNESSO"}")
             Log.d(TAG, "╚═══════════════════════════════════╝")
 
             withContext(Dispatchers.Main) {
                 _enrichmentProgress.value = 0 to movies.size
+                _importStatus.postValue(ImportStatus.ENRICHING(0, movies.size, ""))
             }
 
             Log.d(TAG, "📤 Chiamata API enrichment...")
@@ -345,10 +375,8 @@ class HomeViewModel : ViewModel() {
                     Log.d(TAG, "   Arricchiti: $actuallyEnriched")
                     Log.d(TAG, "   Cache hits: ${enrichmentResult.cacheHits}")
                     Log.d(TAG, "   Nuovi TMDB: ${actuallyEnriched - enrichmentResult.cacheHits}")
-                    Log.d(TAG, "   Falliti: ${enrichmentResult.failedMovies.size}")
 
-                    _enrichmentProgress.value = enrichmentResult.successfulMovies.size to enrichmentResult.successfulMovies.size
-
+                    // ✅ Aggiorna local repository con film dal backend
                     val enrichedMovies = enrichmentResult.successfulMovies.map { dto ->
                         Movie(
                             id = dto.id,
@@ -375,28 +403,10 @@ class HomeViewModel : ViewModel() {
                         )
                     }
 
+                    // ✅ SOLO ADESSO aggiungiamo i film (già salvati nel database)
                     repository.replaceAll(enrichedMovies)
 
-                    Log.d(TAG, "💾 Salvati ${enrichedMovies.size} film (ora nel database = cache)")
-
-                    Log.d(TAG, "🔄 Auto-sync backend...")
-                    delay(1000)
-
-                    val syncResult = withContext(Dispatchers.IO) {
-                        ApiService.getAllStoredMovies()
-                    }
-
-                    if (syncResult.isSuccess) {
-                        val backendMovies = syncResult.getOrNull() ?: emptyList()
-
-                        if (backendMovies.isNotEmpty()) {
-                            Log.d(TAG, "✅ Sincronizzati ${backendMovies.size} film dal database")
-                            repository.replaceAll(backendMovies)
-
-                            val watchedCount = backendMovies.count { it.isWatched }
-                            Log.d(TAG, "📊 Film watched: $watchedCount")
-                        }
-                    }
+                    Log.d(TAG, "💾 Sincronizzati ${enrichedMovies.size} film dal database")
 
                     val summary = buildString {
                         appendLine("✅ Importazione completata!")
@@ -406,30 +416,30 @@ class HomeViewModel : ViewModel() {
                             appendLine("✨ $actuallyEnriched con dettagli completi")
                         }
                         if (enrichmentResult.cacheHits > 0) {
-                            appendLine("⚡ ${enrichmentResult.cacheHits} già in database (cache hit!)")
+                            appendLine("⚡ ${enrichmentResult.cacheHits} già in database")
                         }
                         appendLine()
-                        appendLine("💾 Database PostgreSQL = Cache intelligente")
                         appendLine("💡 Vai su 'Statistiche' per i grafici!")
                     }
 
                     _message.value = summary
+                    _importStatus.postValue(ImportStatus.COMPLETED(enrichedMovies.size))
+
                     Log.d(TAG, "╚═══════════════════════════════════╝")
                 } else {
                     Log.e(TAG, "❌ Enrichment fallito")
-                    _message.value = buildString {
-                        appendLine("⚠️ Alcuni dettagli non disponibili")
-                        appendLine()
-                        appendLine("I film sono stati importati,")
-                        appendLine("ma non è stato possibile")
-                        appendLine("aggiungere tutti i dettagli.")
-                    }
+                    _message.value = "⚠️ Alcuni dettagli non disponibili"
+                    _importStatus.postValue(ImportStatus.ERROR("Enrichment parzialmente fallito"))
                 }
 
                 setLoading(false)
 
+                // Reset progress dopo 5 secondi
                 delay(5000)
                 _enrichmentProgress.value = 0 to 0
+                if (_importStatus.value !is ImportStatus.ERROR) {
+                    _importStatus.postValue(ImportStatus.IDLE)
+                }
             }
 
         } catch (e: Exception) {
@@ -441,12 +451,11 @@ class HomeViewModel : ViewModel() {
                     appendLine("❌ Errore enrichment")
                     appendLine()
                     appendLine("${e.message}")
-                    appendLine()
-                    appendLine("Verifica connessione backend")
                 }
 
                 setLoading(false)
                 _enrichmentProgress.value = 0 to 0
+                _importStatus.postValue(ImportStatus.ERROR(e.message ?: "Errore sconosciuto"))
             }
         }
     }
@@ -477,19 +486,15 @@ class HomeViewModel : ViewModel() {
 
             val previousCount = repository.getAllMovies().size
 
-            // Pulisce il database (che È la cache!)
             repository.clearAll()
-
-            // ❌ RIMOSSO: CacheService.getInstance(applicationContext!!).clearCache()
-            // Non serve più! Il database è già stato pulito.
 
             setMessage(buildString {
                 appendLine("✅ Pulizia completata")
                 appendLine()
-                appendLine("$previousCount film rimossi dal database")
-                appendLine()
-                appendLine("💾 Cache = Database, tutto pulito!")
+                appendLine("$previousCount film rimossi")
             })
+
+            _importStatus.postValue(ImportStatus.IDLE)
         }
     }
 
@@ -498,6 +503,17 @@ class HomeViewModel : ViewModel() {
         movieRepository?.cleanup()
         webSocketService.disconnect()
 
-        Log.d(TAG, "🧹 HomeViewModel pulito (architettura semplificata!)")
+        Log.d(TAG, "🧹 HomeViewModel pulito")
     }
+}
+
+// === IMPORT STATUS ===
+
+sealed class ImportStatus {
+    object IDLE : ImportStatus()
+    object PARSING : ImportStatus()
+    data class SENDING_TO_BACKEND(val count: Int) : ImportStatus()
+    data class ENRICHING(val processed: Int, val total: Int, val currentMovie: String) : ImportStatus()
+    data class COMPLETED(val total: Int) : ImportStatus()
+    data class ERROR(val message: String) : ImportStatus()
 }

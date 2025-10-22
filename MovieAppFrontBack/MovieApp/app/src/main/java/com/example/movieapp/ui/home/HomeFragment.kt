@@ -134,32 +134,122 @@ class HomeFragment : Fragment() {
 
             when {
                 total == 0 -> {
-                    // Nessun enrichment in corso
-                    binding.layoutProgress.visibility = View.GONE
+                    // Nessun enrichment in corso - nascondi card
+                    binding.cardImportStatus.visibility = View.GONE
                     Log.d(TAG, "Progress hidden (no enrichment)")
                 }
                 processed < total -> {
-                    // DURANTE enrichment: MOSTRA progress
+                    // DURANTE enrichment: MOSTRA progress nella card
                     val percentage = (processed * 100) / total
 
-                    binding.layoutProgress.visibility = View.VISIBLE
-                    binding.progressEnrichment.progress = percentage
-                    binding.textProgressLabel.text = "elaborazione: $processed/$total ($percentage%)"
+                    binding.cardImportStatus.visibility = View.VISIBLE
+                    binding.progressBarImport.isIndeterminate = false
+                    binding.progressBarImport.progress = percentage
+                    binding.textProgressImport.text = "$processed / $total ($percentage%)"
+                    binding.textImportStatusTitle.text = "✨ Arricchimento in corso..."
+                    binding.textImportStatusDescription.text = "Recupero dati TMDB"
 
                     Log.d(TAG, "Progress visible: $percentage%")
                 }
                 else -> {
                     // COMPLETATO: mostra 100% per 2 secondi poi nascondi
-                    binding.layoutProgress.visibility = View.VISIBLE
-                    binding.progressEnrichment.progress = 100
-                    binding.textProgressLabel.text = "✅ completato: $total/$total (100%)"
+                    binding.cardImportStatus.visibility = View.VISIBLE
+                    binding.progressBarImport.progress = 100
+                    binding.textProgressImport.text = "$total / $total (100%)"
+                    binding.textImportStatusTitle.text = "✅ Completato!"
+                    binding.textImportStatusDescription.text = "$total film arricchiti"
 
                     Log.d(TAG, "Progress complete, hiding in 2s")
 
-                    binding.layoutProgress.postDelayed({
-                        binding.layoutProgress.visibility = View.GONE
+                    binding.cardImportStatus.postDelayed({
+                        binding.cardImportStatus.visibility = View.GONE
                         Log.d(TAG, "Progress hidden after completion")
                     }, 2000)
+                }
+            }
+        }
+
+        //Observer import status
+        homeViewModel.importStatus.observe(viewLifecycleOwner) { status ->
+            when (status) {
+                is ImportStatus.IDLE -> {
+                    // Nasconde card import
+                    binding.cardImportStatus.visibility = View.GONE
+                }
+
+                is ImportStatus.PARSING -> {
+                    // Mostra che sta leggendo il CSV
+                    binding.cardImportStatus.visibility = View.VISIBLE
+                    binding.textImportStatusTitle.text = "📖 Lettura CSV..."
+                    binding.textImportStatusDescription.text = "Analisi file in corso"
+                    binding.progressBarImport.isIndeterminate = true
+                }
+
+                is ImportStatus.SENDING_TO_BACKEND -> {
+                    // Mostra che sta inviando al backend
+                    binding.cardImportStatus.visibility = View.VISIBLE
+                    binding.textImportStatusTitle.text = "📤 Invio dati..."
+                    binding.textImportStatusDescription.text = "${status.count} film al backend"
+                    binding.progressBarImport.isIndeterminate = true
+                }
+
+                is ImportStatus.ENRICHING -> {
+                    // Mostra progress dettagliato con percentuale
+                    binding.cardImportStatus.visibility = View.VISIBLE
+                    binding.progressBarImport.isIndeterminate = false
+
+                    val percentage = if (status.total > 0) {
+                        (status.processed * 100) / status.total
+                    } else 0
+
+                    binding.progressBarImport.max = 100
+                    binding.progressBarImport.progress = percentage
+                    binding.textProgressImport.text = "${status.processed} / ${status.total} ($percentage%)"
+                    binding.textImportStatusTitle.text = "✨ Arricchimento in corso..."
+                    binding.textImportStatusDescription.text = "Recupero dati TMDB"
+
+                    if (status.currentMovie.isNotEmpty()) {
+                        binding.textCurrentMovieImport.text = "📽️ ${status.currentMovie}"
+                        binding.textCurrentMovieImport.visibility = View.VISIBLE
+                    } else {
+                        binding.textCurrentMovieImport.visibility = View.GONE
+                    }
+
+                    Log.d(TAG, "📊 Progress: ${status.processed}/${status.total} ($percentage%)")
+                }
+
+                is ImportStatus.COMPLETED -> {
+                    // Mostra completamento e poi nasconde dopo 2 secondi
+                    binding.cardImportStatus.visibility = View.VISIBLE
+                    binding.progressBarImport.isIndeterminate = false
+                    binding.progressBarImport.progress = 100
+                    binding.textProgressImport.text = "${status.total} / ${status.total} (100%)"
+                    binding.textImportStatusTitle.text = "✅ Completato!"
+                    binding.textImportStatusDescription.text = "${status.total} film importati"
+                    binding.textCurrentMovieImport.visibility = View.GONE
+
+                    Log.d(TAG, "✅ Import completato: ${status.total} film")
+
+                    // Nasconde dopo 2 secondi
+                    binding.cardImportStatus.postDelayed({
+                        binding.cardImportStatus.visibility = View.GONE
+                    }, 2000)
+                }
+
+                is ImportStatus.ERROR -> {
+                    // Mostra errore nella card
+                    binding.cardImportStatus.visibility = View.VISIBLE
+                    binding.progressBarImport.isIndeterminate = false
+                    binding.textImportStatusTitle.text = "❌ Errore"
+                    binding.textImportStatusDescription.text = status.message
+                    binding.textCurrentMovieImport.visibility = View.GONE
+
+                    Log.e(TAG, "❌ Import error: ${status.message}")
+
+                    // Nasconde dopo 5 secondi
+                    binding.cardImportStatus.postDelayed({
+                        binding.cardImportStatus.visibility = View.GONE
+                    }, 5000)
                 }
             }
         }
@@ -167,36 +257,41 @@ class HomeFragment : Fragment() {
         //observer message
         homeViewModel.message.observe(viewLifecycleOwner) { message ->
             if (message.isNotEmpty()) {
-                binding.textHomeMessage.text = message
-                binding.textHomeMessage.visibility = View.VISIBLE
+                binding.textMessage.text = message
+                binding.cardMessage.visibility = View.VISIBLE
+                Log.d(TAG, "messaggio mostrato: $message")
             } else {
-                binding.textHomeMessage.visibility = View.GONE
+                binding.cardMessage.visibility = View.GONE
             }
         }
 
-        //observer film count
+        //observer movies
         homeViewModel.movies.observe(viewLifecycleOwner) { movies ->
-            updateStatsUI(movies.size)
+            val movieCount = movies.size
+            Log.d(TAG, "aggiornamento lista film: $movieCount film totali")
+            updateStatsUI(movieCount)
         }
     }
 
-    //IMDB IMPORT DIALOGS
+    //DIALOG HELPERS
 
     private fun showImdbWatchedHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("📊 importa da imdb - film visti")
+            .setTitle("📥 importa film visti imdb")
             .setMessage(buildString {
-                appendLine("come ottenere il file:")
+                appendLine("come ottenere ratings.csv:")
                 appendLine()
                 appendLine("1. vai su imdb.com")
-                appendLine("2. clicca sul tuo profilo")
+                appendLine("2. accedi al tuo account")
                 appendLine("3. vai su 'Your Ratings'")
-                appendLine("4. clicca sui 3 puntini")
+                appendLine("4. clicca sui 3 puntini (⋮)")
                 appendLine("5. seleziona 'Export'")
-                appendLine("6. scarica 'ratings.csv'")
+                appendLine("6. scarica ratings.csv")
                 appendLine()
-                appendLine("il file conterrà tutti i film")
-                appendLine("che hai valutato su imdb")
+                appendLine("✨ il file contiene:")
+                appendLine("• tutti i film che hai valutato")
+                appendLine("• le tue votazioni")
+                appendLine("• date di visione")
             })
             .setPositiveButton("seleziona file") { _, _ ->
                 openImdbWatchedPicker()
@@ -207,19 +302,20 @@ class HomeFragment : Fragment() {
 
     private fun showImdbWatchlistHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("📝 importa da imdb - watchlist")
+            .setTitle("📥 importa watchlist imdb")
             .setMessage(buildString {
-                appendLine("come ottenere il file:")
+                appendLine("come ottenere watchlist.csv:")
                 appendLine()
                 appendLine("1. vai su imdb.com")
-                appendLine("2. clicca sul tuo profilo")
+                appendLine("2. accedi al tuo account")
                 appendLine("3. vai su 'Your Watchlist'")
-                appendLine("4. clicca sui 3 puntini")
+                appendLine("4. clicca sui 3 puntini (⋮)")
                 appendLine("5. seleziona 'Export'")
-                appendLine("6. scarica 'watchlist.csv'")
+                appendLine("6. scarica watchlist.csv")
                 appendLine()
-                appendLine("il file conterrà tutti i film")
-                appendLine("nella tua watchlist imdb")
+                appendLine("✨ il file contiene:")
+                appendLine("• film che vuoi vedere")
+                appendLine("• ordine della watchlist")
             })
             .setPositiveButton("seleziona file") { _, _ ->
                 openImdbWatchlistPicker()
@@ -228,25 +324,23 @@ class HomeFragment : Fragment() {
             .show()
     }
 
-    //LETTERBOXD IMPORT DIALOGS
-
     private fun showLetterboxdWatchedHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("🎬 importa da letterboxd - diary")
+            .setTitle("📥 importa diary letterboxd")
             .setMessage(buildString {
-                appendLine("come ottenere il file:")
+                appendLine("come ottenere diary.csv:")
                 appendLine()
                 appendLine("1. vai su letterboxd.com")
-                appendLine("2. clicca sul tuo profilo")
-                appendLine("3. vai su 'Settings'")
-                appendLine("4. vai su 'Import & Export'")
-                appendLine("5. clicca 'Export Your Data'")
-                appendLine("6. attendi email con link")
-                appendLine("7. scarica e apri il file zip")
-                appendLine("8. trova 'diary.csv'")
+                appendLine("2. accedi al tuo account")
+                appendLine("3. vai su Settings > Import & Export")
+                appendLine("4. clicca 'Export Your Data'")
+                appendLine("5. scarica diary.zip")
+                appendLine("6. estrai diary.csv")
                 appendLine()
-                appendLine("il file conterrà tutti i film")
-                appendLine("che hai registrato su letterboxd")
+                appendLine("✨ il file contiene:")
+                appendLine("• tutti i film visti")
+                appendLine("• date e votazioni")
+                appendLine("• recensioni")
             })
             .setPositiveButton("seleziona file") { _, _ ->
                 openLetterboxdWatchedPicker()
@@ -257,21 +351,20 @@ class HomeFragment : Fragment() {
 
     private fun showLetterboxdWatchlistHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("⭐ importa da letterboxd - watchlist")
+            .setTitle("📥 importa watchlist letterboxd")
             .setMessage(buildString {
-                appendLine("come ottenere il file:")
+                appendLine("come ottenere watchlist.csv:")
                 appendLine()
                 appendLine("1. vai su letterboxd.com")
-                appendLine("2. clicca sul tuo profilo")
-                appendLine("3. vai su 'Settings'")
-                appendLine("4. vai su 'Import & Export'")
-                appendLine("5. clicca 'Export Your Data'")
-                appendLine("6. attendi email con link")
-                appendLine("7. scarica e apri il file zip")
-                appendLine("8. trova 'watchlist.csv'")
+                appendLine("2. accedi al tuo account")
+                appendLine("3. vai su Settings > Import & Export")
+                appendLine("4. clicca 'Export Your Data'")
+                appendLine("5. scarica watchlist.zip")
+                appendLine("6. estrai watchlist.csv")
                 appendLine()
-                appendLine("il file conterrà tutti i film")
-                appendLine("nella tua watchlist letterboxd")
+                appendLine("✨ il file contiene:")
+                appendLine("• film da vedere")
+                appendLine("• ordine personalizzato")
             })
             .setPositiveButton("seleziona file") { _, _ ->
                 openLetterboxdWatchlistPicker()
@@ -383,21 +476,20 @@ class HomeFragment : Fragment() {
             showError("errore: ${e.message}")
         }
     }
+
     //UI HELPERS
 
     private fun updateLoadingUI(isLoading: Boolean) {
         binding.swipeRefresh.isRefreshing = isLoading
 
         if (isLoading) {
-            binding.progressBar.visibility = View.VISIBLE
-            binding.layoutButtons.alpha = 0.5f
-            binding.layoutButtons.isEnabled = false
+            // Disabilita pulsanti durante loading
             setButtonsEnabled(false)
+            Log.d(TAG, "⏳ Loading ON")
         } else {
-            binding.progressBar.visibility = View.GONE
-            binding.layoutButtons.alpha = 1f
-            binding.layoutButtons.isEnabled = true
+            // Riabilita pulsanti
             setButtonsEnabled(true)
+            Log.d(TAG, "✅ Loading OFF")
         }
     }
 
@@ -412,16 +504,15 @@ class HomeFragment : Fragment() {
     private fun updateStatsUI(movieCount: Int) {
         val stats = homeViewModel.getStats()
 
-        binding.textMovieCount.text = movieCount.toString()
-        binding.textWatchedCount.text = stats["watched"]?.toString() ?: "0"
-        binding.textWatchlistCount.text = stats["watchlist"]?.toString() ?: "0"
-        binding.textEnrichedCount.text = stats["enriched"]?.toString() ?: "0"
+        Log.d(TAG, "📊 Stats aggiornate: $movieCount film totali")
+        Log.d(TAG, "  - Watched: ${stats["watched"]}")
+        Log.d(TAG, "  - Watchlist: ${stats["watchlist"]}")
+        Log.d(TAG, "  - Enriched: ${stats["enriched"]}")
 
-        //mostra stats card solo se ci sono film
+        // Mostra stats nel messaggio se ci sono film
         if (movieCount > 0) {
-            binding.cardStats.visibility = View.VISIBLE
-
-            //calcola percentuale enrichment
+            val watchedCount = stats["watched"] ?: 0
+            val watchlistCount = stats["watchlist"] ?: 0
             val enrichedCount = stats["enriched"] ?: 0
             val enrichmentPercentage = if (movieCount > 0) {
                 (enrichedCount * 100) / movieCount
@@ -429,10 +520,17 @@ class HomeFragment : Fragment() {
                 0
             }
 
-            binding.textEnrichmentPercentage.text = "$enrichmentPercentage%"
-            binding.progressEnrichmentStats.progress = enrichmentPercentage
+            val statsMessage = buildString {
+                append("📊 $movieCount film totali")
+                append(" • 👁️ $watchedCount visti")
+                append(" • 📝 $watchlistCount watchlist")
+                append(" • ✨ $enrichedCount arricchiti ($enrichmentPercentage%)")
+            }
+
+            binding.textMessage.text = statsMessage
+            binding.cardMessage.visibility = View.VISIBLE
         } else {
-            binding.cardStats.visibility = View.GONE
+            binding.cardMessage.visibility = View.GONE
         }
     }
 

@@ -1,10 +1,10 @@
 package com.example.movieapp.config
 
 /**
- * Configurazione centralizzata app Android - SEMPLIFICATA
+ * Configurazione centralizzata app Android - OTTIMIZZATA
  *
- * ✅ RIMOSSO: Cache layer ridondante (CACHE_PREFS_NAME, ENABLE_CACHE, ecc.)
- * 💾 Il database PostgreSQL È già la cache!
+ * ✅ WebSocket URL corretto per Socket.IO
+ * ✅ Architettura semplificata (database = cache)
  */
 object AppConfig {
     // ===== BACKEND CONFIGURATION =====
@@ -14,7 +14,11 @@ object AppConfig {
     // URL costruiti automaticamente
     const val BASE_URL = "http://$BACKEND_HOST:$BACKEND_PORT/api/v1/"
     const val BACKEND_URL = "http://$BACKEND_HOST:$BACKEND_PORT"
-    const val WEBSOCKET_URL = "ws://$BACKEND_HOST:$BACKEND_PORT/ws"
+
+    // ✅ CORRETTO: Socket.IO URL (senza /ws nel path base)
+    // Il namespace /ws viene gestito da Socket.IO automaticamente
+    const val WEBSOCKET_URL = "http://$BACKEND_HOST:$BACKEND_PORT"
+    const val WEBSOCKET_NAMESPACE = "/ws"
 
     // ===== TIMEOUT CONNESSIONI (secondi) =====
     const val CONNECT_TIMEOUT = 30L
@@ -22,7 +26,6 @@ object AppConfig {
     const val WRITE_TIMEOUT = 30L
 
     // ===== SHARED PREFERENCES =====
-    // ❌ RIMOSSO: CACHE_PREFS_NAME (non serve più cache ridondante)
     const val REPO_PREFS_NAME = "movieapp_repository_v2"
     const val AUTH_PREFS_NAME = "movieapp_auth_v2"
 
@@ -30,22 +33,18 @@ object AppConfig {
     const val BATCH_SIZE = 50
 
     // ===== DATABASE CONFIGURATION =====
-    const val DATABASE_TYPE = "postgresql"  // ✅ Ora è chiaro: PostgreSQL è la nostra cache!
+    const val DATABASE_TYPE = "postgresql"
 
     // ===== APP METADATA =====
-    const val APP_VERSION = "2.2.0"  // ✅ Versione aggiornata (architettura semplificata)
+    const val APP_VERSION = "2.3.0"  // ✅ Versione con WebSocket fix + UX migliorata
     const val APP_NAME = "MovieApp"
 
     // ===== FEATURE FLAGS =====
     const val ENABLE_WEBSOCKET = true
-    // ❌ RIMOSSO: ENABLE_CACHE (il database È già la cache!)
     const val ENABLE_AUTO_SYNC = true
-    // ❌ RIMOSSO: ENABLE_OFFLINE_MODE (gestito direttamente dal repository/database)
+    const val ENABLE_REALTIME_PROGRESS = true  // ✅ Nuovo: progress bar real-time
 
     // ===== VALIDATION =====
-    /**
-     * Verifica configurazione backend valida
-     */
     fun isBackendConfigValid(): Boolean {
         return BACKEND_HOST.isNotEmpty() &&
                 BACKEND_PORT > 0 &&
@@ -53,33 +52,31 @@ object AppConfig {
     }
 
     // ===== LOGGING INFO =====
-    /**
-     * Info backend formattata per logging
-     */
     fun getBackendInfo(): Map<String, String> {
         return mapOf(
             "host" to BACKEND_HOST,
             "port" to BACKEND_PORT.toString(),
             "base_url" to BASE_URL,
             "websocket_url" to WEBSOCKET_URL,
+            "websocket_namespace" to WEBSOCKET_NAMESPACE,
             "version" to APP_VERSION,
             "database" to DATABASE_TYPE
         )
     }
 
-    /**
-     * Summary configurazione per debug
-     */
     fun getConfigSummary(): String {
         return buildString {
             appendLine("=== MOVIEAPP CONFIG v$APP_VERSION ===")
             appendLine("Backend: $BACKEND_HOST:$BACKEND_PORT")
+            appendLine("WebSocket: $WEBSOCKET_URL$WEBSOCKET_NAMESPACE")
             appendLine("Database: $DATABASE_TYPE (= Cache intelligente!)")
             appendLine("WebSocket: ${if (ENABLE_WEBSOCKET) "attivo" else "disattivo"}")
+            appendLine("Progress real-time: ${if (ENABLE_REALTIME_PROGRESS) "attivo" else "disattivo"}")
             appendLine("Auto-sync: ${if (ENABLE_AUTO_SYNC) "attivo" else "disattivo"}")
             appendLine()
             appendLine("💾 Architettura semplificata:")
             appendLine("   Database PostgreSQL = Cache permanente")
+            appendLine("   WebSocket per progress real-time")
             appendLine("   Nessuna duplicazione di dati")
         }
     }

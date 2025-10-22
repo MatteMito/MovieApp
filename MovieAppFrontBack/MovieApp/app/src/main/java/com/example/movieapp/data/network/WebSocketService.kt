@@ -7,20 +7,14 @@ import io.socket.client.Socket
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.net.URISyntaxException
 
 /**
- * Servizio WebSocket REALE per notifiche real-time dal backend
+ * Servizio WebSocket CORRETTO per notifiche real-time
  *
- * IMPORTANTE: Ricevi aggiornamenti in tempo reale durante l'enrichment!
- *
- * Installa le dipendenze necessarie in build.gradle:
- * implementation("io.socket:socket.io-client:2.1.0")
+ * ✅ FIX: URL corretto con namespace /ws
+ * ✅ Progress bar funzionante in tempo reale
  */
 class WebSocketService private constructor() {
 
@@ -32,15 +26,7 @@ class WebSocketService private constructor() {
     private val _enrichmentUpdates = MutableStateFlow<EnrichmentUpdate?>(null)
     val enrichmentUpdates: StateFlow<EnrichmentUpdate?> = _enrichmentUpdates.asStateFlow()
 
-    private val _chartUpdates = MutableStateFlow<ChartUpdate?>(null)
-    val chartUpdates: StateFlow<ChartUpdate?> = _chartUpdates.asStateFlow()
-
-    private val _systemNotifications = MutableStateFlow<SystemNotification?>(null)
-    val systemNotifications: StateFlow<SystemNotification?> = _systemNotifications.asStateFlow()
-
-    // 🔌 Socket.IO client reale
     private var socket: Socket? = null
-    private var currentSessionId: String? = null
     private var reconnectAttempts = 0
     private val maxReconnectAttempts = 5
 
@@ -57,20 +43,22 @@ class WebSocketService private constructor() {
 
     init {
         Log.d(TAG, "🔌 WebSocket Service inizializzato")
-        Log.d(TAG, "Backend URL: ${AppConfig.WEBSOCKET_URL}")
+        Log.d(TAG, "Backend: ${AppConfig.WEBSOCKET_URL}${AppConfig.WEBSOCKET_NAMESPACE}")
     }
 
     /**
-     * Connette al backend WebSocket usando Socket.IO
+     * Connette al backend WebSocket con namespace corretto
      */
-    fun connect(sessionId: String? = null) {
+    fun connect() {
         if (socket != null && socket!!.connected()) {
             Log.d(TAG, "⚠️ WebSocket già connesso")
             return
         }
 
-        Log.d(TAG, "🔌 Connessione a ${AppConfig.WEBSOCKET_URL}")
-        currentSessionId = sessionId
+        // ✅ COSTRUISCE URL COMPLETO: http://192.168.1.163:3001/ws
+        val fullUrl = "${AppConfig.WEBSOCKET_URL}${AppConfig.WEBSOCKET_NAMESPACE}"
+
+        Log.d(TAG, "🔌 Connessione a $fullUrl")
         _connectionStatus.value = ConnectionStatus.CONNECTING
 
         try {
@@ -79,53 +67,66 @@ class WebSocketService private constructor() {
                 reconnectionAttempts = maxReconnectAttempts
                 reconnectionDelay = 2000
                 timeout = 10000
+                transports = arrayOf("websocket", "polling")  // ✅ Fallback a polling
             }
 
-            socket = IO.socket(AppConfig.WEBSOCKET_URL, opts)
-
+            socket = IO.socket(fullUrl, opts)
             setupSocketListeners()
-
             socket?.connect()
 
+            Log.d(TAG, "✅ Socket.IO connect() chiamato")
+
         } catch (e: URISyntaxException) {
-            Log.e(TAG, "❌ Errore URI WebSocket", e)
+            Log.e(TAG, "❌ Errore URI WebSocket: ${e.message}", e)
             _connectionStatus.value = ConnectionStatus.ERROR
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore connessione WebSocket", e)
+            Log.e(TAG, "❌ Errore connessione WebSocket: ${e.message}", e)
             _connectionStatus.value = ConnectionStatus.ERROR
         }
     }
 
     /**
-     * Setup listeners per tutti gli eventi WebSocket
+     * Setup listeners per eventi WebSocket
      */
     private fun setupSocketListeners() {
         socket?.apply {
             // === EVENTI CONNESSIONE ===
+
             on(Socket.EVENT_CONNECT) {
-                Log.d(TAG, "✅ WebSocket connesso!")
+                Log.d(TAG, "✅ WebSocket CONNESSO!")
                 _connectionStatus.value = ConnectionStatus.CONNECTED
                 reconnectAttempts = 0
-
-                notifySystemStatus("✅ Backend connesso")
             }
 
-            on(Socket.EVENT_DISCONNECT) {
-                Log.d(TAG, "❌ WebSocket disconnesso")
+            on(Socket.EVENT_DISCONNECT) { args ->
+                val reason = args.firstOrNull()?.toString() ?: "unknown"
+                Log.w(TAG, "❌ WebSocket DISCONNESSO: $reason")
                 _connectionStatus.value = ConnectionStatus.DISCONNECTED
             }
 
             on(Socket.EVENT_CONNECT_ERROR) { args ->
-                Log.e(TAG, "❌ Errore connessione: ${args.firstOrNull()}")
+                val error = args.firstOrNull()?.toString() ?: "unknown error"
+                Log.e(TAG, "❌ ERRORE CONNESSIONE: $error")
                 _connectionStatus.value = ConnectionStatus.ERROR
+                reconnectAttempts++
             }
 
-            // === EVENTI ENRICHMENT (QUESTI SONO FONDAMENTALI PER LA PROGRESS BAR!) ===
+            // === EVENTO BENVENUTO ===
 
-            /**
-             * 📊 Aggiornamento progresso enrichment in tempo reale
-             * Questo evento viene emesso dal backend per ogni film processato
-             */
+            on("connection") { args ->
+                try {
+                    val data = args[0] as JSONObject
+                    val message = data.getString("message")
+                    val clientId = data.optString("clientId", "unknown")
+
+                    Log.d(TAG, "💬 Backend: $message (client: $clientId)")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Errore parsing connection message", e)
+                }
+            }
+
+            // === EVENTI ENRICHMENT (PROGRESS BAR!) ===
+
             on("enrichment:progress") { args ->
                 try {
                     val data = args[0] as JSONObject
@@ -148,21 +149,18 @@ class WebSocketService private constructor() {
 
                     _enrichmentUpdates.value = update
 
-                    Log.d(TAG, "📊 Progress: $processed/$total ($percentage%) - $currentMovie")
+                    Log.d(TAG, "📊 PROGRESS: $processed/$total ($percentage%) - $currentMovie")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Errore parsing progress", e)
+                    Log.e(TAG, "❌ Errore parsing progress", e)
                 }
             }
 
-            /**
-             * ✅ Enrichment completato
-             */
             on("enrichment:completed") { args ->
                 try {
                     val data = args[0] as JSONObject
                     val sessionId = data.getString("sessionId")
                     val total = data.getInt("total")
-                    val successful = data.getInt("successful")
+                    val successful = data.optInt("successful", total)
                     val message = data.getString("message")
 
                     val update = EnrichmentUpdate(
@@ -170,122 +168,64 @@ class WebSocketService private constructor() {
                         type = "completed",
                         total = total,
                         processed = total,
+                        currentMovie = "",
                         message = message,
                         percentage = 100
                     )
 
                     _enrichmentUpdates.value = update
 
-                    Log.d(TAG, "✅ Enrichment completato: $successful/$total")
+                    Log.d(TAG, "✅ COMPLETATO: $successful/$total film")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Errore parsing completed", e)
+                    Log.e(TAG, "❌ Errore parsing completed", e)
                 }
             }
 
-            /**
-             * ❌ Errore enrichment
-             */
             on("enrichment:error") { args ->
                 try {
                     val data = args[0] as JSONObject
                     val sessionId = data.getString("sessionId")
-                    val error = data.getString("error")
+                    val error = data.optString("error", "unknown error")
                     val message = data.getString("message")
 
                     val update = EnrichmentUpdate(
                         sessionId = sessionId,
                         type = "error",
+                        total = 0,
+                        processed = 0,
+                        currentMovie = "",
                         message = message,
                         percentage = 0
                     )
 
                     _enrichmentUpdates.value = update
 
-                    Log.e(TAG, "❌ Errore enrichment: $error")
+                    Log.e(TAG, "❌ ERRORE ENRICHMENT: $error")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Errore parsing error", e)
+                    Log.e(TAG, "❌ Errore parsing error", e)
                 }
             }
 
-            // === EVENTI BATCH ===
-            on("batch:completed") { args ->
-                try {
-                    val data = args[0] as JSONObject
-                    val message = data.getString("message")
-                    notifySystemStatus(message)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Errore parsing batch", e)
-                }
+            // === EVENTI DEBUG ===
+
+            on("error") { args ->
+                val error = args.firstOrNull()?.toString() ?: "unknown"
+                Log.e(TAG, "❌ Socket error: $error")
             }
 
-            // === EVENTI GRAFICI ===
-            on("chart:update") { args ->
-                try {
-                    val data = args[0] as JSONObject
-                    val chartType = data.getString("type")
-                    val dataPoints = data.getInt("dataPoints")
-                    val message = data.getString("message")
-
-                    val chartUpdate = ChartUpdate(
-                        type = chartType,
-                        status = "generated",
-                        dataPoints = dataPoints,
-                        message = message
-                    )
-
-                    _chartUpdates.value = chartUpdate
-
-                    Log.d(TAG, "📈 Grafico aggiornato: $chartType")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Errore parsing chart", e)
-                }
+            on("reconnect") { args ->
+                val attempt = args.firstOrNull() as? Int ?: 0
+                Log.d(TAG, "🔄 Reconnecting... (attempt $attempt)")
             }
 
-            on("chart:error") { args ->
-                try {
-                    val data = args[0] as JSONObject
-                    val chartType = data.getString("type")
-                    val error = data.getString("error")
-
-                    val chartUpdate = ChartUpdate(
-                        type = chartType,
-                        status = "error",
-                        dataPoints = 0,
-                        message = error,
-                        error = error
-                    )
-
-                    _chartUpdates.value = chartUpdate
-
-                    Log.e(TAG, "❌ Errore grafico: $chartType")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Errore parsing chart error", e)
-                }
+            on("reconnect_attempt") { args ->
+                val attempt = args.firstOrNull() as? Int ?: 0
+                Log.d(TAG, "🔄 Reconnect attempt $attempt/$maxReconnectAttempts")
             }
 
-            // === EVENTI SISTEMA ===
-            on("system:notification") { args ->
-                try {
-                    val data = args[0] as JSONObject
-                    val type = data.getString("type")
-                    val message = data.getString("message")
-
-                    notifySystemStatus(message)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Errore parsing system", e)
-                }
-            }
-
-            // === MESSAGGIO CONNESSIONE ===
-            on("connection") { args ->
-                try {
-                    val data = args[0] as JSONObject
-                    val message = data.getString("message")
-                    Log.d(TAG, "💬 Backend: $message")
-                    notifySystemStatus(message)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Errore parsing connection", e)
-                }
+            on("reconnect_failed") {
+                Log.e(TAG, "❌ Reconnect FAILED dopo $maxReconnectAttempts tentativi")
+                _connectionStatus.value = ConnectionStatus.ERROR
             }
         }
     }
@@ -294,25 +234,12 @@ class WebSocketService private constructor() {
      * Disconnette dal WebSocket
      */
     fun disconnect() {
-        Log.d(TAG, "🔌 Disconnessione WebSocket")
+        Log.d(TAG, "🔌 Disconnessione WebSocket...")
         socket?.disconnect()
         socket?.off()
         socket = null
         _connectionStatus.value = ConnectionStatus.DISCONNECTED
-        currentSessionId = null
         reconnectAttempts = 0
-    }
-
-    /**
-     * Notifica sistema
-     */
-    private fun notifySystemStatus(message: String) {
-        val notification = SystemNotification(
-            type = "system",
-            message = message,
-            timestamp = System.currentTimeMillis()
-        )
-        _systemNotifications.value = notification
     }
 
     /**
@@ -321,12 +248,23 @@ class WebSocketService private constructor() {
     fun isConnected(): Boolean = socket?.connected() ?: false
 
     /**
-     * Reset tutti gli stati
+     * Reset stato enrichment
      */
     fun reset() {
         _enrichmentUpdates.value = null
-        _chartUpdates.value = null
-        _systemNotifications.value = null
+    }
+
+    /**
+     * Info debug
+     */
+    fun getDebugInfo(): Map<String, Any> {
+        return mapOf(
+            "connected" to isConnected(),
+            "status" to _connectionStatus.value.name,
+            "url" to "${AppConfig.WEBSOCKET_URL}${AppConfig.WEBSOCKET_NAMESPACE}",
+            "reconnect_attempts" to reconnectAttempts,
+            "max_attempts" to maxReconnectAttempts
+        )
     }
 }
 
@@ -341,24 +279,10 @@ enum class ConnectionStatus {
 
 data class EnrichmentUpdate(
     val sessionId: String,
-    val type: String, // "progress", "completed", "error", "connected"
-    val total: Int = 0,
-    val processed: Int = 0,
-    val currentMovie: String = "",
+    val type: String, // "progress", "completed", "error"
+    val total: Int,
+    val processed: Int,
+    val currentMovie: String,
     val message: String,
     val percentage: Int
-)
-
-data class ChartUpdate(
-    val type: String,
-    val status: String, // "generating", "generated", "error"
-    val dataPoints: Int,
-    val message: String,
-    val error: String? = null
-)
-
-data class SystemNotification(
-    val type: String,
-    val message: String,
-    val timestamp: Long
 )
