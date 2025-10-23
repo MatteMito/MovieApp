@@ -17,12 +17,11 @@ import com.example.movieapp.databinding.FragmentHomeBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
- * HomeFragment MINIMALISTA
+ * HomeFragment FIXED
  *
- * ✅ UI pulita con solo info essenziali
- * ✅ Stats sempre visibili (Totali | Visti | Da vedere)
- * ✅ Progress bar accurata (0-100%)
- * ✅ Testi semplici e chiari
+ * ✅ NO card messaggi sotto IMDB
+ * ✅ Stats aggiornate dopo OGNI import (cumulativo)
+ * ✅ Progress bar con cap massimo per evitare >100%
  */
 class HomeFragment : Fragment() {
 
@@ -91,7 +90,7 @@ class HomeFragment : Fragment() {
 
         homeViewModel.initialize(requireContext())
 
-        Log.d(TAG, "✅ HomeFragment creato")
+        Log.d(TAG, "✅ HomeFragment creato FIXED")
         return binding.root
     }
 
@@ -121,6 +120,11 @@ class HomeFragment : Fragment() {
         binding.swipeRefresh.setOnRefreshListener {
             Log.d(TAG, "🔄 Refresh")
             homeViewModel.forceBackendSync()
+
+            // Aggiorna stats dopo sync
+            binding.swipeRefresh.postDelayed({
+                updatePermanentStatsCard()
+            }, 500)
         }
     }
 
@@ -130,13 +134,13 @@ class HomeFragment : Fragment() {
             updateLoadingUI(isLoading)
         }
 
-        // ✅ OBSERVER MOVIES: Aggiorna stats permanenti
+        // ✅ OBSERVER MOVIES: Aggiorna stats SEMPRE quando cambiano i film
         homeViewModel.movies.observe(viewLifecycleOwner) { movies ->
             updatePermanentStatsCard()
-            Log.d(TAG, "📊 ${movies.size} film")
+            Log.d(TAG, "📊 Movies aggiornati: ${movies.size} film")
         }
 
-        // ✅ OBSERVER ENRICHMENT PROGRESS: Gestisce progress bar
+        // ✅ OBSERVER ENRICHMENT PROGRESS: Con CAP per evitare >100%
         homeViewModel.enrichmentProgress.observe(viewLifecycleOwner) { (processed, total) ->
             when {
                 total == 0 -> {
@@ -144,21 +148,27 @@ class HomeFragment : Fragment() {
                     binding.layoutImportProgress.visibility = View.GONE
                 }
                 processed < total -> {
-                    // ✅ IMPORT IN CORSO
+                    // ✅ IMPORT IN CORSO con CAP
                     binding.layoutImportProgress.visibility = View.VISIBLE
 
+                    // ✅ CAP: Se processed > total, usa total come max
+                    val cappedProcessed = if (processed > total) total else processed
+
                     val percentage = if (total > 0) {
-                        (processed * 100) / total
+                        (cappedProcessed * 100) / total
                     } else {
                         0
                     }
 
+                    // ✅ CAP percentuale a 100
+                    val cappedPercentage = if (percentage > 100) 100 else percentage
+
                     binding.progressBarImport.isIndeterminate = false
-                    binding.progressBarImport.progress = percentage
-                    binding.textProgressImport.text = "$processed / $total ($percentage%)"
+                    binding.progressBarImport.progress = cappedPercentage
+                    binding.textProgressImport.text = "$cappedProcessed / $total ($cappedPercentage%)"
                     binding.textImportTitle.text = "✨ Import in corso..."
 
-                    Log.d(TAG, "📊 $processed/$total ($percentage%)")
+                    Log.d(TAG, "📊 Progress: $cappedProcessed/$total ($cappedPercentage%) [original: $processed]")
                 }
                 else -> {
                     // ✅ COMPLETATO
@@ -170,18 +180,21 @@ class HomeFragment : Fragment() {
 
                     Log.d(TAG, "✅ Import completato!")
 
-                    // Aggiorna stats
+                    // ✅ CRITICO: Aggiorna stats SUBITO dopo completamento
                     updatePermanentStatsCard()
 
                     // Nascondi dopo 2 secondi
                     binding.layoutImportProgress.postDelayed({
                         binding.layoutImportProgress.visibility = View.GONE
+
+                        // ✅ Aggiorna di nuovo per sicurezza
+                        updatePermanentStatsCard()
                     }, 2000)
                 }
             }
         }
 
-        //Observer import status (per stati speciali)
+        //Observer import status
         homeViewModel.importStatus.observe(viewLifecycleOwner) { status ->
             when (status) {
                 is ImportStatus.IDLE -> {
@@ -208,16 +221,21 @@ class HomeFragment : Fragment() {
                     binding.layoutImportProgress.visibility = View.VISIBLE
                     binding.progressBarImport.isIndeterminate = false
 
+                    // ✅ CAP: processed non può superare total
+                    val cappedProcessed = if (status.processed > status.total) status.total else status.processed
+
                     val percentage = if (status.total > 0) {
-                        (status.processed * 100) / status.total
+                        (cappedProcessed * 100) / status.total
                     } else 0
 
+                    // ✅ CAP percentuale
+                    val cappedPercentage = if (percentage > 100) 100 else percentage
+
                     binding.progressBarImport.max = 100
-                    binding.progressBarImport.progress = percentage
-                    binding.textProgressImport.text = "${status.processed} / ${status.total} ($percentage%)"
+                    binding.progressBarImport.progress = cappedPercentage
+                    binding.textProgressImport.text = "$cappedProcessed / ${status.total} ($cappedPercentage%)"
                     binding.textImportTitle.text = "✨ Import in corso..."
 
-                    // Mostra titolo film in modo minimale (solo titolo, no emoji)
                     if (status.currentMovie.isNotEmpty()) {
                         binding.textCurrentMovieImport.text = status.currentMovie
                     } else {
@@ -233,12 +251,17 @@ class HomeFragment : Fragment() {
                     binding.textImportTitle.text = "✅ Completato!"
                     binding.textCurrentMovieImport.text = ""
 
-                    // Aggiorna stats
+                    Log.d(TAG, "✅ Import COMPLETED")
+
+                    // ✅ CRITICO: Forza aggiornamento stats
                     updatePermanentStatsCard()
 
                     // Nascondi dopo 2 secondi
                     binding.layoutImportProgress.postDelayed({
                         binding.layoutImportProgress.visibility = View.GONE
+
+                        // ✅ Aggiorna ancora per sicurezza
+                        updatePermanentStatsCard()
                     }, 2000)
                 }
 
@@ -259,20 +282,12 @@ class HomeFragment : Fragment() {
             }
         }
 
-        //observer message (solo per info importanti/errori)
-        homeViewModel.message.observe(viewLifecycleOwner) { message ->
-            // Mostra solo se è un messaggio importante
-            if (message.isNotEmpty() && (message.contains("❌") || message.contains("⚠️"))) {
-                binding.textMessage.text = message
-                binding.cardMessage.visibility = View.VISIBLE
-            } else {
-                binding.cardMessage.visibility = View.GONE
-            }
-        }
+        // ✅ NO observer per message - rimuoviamo completamente
     }
 
     /**
      * ✅ Aggiorna card statistiche permanente
+     * Chiamato SEMPRE dopo ogni modifica ai film
      */
     private fun updatePermanentStatsCard() {
         val stats = homeViewModel.getStats()
@@ -285,10 +300,10 @@ class HomeFragment : Fragment() {
         binding.textWatchedMovies.text = watched.toString()
         binding.textWatchlistMovies.text = watchlist.toString()
 
-        Log.d(TAG, "📊 Stats: $total totali ($watched visti, $watchlist da vedere)")
+        Log.d(TAG, "📊 Stats aggiornate: $total totali ($watched visti, $watchlist da vedere)")
     }
 
-    //DIALOG HELPERS - VERSIONE MINIMALE
+    //DIALOG HELPERS
 
     private fun showImdbWatchedHelp() {
         MaterialAlertDialogBuilder(requireContext())
@@ -502,6 +517,8 @@ class HomeFragment : Fragment() {
             .setPositiveButton("Elimina") { _, _ ->
                 homeViewModel.clearAllData()
                 Toast.makeText(requireContext(), "Dati eliminati", Toast.LENGTH_SHORT).show()
+
+                // ✅ Aggiorna stats dopo clear
                 updatePermanentStatsCard()
             }
             .setNegativeButton("Annulla", null)
@@ -513,8 +530,9 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Aggiorna stats quando il fragment torna visibile
+        // ✅ Aggiorna stats quando il fragment torna visibile
         updatePermanentStatsCard()
+        Log.d(TAG, "Fragment resumed - stats aggiornate")
     }
 
     override fun onDestroyView() {

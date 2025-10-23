@@ -219,7 +219,7 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Header text - IMDB -->
+            <!-- Header text - IMDB (NO CARD MESSAGGI SOTTO!) -->
             <TextView
                 android:id="@+id/text_header"
                 android:layout_width="wrap_content"
@@ -228,32 +228,9 @@
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="12dp"
+                android:layout_marginTop="8dp"
                 app:layout_constraintTop_toBottomOf="@id/card_stats_permanent"
                 app:layout_constraintStart_toStartOf="parent" />
-
-            <!-- Card messaggio backend (solo per errori) -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/card_message"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:visibility="gone"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/text_header">
-
-                <TextView
-                    android:id="@+id/text_message"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="12dp"
-                    android:textColor="@color/black"
-                    android:textSize="13sp"
-                    tools:text="✅ Import completato" />
-
-            </com.google.android.material.card.MaterialCardView>
 
             <!-- Bottone Importa IMDB Watched -->
             <Button
@@ -265,7 +242,7 @@
                 android:textAllCaps="false"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/card_message" />
+                app:layout_constraintTop_toBottomOf="@id/text_header" />
 
             <!-- Bottone Importa IMDB Watchlist -->
             <Button

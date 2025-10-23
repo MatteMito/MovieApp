@@ -332,11 +332,12 @@ class HomeViewModel : ViewModel() {
     }
 
     /**
-     * ENRICHMENT con backend
+     * ENRICHMENT con backend - FIXED VERSION
      *
      * ✅ Backend controlla database e arricchisce solo film nuovi
      * ✅ WebSocket invia progress real-time
      * ✅ Film aggiunti SOLO dopo conferma dal database
+     * ✅ NUOVO: Force sync immediato dopo import per aggiornare stats
      */
     private suspend fun performEnrichmentWithBackend(movies: List<Movie>) {
         try {
@@ -389,7 +390,7 @@ class HomeViewModel : ViewModel() {
                             runtime = dto.runtime,
                             userRating = dto.userRating,
                             dateRated = dto.watchedDate,
-                            isWatched = dto.isWatched,
+                            isWatched = dto.isWatched,  // ← Preservato correttamente
                             source = try {
                                 com.example.movieapp.data.models.DataSource.valueOf(dto.source)
                             } catch (_: Exception) {
@@ -408,6 +409,17 @@ class HomeViewModel : ViewModel() {
 
                     Log.d(TAG, "💾 Sincronizzati ${enrichedMovies.size} film dal database")
 
+                    // ✅ NUOVO: Force sync immediato per aggiornare stats correttamente
+                    Log.d(TAG, "🔄 Force sync dal database per stats aggiornate...")
+                    delay(800)  // Piccolo delay per permettere al backend di completare il save
+
+                    try {
+                        syncWithBackend()  // ← Force sync immediato!
+                        Log.d(TAG, "✅ Sync completato - stats aggiornate")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "⚠️ Sync fallito (non critico): ${e.message}")
+                    }
+
                     val summary = buildString {
                         appendLine("✅ Importazione completata!")
                         appendLine()
@@ -418,6 +430,17 @@ class HomeViewModel : ViewModel() {
                         if (enrichmentResult.cacheHits > 0) {
                             appendLine("⚡ ${enrichmentResult.cacheHits} già in database")
                         }
+                        appendLine()
+
+                        // ✅ NUOVO: Mostra stats aggiornate nel messaggio
+                        val stats = repository.getStats()
+                        val total = stats["total"] ?: 0
+                        val watched = stats["watched"] ?: 0
+                        val watchlist = stats["watchlist"] ?: 0
+
+                        appendLine("🎬 Totale collezione: $total film")
+                        appendLine("   • $watched visti")
+                        appendLine("   • $watchlist da vedere")
                         appendLine()
                         appendLine("💡 Vai su 'Statistiche' per i grafici!")
                     }

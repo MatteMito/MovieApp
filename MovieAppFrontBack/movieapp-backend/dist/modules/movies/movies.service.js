@@ -36,6 +36,7 @@ let MoviesService = MoviesService_1 = class MoviesService {
             successRate: 0,
             cacheHits: 0,
         };
+        let lastReportedProgress = 0;
         try {
             const alreadyEnriched = [];
             const needEnrichment = [];
@@ -63,14 +64,23 @@ let MoviesService = MoviesService_1 = class MoviesService {
             this.logger.log(`   già arricchiti in db: ${alreadyEnriched.length}`);
             this.logger.log(`   da arricchire: ${needEnrichment.length}`);
             result.successfulMovies.push(...alreadyEnriched);
-            await this.websocketGateway.notifyEnrichmentProgress(sessionId, alreadyEnriched.length, movies.length, undefined);
+            lastReportedProgress = alreadyEnriched.length;
+            await this.websocketGateway.notifyEnrichmentProgress(sessionId, lastReportedProgress, movies.length, undefined);
             if (needEnrichment.length > 0) {
                 this.logger.log(`🔍 avvio enrichment tmdb per ${needEnrichment.length} film`);
                 const enrichmentResult = await this.tmdbService.enrichMovies(needEnrichment, {
                     onProgress: async (processed, total, currentMovie) => {
-                        const totalProcessed = alreadyEnriched.length + processed;
-                        this.logger.debug(`progress: ${totalProcessed}/${movies.length} (${currentMovie})`);
-                        await this.websocketGateway.notifyEnrichmentProgress(sessionId, totalProcessed, movies.length, currentMovie);
+                        const calculatedProgress = alreadyEnriched.length + processed;
+                        const cappedProgress = Math.min(calculatedProgress, movies.length);
+                        const monotonicProgress = Math.max(cappedProgress, lastReportedProgress);
+                        if (monotonicProgress > lastReportedProgress) {
+                            lastReportedProgress = monotonicProgress;
+                            this.logger.debug(`📊 progress: ${monotonicProgress}/${movies.length} (${currentMovie})`);
+                            await this.websocketGateway.notifyEnrichmentProgress(sessionId, monotonicProgress, movies.length, currentMovie);
+                        }
+                        else {
+                            this.logger.debug(`⏭️  skip progress update: calculated=${calculatedProgress}, capped=${cappedProgress}, last=${lastReportedProgress}`);
+                        }
                     },
                 });
                 if (enrichmentResult.successfulMovies.length > 0) {

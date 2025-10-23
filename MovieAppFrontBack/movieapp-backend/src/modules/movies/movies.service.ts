@@ -21,11 +21,9 @@ export class MoviesService {
     private readonly websocketGateway: WebsocketGateway,
   ) {}
 
-  // ENRICHMENT INTELLIGENTE CON FLAG is_enriched
-
   /**
-   * arricchisce film con dati tmdb usando cache e flag database verificando prima is_enriched per evitare duplicazioni
-   * notifica progress via websocket in real-time
+   * arricchisce film con dati tmdb usando cache e flag database
+   * Progress monotono + Cap al 100%
    */
   async enrichMovies(movies: Movie[]): Promise<EnrichmentResult> {
     const sessionId = uuidv4();
@@ -43,6 +41,9 @@ export class MoviesService {
       cacheHits: 0,
     };
 
+    // ✅ CRITICAL FIX: Tracker monotono per progress
+    let lastReportedProgress = 0;
+
     try {
       // STEP 1: separa film già arricchiti da quelli da processare
       const alreadyEnriched: Movie[] = [];
@@ -55,10 +56,8 @@ export class MoviesService {
         );
 
         if (existing && existing.tmdb_id) {
-          // film già nel database con dati tmdb
           this.logger.debug(`✅ già arricchito in db: ${movie.title}`);
 
-          // merge dati utente con dati esistenti
           const merged: Movie = {
             ...existing,
             id: movie.id,
@@ -69,11 +68,9 @@ export class MoviesService {
             source: movie.source,
           };
 
-          //utilizza dati esistenti
           alreadyEnriched.push(merged);
           result.cacheHits++;
         } else {
-          //dati da arricchire con TMDB
           needEnrichment.push(movie);
         }
       }
@@ -82,13 +79,15 @@ export class MoviesService {
       this.logger.log(`   già arricchiti in db: ${alreadyEnriched.length}`);
       this.logger.log(`   da arricchire: ${needEnrichment.length}`);
 
-      // aggiungi film già arricchiti ai risultati
       result.successfulMovies.push(...alreadyEnriched);
+
+      // ✅ FIXED: Inizializza last reported con film già arricchiti
+      lastReportedProgress = alreadyEnriched.length;
 
       // notifica websocket stato iniziale
       await this.websocketGateway.notifyEnrichmentProgress(
         sessionId,
-        alreadyEnriched.length,
+        lastReportedProgress,
         movies.length,
         undefined,
       );
@@ -101,23 +100,42 @@ export class MoviesService {
           needEnrichment,
           {
             onProgress: async (processed, total, currentMovie) => {
-              const totalProcessed = alreadyEnriched.length + processed;
+              // ✅ CRITICAL FIX: Progress monotono con cap
+              
+              // Calcola progress grezzo
+              const calculatedProgress = alreadyEnriched.length + processed;
+              
+              // CAP 1: Non superare il totale
+              const cappedProgress = Math.min(calculatedProgress, movies.length);
+              
+              // CAP 2: Non tornare indietro (monotonic)
+              const monotonicProgress = Math.max(cappedProgress, lastReportedProgress);
+              
+              // Invia update SOLO se aumentato
+              if (monotonicProgress > lastReportedProgress) {
+                lastReportedProgress = monotonicProgress;
 
-              this.logger.debug(
-                `progress: ${totalProcessed}/${movies.length} (${currentMovie})`,
-              );
+                this.logger.debug(
+                  `📊 progress: ${monotonicProgress}/${movies.length} (${currentMovie})`,
+                );
 
-              await this.websocketGateway.notifyEnrichmentProgress(
-                sessionId,
-                totalProcessed,
-                movies.length,
-                currentMovie,
-              );
+                await this.websocketGateway.notifyEnrichmentProgress(
+                  sessionId,
+                  monotonicProgress,
+                  movies.length,
+                  currentMovie,
+                );
+              } else {
+                // Log dettagliato per debugging
+                this.logger.debug(
+                  `⏭️  skip progress update: calculated=${calculatedProgress}, capped=${cappedProgress}, last=${lastReportedProgress}`,
+                );
+              }
             },
           },
         );
 
-        // STEP 3: salva film arricchiti in database con flag is_enriched
+        // STEP 3: salva film arricchiti in database
         if (enrichmentResult.successfulMovies.length > 0) {
           this.logger.log(
             `💾 salvataggio ${enrichmentResult.successfulMovies.length} film arricchiti`,
@@ -148,7 +166,7 @@ export class MoviesService {
       this.logger.log(`falliti: ${result.failedMovies.length}`);
       this.logger.log(`success rate: ${(result.successRate * 100).toFixed(1)}%`);
 
-      // notifica websocket completamento
+      // ✅ FIXED: Notifica con lastReportedProgress (garantito = movies.length)
       await this.websocketGateway.notifyEnrichmentCompleted(
         sessionId,
         result.totalProcessed,
