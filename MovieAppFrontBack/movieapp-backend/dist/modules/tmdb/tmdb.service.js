@@ -327,7 +327,7 @@ let TmdbService = TmdbService_1 = class TmdbService {
             tmdb_id: tmdb.id,
             genres: tmdb.genres?.map((g) => g.name) || [],
             director: tmdb.credits?.crew?.find((c) => c.job === 'Director')?.name,
-            cast: tmdb.credits?.cast?.slice(0, 10).map((c) => c.name) || [],
+            actors: tmdb.credits?.cast?.slice(0, 10).map((c) => c.name) || [],
             overview: tmdb.overview,
             tagline: tmdb.tagline,
             poster_url: tmdb.poster_path

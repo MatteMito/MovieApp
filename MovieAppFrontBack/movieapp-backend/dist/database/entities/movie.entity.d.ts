@@ -4,7 +4,7 @@ export declare class MovieEntity {
     year?: number;
     director?: string;
     genres: string[];
-    cast: string[];
+    actors?: string[];
     overview?: string;
     tagline?: string;
     runtime?: number;

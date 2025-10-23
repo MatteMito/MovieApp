@@ -1,9 +1,13 @@
 package com.example.movieapp.data.models
 
+import com.google.gson.annotations.SerializedName
 import java.io.Serializable
 
 /**
  * data class film con tutti i campi tmdb del backend
+ *
+ * NOTA: Il backend usa "actors" invece di "cast" (cast è parola riservata SQL)
+ * Usiamo @SerializedName per mappare automaticamente actors -> cast
  */
 data class Movie(
     val id: String,
@@ -11,7 +15,11 @@ data class Movie(
     val year: Int? = null,
     val director: String? = null,
     val genres: List<String> = emptyList(),
+
+    // 🔧 MODIFICATO: Mappa "actors" dal backend a "cast" nel frontend
+    @SerializedName("actors")
     val cast: List<String> = emptyList(),
+
     val overview: String? = null,
     val tagline: String? = null,
     val runtime: Int? = null,
@@ -101,7 +109,12 @@ data class Movie(
             tmdbId = tmdbData["tmdbId"] as? Int ?: tmdbId,
             genres = (tmdbData["genres"] as? List<*>)?.filterIsInstance<String>() ?: genres,
             director = tmdbData["director"] as? String ?: director,
-            cast = (tmdbData["cast"] as? List<*>)?.filterIsInstance<String>() ?: cast,
+
+            // 🔧 MODIFICATO: Accetta sia "cast" che "actors" dalla mappa
+            cast = (tmdbData["actors"] as? List<*>)?.filterIsInstance<String>()
+                ?: (tmdbData["cast"] as? List<*>)?.filterIsInstance<String>()
+                ?: cast,
+
             overview = tmdbData["overview"] as? String ?: overview,
             tagline = tmdbData["tagline"] as? String ?: tagline,
             posterUrl = tmdbData["posterUrl"] as? String ?: posterUrl,

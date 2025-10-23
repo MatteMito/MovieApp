@@ -11,6 +11,7 @@ import {
   HttpStatus,
   HttpException,
   Logger,
+  Headers, // 🆕 AGGIUNTO per gestire userId
 } from '@nestjs/common';
 import { MoviesService } from './movies.service';
 import { Movie } from '../../common/interfaces/movie.interface';
@@ -144,19 +145,39 @@ export class MoviesController {
   }
 
   /**
-   * POST /api/v1/movies/batch
-   * batch upload watchlist + watched con auto-enrichment
+   * 🔄 MODIFICATO: POST /api/v1/movies/batch
+   * batch upload watchlist + watched con auto-enrichment e associazione utente
+   * 
+   * IMPORTANTE: Ritorna i contatori in 2 fasi:
+   * 1. Subito dopo l'import: watchedFromFile, watchlistFromFile
+   * 2. Dopo refresh: totalWatched, totalWatchlist
    */
   @Post('batch')
   async batchUpload(
-    @Body() body: { watchlist: Movie[]; watched: Movie[] },
+    @Body() body: { watchlist: Movie[]; watched: Movie[]; userId: string }, // 🆕 userId nel body
+    @Headers('user-id') headerUserId?: string, // 🆕 alternativa: userId nell'header
   ): Promise<ApiResponse> {
     try {
+      // Prendi userId dal body o dall'header
+      const userId = body.userId || headerUserId;
+
+      if (!userId) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'userId mancante. Fornire userId nel body o nell\'header user-id',
+            timestamp: new Date().toISOString(),
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       this.logger.log(
-        `📦 batch upload: ${body.watchlist.length} watchlist + ${body.watched.length} watched`,
+        `📦 batch upload per utente ${userId}: ${body.watchlist.length} watchlist + ${body.watched.length} watched`,
       );
 
-      const result = await this.moviesService.batchUpload(
+      const result = await this.moviesService.batchUploadWithUserAssociation(
+        userId,
         body.watchlist,
         body.watched,
       );
@@ -164,11 +185,33 @@ export class MoviesController {
       this.logger.log(
         `✅ batch upload completato: ${result.summary.totalEnriched} film arricchiti`,
       );
+      
+      this.logger.log(
+        `📊 Contatori: ${result.importCounters.watchedFromFile} watched e ${result.importCounters.watchlistFromFile} watchlist nel file`,
+      );
 
+      // Struttura la risposta con i contatori separati
       return {
         success: true,
-        data: result,
-        message: `batch completato: ${result.summary.totalMovies} film processati`,
+        data: {
+          ...result,
+          // Evidenzia i contatori nella risposta
+          counters: {
+            // Contatori dal file importato (disponibili subito)
+            fromFile: {
+              watched: result.importCounters.watchedFromFile,
+              watchlist: result.importCounters.watchlistFromFile,
+              total: result.importCounters.watchedFromFile + result.importCounters.watchlistFromFile,
+            },
+            // Contatori totali (disponibili dopo refresh)
+            afterRefresh: {
+              watched: result.importCounters.totalWatched,
+              watchlist: result.importCounters.totalWatchlist,
+              total: result.importCounters.totalWatched + result.importCounters.totalWatchlist,
+            },
+          },
+        },
+        message: `batch completato: ${result.summary.totalMovies} film processati per utente ${userId}`,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
@@ -188,20 +231,117 @@ export class MoviesController {
   // GESTIONE FILM
 
   /**
-   * GET /api/v1/movies/all
-   * recupera tutti i film dal database
+   * 🆕 NUOVO: GET /api/v1/movies/user/:userId
+   * recupera tutti i film di un utente specifico
+   */
+  @Get('user/:userId')
+  async getUserMovies(
+    @Param('userId') userId: string,
+    @Query('status') status?: 'watched' | 'watchlist',
+    @Query('query') query?: string,
+    @Query('genre') genre?: string,
+    @Query('year') year?: string,
+    @Query('director') director?: string,
+    @Query('minRating') minRating?: string,
+    @Query('maxRating') maxRating?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ): Promise<ApiResponse> {
+    try {
+      this.logger.log(`📚 richiesta film per utente: ${userId}`);
+
+      const filters = {
+        status,
+        query,
+        genre,
+        year: year ? parseInt(year, 10) : undefined,
+        director,
+        minRating: minRating ? parseFloat(minRating) : undefined,
+        maxRating: maxRating ? parseFloat(maxRating) : undefined,
+        sortBy,
+        sortOrder,
+        limit: limit ? parseInt(limit, 10) : undefined,
+        offset: offset ? parseInt(offset, 10) : undefined,
+      };
+
+      const result = await this.moviesService.getUserMovies(userId, filters);
+
+      return {
+        success: true,
+        data: {
+          movies: result.movies,
+          total: result.total,
+          filters,
+        },
+        message: `recuperati ${result.movies.length} di ${result.total} film per utente ${userId}`,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`errore recupero film utente: ${error.message}`);
+
+      throw new HttpException(
+        {
+          success: false,
+          message: 'errore recupero film utente',
+          timestamp: new Date().toISOString(),
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * 🆕 NUOVO: GET /api/v1/movies/user/:userId/stats
+   * recupera statistiche film di un utente
+   * Questi sono i contatori TOTALI corretti (watched e watchlist)
+   */
+  @Get('user/:userId/stats')
+  async getUserStats(@Param('userId') userId: string): Promise<ApiResponse> {
+    try {
+      this.logger.log(`📊 richiesta statistiche per utente: ${userId}`);
+
+      const stats = await this.moviesService.getUserStats(userId);
+
+      return {
+        success: true,
+        data: stats,
+        message: `statistiche recuperate per utente ${userId}`,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`errore statistiche utente: ${error.message}`);
+
+      throw new HttpException(
+        {
+          success: false,
+          message: 'errore recupero statistiche utente',
+          timestamp: new Date().toISOString(),
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * 🔄 DEPRECATO: GET /api/v1/movies/all
+   * Ora dovrebbe essere usato GET /api/v1/movies/user/:userId
+   * Mantenuto per retrocompatibilità ma deprecato
    */
   @Get('all')
   async getAllMovies(): Promise<ApiResponse> {
+    this.logger.warn('⚠️ Endpoint /all deprecato. Usare /user/:userId');
+    
     try {
-      this.logger.log('📚 richiesta tutti i film');
+      this.logger.log('📚 richiesta tutti i film (deprecato)');
 
       const movies = await this.moviesService.getAllMovies();
 
       return {
         success: true,
         data: { movies },
-        message: `recuperati ${movies.length} film`,
+        message: `recuperati ${movies.length} film - ATTENZIONE: endpoint deprecato, usare /user/:userId`,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {

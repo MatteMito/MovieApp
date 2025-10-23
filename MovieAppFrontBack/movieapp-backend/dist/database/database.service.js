@@ -179,6 +179,21 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
             throw error;
         }
     }
+    async getMoviesByIds(movieIds) {
+        try {
+            if (movieIds.length === 0) {
+                return [];
+            }
+            const entities = await this.movieRepository.findByIds(movieIds);
+            const movies = entities.map((entity) => this.entityToMovie(entity));
+            this.logger.debug(`📚 recuperati ${movies.length} film da ${movieIds.length} IDs`);
+            return movies;
+        }
+        catch (error) {
+            this.logger.error(`errore recupero film by IDs: ${error.message}`);
+            return [];
+        }
+    }
     async saveMovies(movies) {
         try {
             this.logger.log(`📦 avvio salvataggio batch: ${movies.length} film`);
@@ -445,6 +460,85 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
             return null;
         }
     }
+    async updateMovie(id, updates) {
+        try {
+            const entity = await this.movieRepository.findOne({ where: { id } });
+            if (!entity) {
+                throw new Error(`Movie ${id} not found`);
+            }
+            Object.assign(entity, this.movieToEntity({ ...this.entityToMovie(entity), ...updates }));
+            const updated = await this.movieRepository.save(entity);
+            this.logger.debug(`✅ film ${id} aggiornato`);
+            return this.entityToMovie(updated);
+        }
+        catch (error) {
+            this.logger.error(`errore aggiornamento film ${id}: ${error.message}`);
+            throw error;
+        }
+    }
+    async deleteMovie(id) {
+        try {
+            const entity = await this.movieRepository.findOne({ where: { id } });
+            if (!entity) {
+                throw new Error(`Movie ${id} not found`);
+            }
+            await this.movieRepository.remove(entity);
+            this.logger.debug(`✅ film ${id} eliminato`);
+        }
+        catch (error) {
+            this.logger.error(`errore eliminazione film ${id}: ${error.message}`);
+            throw error;
+        }
+    }
+    async getMovieByTmdbId(tmdbId) {
+        try {
+            const entity = await this.movieRepository.findOne({
+                where: { tmdb_id: tmdbId }
+            });
+            if (!entity) {
+                this.logger.debug(`film non trovato per tmdb_id: ${tmdbId}`);
+                return null;
+            }
+            return this.entityToMovie(entity);
+        }
+        catch (error) {
+            this.logger.error(`errore recupero film tmdb_id ${tmdbId}: ${error.message}`);
+            return null;
+        }
+    }
+    async saveOrUpdateMovie(movie) {
+        try {
+            let existing = await this.findMovieByTitleYear(movie.title, movie.year);
+            if (existing) {
+                return await this.updateMovie(existing.id, movie);
+            }
+            else {
+                const entity = await this.saveMovie(movie);
+                return this.entityToMovie(entity);
+            }
+        }
+        catch (error) {
+            this.logger.error(`errore save/update film ${movie.title}: ${error.message}`);
+            throw error;
+        }
+    }
+    async getCachedTmdbData(title, year) {
+        try {
+            const cacheKey = `${title.toLowerCase()}_${year || 'unknown'}`;
+            return await this.getTmdbCache(cacheKey);
+        }
+        catch (error) {
+            this.logger.error(`errore recupero cache per ${title}: ${error.message}`);
+            return null;
+        }
+    }
+    async associateMovieWithUser(userId, movieId, isWatched) {
+        this.logger.debug(`associazione film ${movieId} con utente ${userId} (watched: ${isWatched})`);
+    }
+    async getUserMovies(userId) {
+        this.logger.debug(`recupero film per utente ${userId}`);
+        return await this.getAllMovies();
+    }
     movieToEntity(movie) {
         const entity = new movie_entity_1.MovieEntity();
         entity.id = movie.id;
@@ -458,7 +552,7 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
         entity.tmdb_id = movie.tmdb_id;
         entity.genres = movie.genres?.length > 0 ? movie.genres : undefined;
         entity.director = movie.director;
-        entity.cast = movie.cast?.length > 0 ? movie.cast : undefined;
+        entity.actors = movie.actors?.length > 0 ? movie.actors : undefined;
         entity.overview = movie.overview;
         entity.tagline = movie.tagline;
         entity.poster_url = movie.poster_url;
@@ -500,7 +594,7 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
             tmdb_id: entity.tmdb_id,
             genres: entity.genres || [],
             director: entity.director,
-            cast: entity.cast || [],
+            actors: entity.actors || [],
             overview: entity.overview,
             tagline: entity.tagline,
             poster_url: entity.poster_url,

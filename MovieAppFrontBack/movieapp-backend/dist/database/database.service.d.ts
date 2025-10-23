@@ -26,6 +26,7 @@ export declare class DatabaseService implements OnModuleInit {
     cleanExpiredTmdbCache(): Promise<number>;
     getTmdbCacheStats(): Promise<any>;
     saveMovie(movie: Movie): Promise<MovieEntity>;
+    getMoviesByIds(movieIds: string[]): Promise<Movie[]>;
     saveMovies(movies: Movie[]): Promise<MovieEntity[]>;
     getAllMovies(): Promise<Movie[]>;
     getMovieById(id: string): Promise<Movie | null>;
@@ -42,6 +43,13 @@ export declare class DatabaseService implements OnModuleInit {
     getEnrichmentStatus(sessionId: string): Promise<EnrichmentStatus | null>;
     saveAnalytics(userId: string, analyticsData: any): Promise<void>;
     getAnalytics(userId: string): Promise<any | null>;
+    updateMovie(id: string, updates: Partial<Movie>): Promise<Movie>;
+    deleteMovie(id: string): Promise<void>;
+    getMovieByTmdbId(tmdbId: number): Promise<Movie | null>;
+    saveOrUpdateMovie(movie: Movie): Promise<Movie>;
+    getCachedTmdbData(title: string, year?: number): Promise<any | null>;
+    associateMovieWithUser(userId: string, movieId: string, isWatched: boolean): Promise<void>;
+    getUserMovies(userId: string): Promise<Movie[]>;
     private movieToEntity;
     private entityToMovie;
     isDatabaseAvailable(): boolean;

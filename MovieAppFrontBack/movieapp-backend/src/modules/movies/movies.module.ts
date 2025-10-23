@@ -11,10 +11,14 @@ import { MovieEntity } from '../../database/entities/movie.entity';
 import { TmdbCacheEntity } from '../../database/entities/tmdb-cache.entity';
 import { DatabaseModule } from '../../database/database.module';
 import { WebsocketModule } from '../websocket/websocket.module';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
+import { UserMovieEntity } from '../../database/entities/user-movie.entity';
+import { UserMoviesService } from './user-movies.service';
+import { DatabaseService } from '../../database/database.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MovieEntity, TmdbCacheEntity]),
+    TypeOrmModule.forFeature([MovieEntity, TmdbCacheEntity, UserMovieEntity]),
     HttpModule.register({
       timeout: 30000,
       maxRedirects: 5,
@@ -24,7 +28,7 @@ import { WebsocketModule } from '../websocket/websocket.module';
     WebsocketModule,
   ],
   controllers: [MoviesController],
-  providers: [MoviesService, TmdbService],
-  exports: [MoviesService, TmdbService],
+  providers: [MoviesService, DatabaseService, TmdbService, WebsocketGateway, UserMoviesService],
+  exports: [MoviesService, UserMoviesService],
 })
 export class MoviesModule {}

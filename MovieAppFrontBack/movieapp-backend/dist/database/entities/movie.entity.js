@@ -38,9 +38,9 @@ __decorate([
     __metadata("design:type", Array)
 ], MovieEntity.prototype, "genres", void 0);
 __decorate([
-    (0, typeorm_1.Column)('text', { array: true, default: [] }),
+    (0, typeorm_1.Column)({ type: 'text', array: true, nullable: true }),
     __metadata("design:type", Array)
-], MovieEntity.prototype, "cast", void 0);
+], MovieEntity.prototype, "actors", void 0);
 __decorate([
     (0, typeorm_1.Column)('text', { nullable: true }),
     __metadata("design:type", String)

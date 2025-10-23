@@ -19,7 +19,10 @@ export declare class MoviesController {
     batchUpload(body: {
         watchlist: Movie[];
         watched: Movie[];
-    }): Promise<ApiResponse>;
+        userId: string;
+    }, headerUserId?: string): Promise<ApiResponse>;
+    getUserMovies(userId: string, status?: 'watched' | 'watchlist', query?: string, genre?: string, year?: string, director?: string, minRating?: string, maxRating?: string, sortBy?: string, sortOrder?: 'ASC' | 'DESC', limit?: string, offset?: string): Promise<ApiResponse>;
+    getUserStats(userId: string): Promise<ApiResponse>;
     getAllMovies(): Promise<ApiResponse>;
     getMovieById(id: string): Promise<ApiResponse>;
     getUnenrichedMovies(): Promise<ApiResponse>;

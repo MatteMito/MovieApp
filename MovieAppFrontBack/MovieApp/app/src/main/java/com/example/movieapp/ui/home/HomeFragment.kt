@@ -22,6 +22,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
  * ✅ NO card messaggi sotto IMDB
  * ✅ Stats aggiornate dopo OGNI import (cumulativo)
  * ✅ Progress bar con cap massimo per evitare >100%
+ * ✅ NUOVO: Observer per contatori separati (file vs totale)
  */
 class HomeFragment : Fragment() {
 
@@ -138,6 +139,24 @@ class HomeFragment : Fragment() {
         homeViewModel.movies.observe(viewLifecycleOwner) { movies ->
             updatePermanentStatsCard()
             Log.d(TAG, "📊 Movies aggiornati: ${movies.size} film")
+        }
+
+        // 🆕 NUOVO: Observer contatori dal file importato
+        homeViewModel.fileCounters.observe(viewLifecycleOwner) { (watched, watchlist) ->
+            Log.d(TAG, "📥 Contatori file: $watched visti, $watchlist da vedere")
+            // Questi sono i contatori del file appena importato
+            // Puoi mostrarli in UI se hai un TextView dedicato, esempio:
+            // binding.textFileCounters?.text = "File: $watched visti, $watchlist da vedere"
+        }
+
+        // 🆕 NUOVO: Observer contatori totali (dopo refresh)
+        homeViewModel.totalCounters.observe(viewLifecycleOwner) { (watched, watchlist) ->
+            Log.d(TAG, "📊 Contatori totali: $watched visti, $watchlist da vedere")
+
+            // ✅ Aggiorna le stats card con i contatori corretti
+            binding.textWatchedMovies.text = watched.toString()
+            binding.textWatchlistMovies.text = watchlist.toString()
+            binding.textTotalMovies.text = (watched + watchlist).toString()
         }
 
         // ✅ OBSERVER ENRICHMENT PROGRESS: Con CAP per evitare >100%

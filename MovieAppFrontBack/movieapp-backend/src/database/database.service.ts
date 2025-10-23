@@ -236,6 +236,29 @@ export class DatabaseService implements OnModuleInit {
   }
 
   /**
+   * Recupera multipli film tramite array di IDs
+   * Utile per recuperare i film di un utente specifico
+   */
+  async getMoviesByIds(movieIds: string[]): Promise<Movie[]> {
+    try {
+      if (movieIds.length === 0) {
+        return [];
+      }
+
+      const entities = await this.movieRepository.findByIds(movieIds);
+
+      const movies = entities.map((entity) => this.entityToMovie(entity));
+
+      this.logger.debug(`📚 recuperati ${movies.length} film da ${movieIds.length} IDs`);
+
+      return movies;
+    } catch (error) {
+      this.logger.error(`errore recupero film by IDs: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
    * salva multipli film in batch con chunk ottimizzati
    * usa transaction per garantire atomicità
    */
@@ -599,6 +622,131 @@ export class DatabaseService implements OnModuleInit {
     }
   }
 
+  /**
+   * Update movie
+   */
+  async updateMovie(id: string, updates: Partial<Movie>): Promise<Movie> {
+    try {
+      const entity = await this.movieRepository.findOne({ where: { id } });
+      
+      if (!entity) {
+        throw new Error(`Movie ${id} not found`);
+      }
+
+      // Aggiorna i campi
+      Object.assign(entity, this.movieToEntity({ ...this.entityToMovie(entity), ...updates }));
+      
+      const updated = await this.movieRepository.save(entity);
+      
+      this.logger.debug(`✅ film ${id} aggiornato`);
+      
+      return this.entityToMovie(updated);
+    } catch (error) {
+      this.logger.error(`errore aggiornamento film ${id}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete movie
+   */
+  async deleteMovie(id: string): Promise<void> {
+    try {
+      const entity = await this.movieRepository.findOne({ where: { id } });
+      
+      if (!entity) {
+        throw new Error(`Movie ${id} not found`);
+      }
+
+      await this.movieRepository.remove(entity);
+      
+      this.logger.debug(`✅ film ${id} eliminato`);
+    } catch (error) {
+      this.logger.error(`errore eliminazione film ${id}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get movie by TMDB ID
+   */
+  async getMovieByTmdbId(tmdbId: number): Promise<Movie | null> {
+    try {
+      const entity = await this.movieRepository.findOne({ 
+        where: { tmdb_id: tmdbId } 
+      });
+
+      if (!entity) {
+        this.logger.debug(`film non trovato per tmdb_id: ${tmdbId}`);
+        return null;
+      }
+
+      return this.entityToMovie(entity);
+    } catch (error) {
+      this.logger.error(`errore recupero film tmdb_id ${tmdbId}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Save or update movie (upsert)
+   */
+  async saveOrUpdateMovie(movie: Movie): Promise<Movie> {
+    try {
+      // Cerca se esiste già
+      let existing = await this.findMovieByTitleYear(movie.title, movie.year);
+
+      if (existing) {
+        // Aggiorna
+        return await this.updateMovie(existing.id, movie);
+      } else {
+        // Crea nuovo
+        const entity = await this.saveMovie(movie);
+        return this.entityToMovie(entity);
+      }
+    } catch (error) {
+      this.logger.error(`errore save/update film ${movie.title}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get cached TMDB data by title and year
+   */
+  async getCachedTmdbData(title: string, year?: number): Promise<any | null> {
+    try {
+      const cacheKey = `${title.toLowerCase()}_${year || 'unknown'}`;
+      return await this.getTmdbCache(cacheKey);
+    } catch (error) {
+      this.logger.error(`errore recupero cache per ${title}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Associate movie with user (stub - da implementare con user-movies service)
+   */
+  async associateMovieWithUser(
+    userId: string,
+    movieId: string,
+    isWatched: boolean,
+  ): Promise<void> {
+    this.logger.debug(
+      `associazione film ${movieId} con utente ${userId} (watched: ${isWatched})`,
+    );
+    // Implementazione delegata a UserMoviesService
+  }
+
+  /**
+   * Get user movies (stub - da implementare con user-movies service)
+   */
+  async getUserMovies(userId: string): Promise<Movie[]> {
+    this.logger.debug(`recupero film per utente ${userId}`);
+    // Implementazione delegata a UserMoviesService
+    // Per ora ritorna tutti i film
+    return await this.getAllMovies();
+  }
+
   // UTILITY: CONVERSIONI ENTITY <-> MODEL
 
   /**
@@ -619,7 +767,7 @@ export class DatabaseService implements OnModuleInit {
     entity.tmdb_id = movie.tmdb_id;
     entity.genres = movie.genres?.length > 0 ? movie.genres : undefined;
     entity.director = movie.director;
-    entity.cast = movie.cast?.length > 0 ? movie.cast : undefined;
+    entity.actors = movie.actors?.length > 0 ? movie.actors : undefined;
     entity.overview = movie.overview;
     entity.tagline = movie.tagline;
     entity.poster_url = movie.poster_url;
@@ -669,7 +817,7 @@ export class DatabaseService implements OnModuleInit {
       tmdb_id: entity.tmdb_id,
       genres: entity.genres || [],
       director: entity.director,
-      cast: entity.cast || [],
+      actors: entity.actors || [],
       overview: entity.overview,
       tagline: entity.tagline,
       poster_url: entity.poster_url,

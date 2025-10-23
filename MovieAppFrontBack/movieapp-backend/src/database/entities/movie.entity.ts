@@ -30,8 +30,8 @@ export class MovieEntity {
   @Column('text', { array: true, default: [] })
   genres: string[];
 
-  @Column('text', { array: true, default: [] })
-  cast: string[];
+  @Column({ type: 'text', array: true, nullable: true })
+  actors?: string[];
 
   @Column('text', { nullable: true })
   overview?: string;

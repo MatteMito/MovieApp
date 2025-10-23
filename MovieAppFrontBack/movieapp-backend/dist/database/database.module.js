@@ -12,7 +12,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const config_1 = require("@nestjs/config");
 const database_service_1 = require("./database.service");
 const movie_entity_1 = require("./entities/movie.entity");
-const user_entity_1 = require("./entities/user.entity");
+const user_movie_entity_1 = require("./entities/user-movie.entity");
 const tmdb_cache_entity_1 = require("./entities/tmdb-cache.entity");
 let DatabaseModule = class DatabaseModule {
 };
@@ -20,7 +20,7 @@ exports.DatabaseModule = DatabaseModule;
 exports.DatabaseModule = DatabaseModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([movie_entity_1.MovieEntity, user_entity_1.UserEntity, tmdb_cache_entity_1.TmdbCacheEntity]),
+            typeorm_1.TypeOrmModule.forFeature([movie_entity_1.MovieEntity, tmdb_cache_entity_1.TmdbCacheEntity, user_movie_entity_1.UserMovieEntity]),
             config_1.ConfigModule,
         ],
         providers: [database_service_1.DatabaseService],

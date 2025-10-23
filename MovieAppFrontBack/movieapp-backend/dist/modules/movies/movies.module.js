@@ -18,13 +18,17 @@ const movie_entity_1 = require("../../database/entities/movie.entity");
 const tmdb_cache_entity_1 = require("../../database/entities/tmdb-cache.entity");
 const database_module_1 = require("../../database/database.module");
 const websocket_module_1 = require("../websocket/websocket.module");
+const websocket_gateway_1 = require("../websocket/websocket.gateway");
+const user_movie_entity_1 = require("../../database/entities/user-movie.entity");
+const user_movies_service_1 = require("./user-movies.service");
+const database_service_1 = require("../../database/database.service");
 let MoviesModule = class MoviesModule {
 };
 exports.MoviesModule = MoviesModule;
 exports.MoviesModule = MoviesModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([movie_entity_1.MovieEntity, tmdb_cache_entity_1.TmdbCacheEntity]),
+            typeorm_1.TypeOrmModule.forFeature([movie_entity_1.MovieEntity, tmdb_cache_entity_1.TmdbCacheEntity, user_movie_entity_1.UserMovieEntity]),
             axios_1.HttpModule.register({
                 timeout: 30000,
                 maxRedirects: 5,
@@ -34,8 +38,8 @@ exports.MoviesModule = MoviesModule = __decorate([
             websocket_module_1.WebsocketModule,
         ],
         controllers: [movies_controller_1.MoviesController],
-        providers: [movies_service_1.MoviesService, tmdb_service_1.TmdbService],
-        exports: [movies_service_1.MoviesService, tmdb_service_1.TmdbService],
+        providers: [movies_service_1.MoviesService, database_service_1.DatabaseService, tmdb_service_1.TmdbService, websocket_gateway_1.WebsocketGateway, user_movies_service_1.UserMoviesService],
+        exports: [movies_service_1.MoviesService, user_movies_service_1.UserMoviesService],
     })
 ], MoviesModule);
 //# sourceMappingURL=movies.module.js.map

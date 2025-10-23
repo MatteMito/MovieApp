@@ -91,15 +91,38 @@ let MoviesController = MoviesController_1 = class MoviesController {
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async batchUpload(body) {
+    async batchUpload(body, headerUserId) {
         try {
-            this.logger.log(`📦 batch upload: ${body.watchlist.length} watchlist + ${body.watched.length} watched`);
-            const result = await this.moviesService.batchUpload(body.watchlist, body.watched);
+            const userId = body.userId || headerUserId;
+            if (!userId) {
+                throw new common_1.HttpException({
+                    success: false,
+                    message: 'userId mancante. Fornire userId nel body o nell\'header user-id',
+                    timestamp: new Date().toISOString(),
+                }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            this.logger.log(`📦 batch upload per utente ${userId}: ${body.watchlist.length} watchlist + ${body.watched.length} watched`);
+            const result = await this.moviesService.batchUploadWithUserAssociation(userId, body.watchlist, body.watched);
             this.logger.log(`✅ batch upload completato: ${result.summary.totalEnriched} film arricchiti`);
+            this.logger.log(`📊 Contatori: ${result.importCounters.watchedFromFile} watched e ${result.importCounters.watchlistFromFile} watchlist nel file`);
             return {
                 success: true,
-                data: result,
-                message: `batch completato: ${result.summary.totalMovies} film processati`,
+                data: {
+                    ...result,
+                    counters: {
+                        fromFile: {
+                            watched: result.importCounters.watchedFromFile,
+                            watchlist: result.importCounters.watchlistFromFile,
+                            total: result.importCounters.watchedFromFile + result.importCounters.watchlistFromFile,
+                        },
+                        afterRefresh: {
+                            watched: result.importCounters.totalWatched,
+                            watchlist: result.importCounters.totalWatchlist,
+                            total: result.importCounters.totalWatched + result.importCounters.totalWatchlist,
+                        },
+                    },
+                },
+                message: `batch completato: ${result.summary.totalMovies} film processati per utente ${userId}`,
                 timestamp: new Date().toISOString(),
             };
         }
@@ -112,14 +135,72 @@ let MoviesController = MoviesController_1 = class MoviesController {
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getAllMovies() {
+    async getUserMovies(userId, status, query, genre, year, director, minRating, maxRating, sortBy, sortOrder, limit, offset) {
         try {
-            this.logger.log('📚 richiesta tutti i film');
+            this.logger.log(`📚 richiesta film per utente: ${userId}`);
+            const filters = {
+                status,
+                query,
+                genre,
+                year: year ? parseInt(year, 10) : undefined,
+                director,
+                minRating: minRating ? parseFloat(minRating) : undefined,
+                maxRating: maxRating ? parseFloat(maxRating) : undefined,
+                sortBy,
+                sortOrder,
+                limit: limit ? parseInt(limit, 10) : undefined,
+                offset: offset ? parseInt(offset, 10) : undefined,
+            };
+            const result = await this.moviesService.getUserMovies(userId, filters);
+            return {
+                success: true,
+                data: {
+                    movies: result.movies,
+                    total: result.total,
+                    filters,
+                },
+                message: `recuperati ${result.movies.length} di ${result.total} film per utente ${userId}`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore recupero film utente: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: 'errore recupero film utente',
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getUserStats(userId) {
+        try {
+            this.logger.log(`📊 richiesta statistiche per utente: ${userId}`);
+            const stats = await this.moviesService.getUserStats(userId);
+            return {
+                success: true,
+                data: stats,
+                message: `statistiche recuperate per utente ${userId}`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore statistiche utente: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: 'errore recupero statistiche utente',
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getAllMovies() {
+        this.logger.warn('⚠️ Endpoint /all deprecato. Usare /user/:userId');
+        try {
+            this.logger.log('📚 richiesta tutti i film (deprecato)');
             const movies = await this.moviesService.getAllMovies();
             return {
                 success: true,
                 data: { movies },
-                message: `recuperati ${movies.length} film`,
+                message: `recuperati ${movies.length} film - ATTENZIONE: endpoint deprecato, usare /user/:userId`,
                 timestamp: new Date().toISOString(),
             };
         }
@@ -290,10 +371,36 @@ __decorate([
 __decorate([
     (0, common_1.Post)('batch'),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('user-id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], MoviesController.prototype, "batchUpload", null);
+__decorate([
+    (0, common_1.Get)('user/:userId'),
+    __param(0, (0, common_1.Param)('userId')),
+    __param(1, (0, common_1.Query)('status')),
+    __param(2, (0, common_1.Query)('query')),
+    __param(3, (0, common_1.Query)('genre')),
+    __param(4, (0, common_1.Query)('year')),
+    __param(5, (0, common_1.Query)('director')),
+    __param(6, (0, common_1.Query)('minRating')),
+    __param(7, (0, common_1.Query)('maxRating')),
+    __param(8, (0, common_1.Query)('sortBy')),
+    __param(9, (0, common_1.Query)('sortOrder')),
+    __param(10, (0, common_1.Query)('limit')),
+    __param(11, (0, common_1.Query)('offset')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String]),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "getUserMovies", null);
+__decorate([
+    (0, common_1.Get)('user/:userId/stats'),
+    __param(0, (0, common_1.Param)('userId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "getUserStats", null);
 __decorate([
     (0, common_1.Get)('all'),
     __metadata("design:type", Function),
