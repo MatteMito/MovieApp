@@ -1,21 +1,24 @@
-// interfacce movie complete con snake_case consistente
+// File: src/common/interfaces/movie.interface.ts
+// AGGIORNATO: rimossi campi utente (ora in UserMovieEntity)
 
 export interface Movie {
+  // ===== IDENTIFICATORI =====
   id: string;
   title: string;
   year?: number;
+  source: string;
+
+  // ⚠️ RIMOSSI: user_rating, watched_date, user_review, is_watched
+  // Questi campi sono ora gestiti in UserMovieEntity
+
+  // ===== DATI TMDB =====
+  tmdb_id?: number;
   director?: string;
   genres?: string[];
   actors?: string[];
   overview?: string;
   tagline?: string;
   runtime?: number;
-  user_rating?: number;
-  watched_date?: string;
-  user_review?: string;
-  is_watched: boolean;
-  source: string;
-  tmdb_id?: number;
   poster_url?: string;
   backdrop_url?: string;
   tmdb_rating?: number;
@@ -35,9 +38,13 @@ export interface Movie {
   keywords?: string[];
   certification?: string;
   trailer_url?: string;
+  
+  // ===== TIMESTAMP =====
   created_at?: Date;
   updated_at?: Date;
 }
+
+// ===== INTERFACCE PER ENRICHMENT =====
 
 export interface EnrichmentResult {
   sessionId: string;
@@ -66,6 +73,8 @@ export interface BatchUploadResult {
     cacheHitsTotal: number;
   };
 }
+
+// ===== INTERFACCE TMDB =====
 
 export interface TmdbSearchResult {
   id: number;
@@ -184,9 +193,11 @@ export interface TmdbCredits {
   }>;
 }
 
-// Enum DataSource per evitare import dalla entity
+// ===== ENUM =====
+
 export enum DataSource {
-  IMDB = 'imdb',
-  LETTERBOXD = 'letterboxd',
-  MANUAL = 'manual',
+  IMDB = 'IMDB',
+  LETTERBOXD = 'LETTERBOXD',
+  MANUAL = 'MANUAL',
+  UNKNOWN = 'UNKNOWN',
 }

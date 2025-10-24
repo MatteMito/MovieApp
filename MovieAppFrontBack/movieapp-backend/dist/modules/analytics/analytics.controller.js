@@ -21,10 +21,13 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
         this.analyticsService = analyticsService;
         this.logger = new common_1.Logger(AnalyticsController_1.name);
     }
-    async getBasicStats() {
+    async getBasicStats(userId) {
         try {
-            this.logger.log('richiesta stats base');
-            const stats = await this.analyticsService.getBasicStats();
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            this.logger.log(`📊 statistiche base richieste per utente ${userId}`);
+            const stats = await this.analyticsService.getBasicStats(userId);
             return {
                 success: true,
                 data: stats,
@@ -33,208 +36,129 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
             };
         }
         catch (error) {
-            this.logger.error(`errore stats base: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero statistiche',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            this.logger.error(`errore statistiche base: ${error.message}`);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getGenreStats(limit) {
+    async getGenreStats(userId, limit) {
         try {
-            const limitNum = limit ? parseInt(limit) : 10;
-            this.logger.log(`richiesta stats generi (limit: ${limitNum})`);
-            const stats = await this.analyticsService.getGenreStats(limitNum);
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            const limitNum = limit ? parseInt(limit, 10) : 10;
+            this.logger.log(`📊 statistiche generi per utente ${userId}`);
+            const stats = await this.analyticsService.getGenreStats(userId);
+            const limitedStats = stats.slice(0, limitNum);
+            return {
+                success: true,
+                data: limitedStats,
+                message: `top ${limitedStats.length} generi`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore statistiche generi: ${error.message}`);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getYearStats(userId) {
+        try {
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            this.logger.log(`📊 statistiche anni per utente ${userId}`);
+            const stats = await this.analyticsService.getYearStats(userId);
             return {
                 success: true,
                 data: stats,
-                message: `top ${stats.length} generi recuperati`,
+                message: 'distribuzione per anno',
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
-            this.logger.error(`errore stats generi: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero statistiche generi',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            this.logger.error(`errore statistiche anni: ${error.message}`);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getYearStats() {
+    async getDirectorStats(userId, limit) {
         try {
-            this.logger.log('richiesta stats anni');
-            const stats = await this.analyticsService.getYearStats();
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            const limitNum = limit ? parseInt(limit, 10) : 10;
+            this.logger.log(`📊 statistiche registi per utente ${userId}`);
+            const stats = await this.analyticsService.getDirectorStats(userId);
+            const limitedStats = stats.slice(0, limitNum);
             return {
                 success: true,
-                data: stats,
-                message: `statistiche ${stats.length} anni recuperate`,
+                data: limitedStats,
+                message: `top ${limitedStats.length} registi`,
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
-            this.logger.error(`errore stats anni: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero statistiche anni',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            this.logger.error(`errore statistiche registi: ${error.message}`);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getDirectorStats(limit) {
+    async getAdvancedAnalytics(userId) {
         try {
-            const limitNum = limit ? parseInt(limit) : 10;
-            this.logger.log(`richiesta stats registi (limit: ${limitNum})`);
-            const stats = await this.analyticsService.getDirectorStats(limitNum);
-            return {
-                success: true,
-                data: stats,
-                message: `top ${stats.length} registi recuperati`,
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore stats registi: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero statistiche registi',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    async getRatingDistribution() {
-        try {
-            this.logger.log('richiesta distribuzione rating');
-            const distribution = await this.analyticsService.getRatingDistribution();
-            return {
-                success: true,
-                data: distribution,
-                message: 'distribuzione rating recuperata',
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore distribuzione rating: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero distribuzione rating',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    async getDecadeDistribution() {
-        try {
-            this.logger.log('richiesta distribuzione decadi');
-            const distribution = await this.analyticsService.getDecadeDistribution();
-            return {
-                success: true,
-                data: distribution,
-                message: 'distribuzione decadi recuperata',
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore distribuzione decadi: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero distribuzione decadi',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    async getAdvancedAnalytics() {
-        try {
-            this.logger.log('richiesta analytics avanzate');
-            const analytics = await this.analyticsService.getAdvancedAnalytics();
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            this.logger.log(`📊 analytics avanzate per utente ${userId}`);
+            const analytics = await this.analyticsService.getAdvancedAnalytics(userId);
             return {
                 success: true,
                 data: analytics,
-                message: 'analytics avanzate recuperate',
+                message: 'analytics complete',
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
             this.logger.error(`errore analytics avanzate: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero analytics avanzate',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    async getTextReport() {
-        try {
-            this.logger.log('richiesta report testuale');
-            const report = await this.analyticsService.generateTextReport();
-            return {
-                success: true,
-                data: { report },
-                message: 'report generato',
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore report: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore generazione report',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 };
 exports.AnalyticsController = AnalyticsController;
 __decorate([
     (0, common_1.Get)('basic'),
+    __param(0, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], AnalyticsController.prototype, "getBasicStats", null);
 __decorate([
     (0, common_1.Get)('genres'),
-    __param(0, (0, common_1.Query)('limit')),
+    __param(0, (0, common_1.Query)('userId')),
+    __param(1, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], AnalyticsController.prototype, "getGenreStats", null);
 __decorate([
     (0, common_1.Get)('years'),
+    __param(0, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], AnalyticsController.prototype, "getYearStats", null);
 __decorate([
     (0, common_1.Get)('directors'),
-    __param(0, (0, common_1.Query)('limit')),
+    __param(0, (0, common_1.Query)('userId')),
+    __param(1, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], AnalyticsController.prototype, "getDirectorStats", null);
 __decorate([
-    (0, common_1.Get)('rating-distribution'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], AnalyticsController.prototype, "getRatingDistribution", null);
-__decorate([
-    (0, common_1.Get)('decade-distribution'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], AnalyticsController.prototype, "getDecadeDistribution", null);
-__decorate([
     (0, common_1.Get)('advanced'),
+    __param(0, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], AnalyticsController.prototype, "getAdvancedAnalytics", null);
-__decorate([
-    (0, common_1.Get)('report'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], AnalyticsController.prototype, "getTextReport", null);
 exports.AnalyticsController = AnalyticsController = AnalyticsController_1 = __decorate([
     (0, common_1.Controller)('api/v1/analytics'),
     __metadata("design:paramtypes", [analytics_service_1.AnalyticsService])

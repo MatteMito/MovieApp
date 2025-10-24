@@ -1,5 +1,6 @@
 import { Repository } from 'typeorm';
 import { MovieEntity } from '../../database/entities/movie.entity';
+import { UserMovieEntity } from '../../database/entities/user-movie.entity';
 export interface BasicStats {
     totalMovies: number;
     watchedMovies: number;
@@ -41,18 +42,12 @@ export interface AdvancedAnalytics {
 }
 export declare class AnalyticsService {
     private movieRepository;
+    private userMovieRepository;
     private readonly logger;
-    constructor(movieRepository: Repository<MovieEntity>);
-    getBasicStats(): Promise<BasicStats>;
-    getGenreStats(limit?: number): Promise<GenreStats[]>;
-    getYearStats(): Promise<YearStats[]>;
-    getDirectorStats(limit?: number): Promise<DirectorStats[]>;
-    getRatingDistribution(): Promise<{
-        [key: string]: number;
-    }>;
-    getDecadeDistribution(): Promise<{
-        [key: string]: number;
-    }>;
-    getAdvancedAnalytics(): Promise<AdvancedAnalytics>;
-    generateTextReport(): Promise<string>;
+    constructor(movieRepository: Repository<MovieEntity>, userMovieRepository: Repository<UserMovieEntity>);
+    getBasicStats(userId: string): Promise<BasicStats>;
+    getGenreStats(userId: string): Promise<GenreStats[]>;
+    getYearStats(userId: string): Promise<YearStats[]>;
+    getDirectorStats(userId: string): Promise<DirectorStats[]>;
+    getAdvancedAnalytics(userId: string): Promise<AdvancedAnalytics>;
 }

@@ -1,4 +1,5 @@
-// integrazione tmdb api con cache intelligente e flag is_enriched
+// File: src/modules/tmdb/tmdb.service.ts
+// AGGIORNATO: rimossi riferimenti a campi utente
 
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
@@ -19,8 +20,7 @@ export class TmdbService {
   private readonly baseUrl: string;
   private readonly apiKey: string;
 
-  // rate limiting per api tmdb (35 richieste per 10 secondi)
-  private readonly rateLimitWindow = 10000; // 10 secondi
+  private readonly rateLimitWindow = 10000;
   private readonly maxRequestsPerWindow = 35;
   private requestHistory: number[] = [];
 
@@ -37,20 +37,18 @@ export class TmdbService {
       throw new Error('TMDB_API_KEY non trovata nelle variabili ambiente');
     }
 
-    this.logger.log('✅ tmdb service inizializzato con cache e rate limiting');
+    this.logger.log('✅ tmdb service inizializzato');
   }
 
-  // ENRICHMENT FILM CON CACHE INTELLIGENTE
-
   /**
-   * arricchisce singolo film con dati tmdb, controllando prima il database per flag is_enriched
-   * e utilizza cache database per ridurre chiamate api
+   * Arricchisce singolo film con dati TMDB
+   * IMPORTANTE: Non gestisce più campi utente (user_rating, is_watched, etc.)
    */
   async enrichMovie(movie: Movie): Promise<Movie> {
     const cacheKey = this.generateTmdbCacheKey(movie);
 
     try {
-      // STEP 1: controlla se film già arricchito in database
+      // STEP 1: Controlla se film già arricchito in database
       const existingMovie = await this.databaseService.findMovieByTitleYear(
         movie.title, 
         movie.year
@@ -58,19 +56,15 @@ export class TmdbService {
 
       if (existingMovie && existingMovie.tmdb_id) {
         this.logger.log(`✅ film già arricchito in db: ${movie.title} (skip tmdb api)`);
-        // merge dati utente con dati arricchiti esistenti
+        // ⚠️ RIMOSSO: merge con dati utente (ora gestiti separatamente)
         return {
           ...existingMovie,
-          id: movie.id,
-          user_rating: movie.user_rating,
-          watched_date: movie.watched_date,
-          user_review: movie.user_review,
-          is_watched: movie.is_watched,
-          source: movie.source,
+          id: movie.id, // Mantieni l'ID originale
+          source: movie.source, // Mantieni la source originale
         };
       }
 
-      // STEP 2: controlla cache tmdb
+      // STEP 2: Controlla cache TMDB
       const cachedTmdbData = await this.databaseService.getTmdbCache(cacheKey);
       if (cachedTmdbData) {
         this.logger.log(`✅ cache tmdb hit: ${movie.title} (${movie.year})`);
@@ -82,7 +76,7 @@ export class TmdbService {
       await this.enforceRateLimit();
       let tmdbMovie: TmdbMovieDetails | null = null;
 
-      // strategia 1: ricerca per imdb id se disponibile
+      // Strategia 1: Ricerca per IMDB ID se disponibile
       if (movie.id.startsWith('tt')) {
         tmdbMovie = await this.findByImdbIdWithCache(movie.id, cacheKey);
         if (tmdbMovie) {
@@ -90,7 +84,7 @@ export class TmdbService {
         }
       }
 
-      // strategia 2: fallback ricerca per titolo e anno
+      // Strategia 2: Fallback ricerca per titolo e anno
       if (!tmdbMovie) {
         tmdbMovie = await this.searchByTitleWithCache(movie.title, movie.year, cacheKey);
         if (tmdbMovie) {
@@ -98,37 +92,16 @@ export class TmdbService {
         }
       }
 
-      // se non trovato, ritorna film originale senza enrichment
       if (!tmdbMovie) {
         this.logger.warn(`⚠️ nessun risultato tmdb per: ${movie.title}`);
         return movie;
       }
 
-      // estrai dati importanti
-      const director = tmdbMovie.credits?.crew?.find(
-        (person: any) => person.job === 'Director',
-      )?.name || 'unknown';
-
-      const cast = tmdbMovie.credits?.cast
-        ?.slice(0, 5)
-        .map((actor: any) => actor.name) || [];
-
-      const genres = tmdbMovie.genres?.map((g: any) => g.name) || [];
-
-      const keywords = tmdbMovie.keywords?.keywords
-        ?.slice(0, 10)
-        .map((k: any) => k.name) || [];
-
-      this.logger.log(`📊 dati estratti per ${movie.title}:`);
-      this.logger.log(`   regista: ${director}`);
-      this.logger.log(`   generi: ${genres.join(', ')}`);
-      this.logger.log(`   cast: ${cast.join(', ')}`);
-
-      // salva in cache per uso futuro
+      // Salva in cache
       await this.databaseService.saveTmdbCache(cacheKey, tmdbMovie);
 
       const enrichedMovie = this.mapTmdbToMovie(movie, tmdbMovie);
-      this.logger.log(`✅ film arricchito e cachato: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
+      this.logger.log(`✅ film arricchito: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
 
       return enrichedMovie;
     } catch (error) {
@@ -138,8 +111,7 @@ export class TmdbService {
   }
 
   /**
-   * enrichment batch ottimizzato con rate limiting saltando film già arricchiti in database
-   * processa film in batch per rispettare limiti API
+   * Enrichment batch con gestione cache intelligente
    */
   async enrichMovies(
     movies: Movie[],
@@ -161,9 +133,9 @@ export class TmdbService {
 
     this.logger.log(`🎬 avvio enrichment batch per ${movies.length} film`);
 
-    // STEP 1: separa film già arricchiti da quelli da processare
     const moviesToEnrich: Movie[] = [];
     
+    // STEP 1: Separa film già arricchiti da quelli da processare
     for (const movie of movies) {
       const existing = await this.databaseService.findMovieByTitleYear(
         movie.title,
@@ -171,252 +143,166 @@ export class TmdbService {
       );
       
       if (existing && existing.tmdb_id) {
-        // film già arricchito, usa dati esistenti
+        // Film già arricchito
+        // ⚠️ RIMOSSO: merge con dati utente
         const merged = {
           ...existing,
           id: movie.id,
-          user_rating: movie.user_rating,
-          watched_date: movie.watched_date,
-          user_review: movie.user_review,
-          is_watched: movie.is_watched,
           source: movie.source,
         };
-        //CACHE HIT dal database!
         results.successfulMovies.push(merged);
-        this.logger.debug(`skip enrichment (già fatto): ${movie.title}`);
+        this.logger.debug(`💰 cache hit database: ${movie.title}`);
       } else {
         moviesToEnrich.push(movie);
       }
     }
 
-    this.logger.log(`📊 film da arricchire: ${moviesToEnrich.length}/${movies.length}`);
-    this.logger.log(`✅ film già arricchiti: ${results.successfulMovies.length}`);
+    this.logger.log(`📊 film da arricchire: ${moviesToEnrich.length}`);
+    this.logger.log(`💰 cache hits: ${results.successfulMovies.length}`);
 
-    // STEP 2: processa solo film non arricchiti
-    // processing in batch per rispettare rate limits
-    const batchSize = 5;
-    for (let i = 0; i < moviesToEnrich.length; i += batchSize) {
-      const batch = moviesToEnrich.slice(i, i + batchSize);
-
-      const promises = batch.map(async (movie, batchIndex) => {
-        try {
-          const enriched = await this.enrichMovie(movie);
-
-          const totalProcessed = results.successfulMovies.length + i + batchIndex + 1;
-          if (options?.onProgress) {
-            await options.onProgress(totalProcessed, movies.length, movie.title);
-          }
-
-          return { success: true, movie: enriched };
-        } catch (error) {
-          return {
-            success: false,
-            movie,
-            error: error.message,
-          };
-        }
-      });
-
-      const batchResults = await Promise.all(promises);
-
-      batchResults.forEach((result) => {
-        results.totalProcessed++;
-        if (result.success) {
-          results.successfulMovies.push(result.movie);
+    // STEP 2: Arricchisci film rimanenti
+    for (let i = 0; i < moviesToEnrich.length; i++) {
+      const movie = moviesToEnrich[i];
+      
+      try {
+        const enriched = await this.enrichMovie(movie);
+        
+        if (enriched.tmdb_id) {
+          results.successfulMovies.push(enriched);
         } else {
           results.failedMovies.push({
-            movie: result.movie,
-            error: result.error,
+            movie,
+            error: 'TMDB data not found',
           });
         }
-      });
 
-      // pausa tra batch per rispettare rate limiting
-      if (i + batchSize < moviesToEnrich.length) {
-        await this.delay(2000);
-        this.logger.debug(`batch ${Math.floor(i / batchSize) + 1} completato, pausa rate limiting`);
+        if (options?.onProgress) {
+          await options.onProgress(
+            results.successfulMovies.length + results.failedMovies.length,
+            movies.length,
+            movie.title
+          );
+        }
+      } catch (error) {
+        this.logger.error(`errore arricchimento ${movie.title}: ${error.message}`);
+        results.failedMovies.push({
+          movie,
+          error: error.message,
+        });
       }
     }
 
-    results.successRate = results.successfulMovies.length / movies.length;
+    results.totalProcessed = results.successfulMovies.length + results.failedMovies.length;
+    results.successRate = results.totalProcessed > 0
+      ? results.successfulMovies.length / results.totalProcessed
+      : 0;
 
-    const enrichedCount = results.successfulMovies.filter((m) => m.tmdb_id).length;
-    this.logger.log(
-      `✅ enrichment batch completato: ${enrichedCount}/${movies.length} film arricchiti`,
-    );
+    this.logger.log(`✅ enrichment batch completato:`);
+    this.logger.log(`   successi: ${results.successfulMovies.length}`);
+    this.logger.log(`   falliti: ${results.failedMovies.length}`);
+    this.logger.log(`   success rate: ${(results.successRate * 100).toFixed(1)}%`);
 
     return results;
   }
 
-  // RICERCA TMDB
+  // ===== METODI PRIVATI =====
 
-  /**
-   * ricerca per imdb id con cache automatica
-   */
+  private generateTmdbCacheKey(movie: Movie): string {
+    return `${movie.title.toLowerCase()}_${movie.year || 'unknown'}`;
+  }
+
+  private async enforceRateLimit(): Promise<void> {
+    const now = Date.now();
+    this.requestHistory = this.requestHistory.filter(
+      (timestamp) => now - timestamp < this.rateLimitWindow
+    );
+
+    if (this.requestHistory.length >= this.maxRequestsPerWindow) {
+      const oldestRequest = this.requestHistory[0];
+      const waitTime = this.rateLimitWindow - (now - oldestRequest) + 100;
+      
+      this.logger.debug(`⏳ rate limit raggiunto, attesa ${waitTime}ms`);
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+      
+      return this.enforceRateLimit();
+    }
+
+    this.requestHistory.push(now);
+  }
+
   private async findByImdbIdWithCache(
     imdbId: string,
     cacheKey: string,
   ): Promise<TmdbMovieDetails | null> {
     try {
-      const cleanImdbId = imdbId.startsWith('tt') ? imdbId : `tt${imdbId}`;
-
-      await this.enforceRateLimit();
-      const url = `${this.baseUrl}/find/${cleanImdbId}`;
-
+      const url = `${this.baseUrl}/find/${imdbId}`;
       const response = await firstValueFrom(
         this.httpService.get<TmdbFindResponse>(url, {
           params: {
             api_key: this.apiKey,
             external_source: 'imdb_id',
-            language: 'it-IT',
+            append_to_response: 'credits,keywords,videos,releases',
           },
-          timeout: 15000,
         }),
       );
 
-      this.recordApiCall();
+      const movie = response.data.movie_results[0];
+      if (!movie) return null;
 
-      if (response.data.movie_results?.length > 0) {
-        const movieId = response.data.movie_results[0].id;
-        const movieDetails = await this.getMovieDetailsWithCache(movieId, cacheKey);
-        return movieDetails;
-      }
-
-      return null;
+      return await this.getMovieDetails(movie.id);
     } catch (error) {
-      this.logger.error(`errore ricerca imdb id ${imdbId}: ${error.message}`);
+      this.logger.error(`errore ricerca imdb ${imdbId}: ${error.message}`);
       return null;
     }
   }
 
-  /**
-   * ricerca per titolo con fuzzy matching
-   */
   private async searchByTitleWithCache(
     title: string,
-    year?: number,
-    cacheKey?: string,
+    year: number | undefined,
+    cacheKey: string,
   ): Promise<TmdbMovieDetails | null> {
     try {
-      await this.enforceRateLimit();
       const url = `${this.baseUrl}/search/movie`;
-
       const response = await firstValueFrom(
         this.httpService.get<TmdbSearchResponse>(url, {
           params: {
             api_key: this.apiKey,
             query: title,
-            year: year || undefined,
-            language: 'it-IT',
+            year,
             include_adult: false,
           },
-          timeout: 15000,
         }),
       );
 
-      this.recordApiCall();
+      const bestMatch = this.findBestMatch(response.data.results, title, year);
+      if (!bestMatch) return null;
 
-      if (response.data.results?.length > 0) {
-        const bestMatch = this.findBestMatch(response.data.results, title, year);
-        if (bestMatch) {
-          const movieDetails = await this.getMovieDetailsWithCache(bestMatch.id, cacheKey);
-          return movieDetails;
-        }
-      }
-
-      return null;
+      return await this.getMovieDetails(bestMatch.id);
     } catch (error) {
       this.logger.error(`errore ricerca titolo ${title}: ${error.message}`);
       return null;
     }
   }
 
-  /**
-   * recupera dettagli completi film con cache
-   */
-  private async getMovieDetailsWithCache(
-    tmdbId: number,
-    cacheKey?: string,
-  ): Promise<TmdbMovieDetails | null> {
+  private async getMovieDetails(tmdbId: number): Promise<TmdbMovieDetails | null> {
     try {
-      await this.enforceRateLimit();
       const url = `${this.baseUrl}/movie/${tmdbId}`;
-
       const response = await firstValueFrom(
         this.httpService.get<TmdbMovieDetails>(url, {
           params: {
             api_key: this.apiKey,
-            language: 'it-IT',
             append_to_response: 'credits,keywords,videos,releases',
           },
-          timeout: 20000,
         }),
       );
 
-      this.recordApiCall();
-      const movieDetails = response.data;
-
-      if (cacheKey) {
-        await this.databaseService.saveTmdbCache(cacheKey, movieDetails);
-      }
-
-      return movieDetails;
+      return response.data;
     } catch (error) {
-      this.logger.error(`errore dettagli film id ${tmdbId}: ${error.message}`);
+      this.logger.error(`errore dettagli film ${tmdbId}: ${error.message}`);
       return null;
     }
   }
 
-  // RATE LIMITING
-
-  /**
-   * enforza rate limiting per api tmdb
-   * previene superamento limiti (35 req/10sec)
-   */
-  private async enforceRateLimit(): Promise<void> {
-    const now = Date.now();
-
-    // rimuovi richieste fuori dalla finestra temporale
-    this.requestHistory = this.requestHistory.filter(
-      (timestamp) => now - timestamp < this.rateLimitWindow,
-    );
-
-    // se limite raggiunto, attendi
-    if (this.requestHistory.length >= this.maxRequestsPerWindow) {
-      const oldestRequest = Math.min(...this.requestHistory);
-      const waitTime = this.rateLimitWindow - (now - oldestRequest) + 100;
-
-      this.logger.debug(`⏳ rate limit raggiunto, attesa ${waitTime}ms`);
-      await this.delay(waitTime);
-    }
-  }
-
-  /**
-   * registra chiamata api per tracking rate limit
-   */
-  private recordApiCall(): void {
-    this.requestHistory.push(Date.now());
-  }
-
-  // UTILITY METHODS
-
-  /**
-   * genera chiave cache normalizzata per film
-   */
-  private generateTmdbCacheKey(movie: Movie): string {
-    const titleKey = movie.title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .replace(/\s+/g, '_')
-      .substring(0, 50);
-
-    return `${titleKey}_${movie.year || 'unknown'}`;
-  }
-
-  /**
-   * trova miglior match tra risultati ricerca
-   * usa scoring basato su titolo, anno e popolarità
-   */
   private findBestMatch(
     movies: TmdbMovie[],
     originalTitle: string,
@@ -431,7 +317,7 @@ export class TmdbService {
       const currentTitleLower = current.title.toLowerCase();
       const originalTitleLower = originalTitle.toLowerCase();
 
-      // scoring titolo
+      // Scoring titolo
       if (currentTitleLower === originalTitleLower) {
         currentScore += 20;
       } else if (
@@ -453,7 +339,7 @@ export class TmdbService {
         }
       }
 
-      // scoring anno
+      // Scoring anno
       if (originalYear && current.release_date) {
         const currentYear = new Date(current.release_date).getFullYear();
         if (currentYear === originalYear) {
@@ -474,7 +360,7 @@ export class TmdbService {
         }
       }
 
-      // tiebreaker: popolarità
+      // Tiebreaker: popolarità
       if (Math.abs(currentScore - bestScore) <= 2) {
         currentScore += (current.popularity || 0) * 0.1;
         if (best) bestScore += (best.popularity || 0) * 0.1;
@@ -485,7 +371,8 @@ export class TmdbService {
   }
 
   /**
-   * mappa dati tmdb in movie model
+   * Mappa dati TMDB in Movie model
+   * ⚠️ NON include più campi utente
    */
   private mapTmdbToMovie(original: Movie, tmdb: TmdbMovieDetails): Movie {
     return {
@@ -500,102 +387,28 @@ export class TmdbService {
         ? `https://image.tmdb.org/t/p/w500${tmdb.poster_path}`
         : undefined,
       backdrop_url: tmdb.backdrop_path
-        ? `https://image.tmdb.org/t/p/w1280${tmdb.backdrop_path}`
+        ? `https://image.tmdb.org/t/p/original${tmdb.backdrop_path}`
         : undefined,
       tmdb_rating: tmdb.vote_average,
       vote_count: tmdb.vote_count,
-      popularity: tmdb.popularity,
       runtime: tmdb.runtime,
       budget: tmdb.budget,
       revenue: tmdb.revenue,
       status: tmdb.status,
       original_language: tmdb.original_language,
       original_title: tmdb.original_title,
+      popularity: tmdb.popularity,
       adult: tmdb.adult,
       homepage: tmdb.homepage,
       imdb_id: tmdb.imdb_id,
       production_companies: tmdb.production_companies?.map((c) => c.name) || [],
       production_countries: tmdb.production_countries?.map((c) => c.name) || [],
       spoken_languages: tmdb.spoken_languages?.map((l) => l.name) || [],
-      keywords: tmdb.keywords?.keywords?.map((k) => k.name) || [],
-      certification: tmdb.releases?.countries?.find((c) => c.iso_3166_1 === 'IT')?.certification,
-      trailer_url: tmdb.videos?.results?.find((v) => v.type === 'Trailer' && v.site === 'YouTube')
-        ?.key
-        ? `https://www.youtube.com/watch?v=${tmdb.videos.results.find((v) => v.type === 'Trailer' && v.site === 'YouTube')?.key}`
+      keywords: tmdb.keywords?.keywords?.slice(0, 10).map((k) => k.name) || [],
+      certification: tmdb.releases?.countries?.find((c) => c.iso_3166_1 === 'US')?.certification,
+      trailer_url: tmdb.videos?.results?.find((v) => v.type === 'Trailer')?.key
+        ? `https://www.youtube.com/watch?v=${tmdb.videos.results.find((v) => v.type === 'Trailer')?.key}`
         : undefined,
-    };
-  }
-
-  /**
-   * utility: delay per rate limiting
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  // HEALTH CHECK & STATS
-
-  /**
-   * health check api tmdb
-   */
-  async healthCheck(): Promise<{ status: string; details?: any }> {
-    try {
-      const testUrl = `${this.baseUrl}/configuration`;
-
-      await this.enforceRateLimit();
-      const response = await firstValueFrom(
-        this.httpService.get(testUrl, {
-          params: { api_key: this.apiKey },
-          timeout: 10000,
-        }),
-      );
-      this.recordApiCall();
-
-      const cacheStats = await this.databaseService.getTmdbCacheStats();
-
-      return {
-        status: 'healthy',
-        details: {
-          tmdbApi: 'connected',
-          baseUrl: this.baseUrl,
-          cacheIntegration: 'active',
-          enrichmentOptimization: 'enabled with is_enriched flag',
-          rateLimiting: `${this.requestHistory.length}/${this.maxRequestsPerWindow} requests`,
-          cacheStats: cacheStats,
-          timestamp: new Date().toISOString(),
-        },
-      };
-    } catch (error) {
-      return {
-        status: 'unhealthy',
-        details: {
-          error: error.message,
-          cacheIntegration: this.databaseService.isDatabaseAvailable() ? 'active' : 'disabled',
-          timestamp: new Date().toISOString(),
-        },
-      };
-    }
-  }
-
-  /**
-   * statistiche utilizzo api
-   */
-  getApiUsageStats(): any {
-    const now = Date.now();
-    const recentCalls = this.requestHistory.filter(
-      (timestamp) => now - timestamp < this.rateLimitWindow,
-    );
-
-    return {
-      recentCalls: recentCalls.length,
-      maxAllowed: this.maxRequestsPerWindow,
-      rateLimitWindow: `${this.rateLimitWindow / 1000}s`,
-      utilizationPercentage: Math.round((recentCalls.length / this.maxRequestsPerWindow) * 100),
-      canMakeRequest: recentCalls.length < this.maxRequestsPerWindow,
-      nextResetIn:
-        recentCalls.length > 0
-          ? Math.max(0, this.rateLimitWindow - (now - Math.min(...recentCalls)))
-          : 0,
     };
   }
 }

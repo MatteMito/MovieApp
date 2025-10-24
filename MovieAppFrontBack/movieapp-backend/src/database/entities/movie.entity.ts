@@ -7,30 +7,48 @@ import {
   Index,
 } from 'typeorm';
 
+/**
+ * ENTITY: Movie
+ * Contiene SOLO i dati del film (senza dati utente)
+ * I dati utente (watched, rating, etc.) sono in UserMovieEntity
+ */
 @Entity('movies')
-@Index(['title'])
-@Index(['year'])
-@Index(['director'])
+@Index(['title', 'year'])
 @Index(['tmdb_id'])
-@Index(['is_watched'])
 @Index(['source'])
+@Index(['is_enriched'])
 export class MovieEntity {
-  @PrimaryColumn()
+  // ===== IDENTIFICATORI =====
+  
+  @PrimaryColumn({ type: 'varchar', length: 255 })
   id: string;
 
+  // ===== DATI BASE =====
+  
   @Column({ length: 500 })
   title: string;
 
   @Column({ nullable: true })
   year?: number;
 
+  @Column({ length: 50, default: 'UNKNOWN' })
+  source: string; // IMDB, LETTERBOXD, TMDB, etc.
+
+  // ===== DATI TMDB ARRICCHITI =====
+  
+  @Column({ nullable: true })
+  tmdb_id?: number;
+
+  @Column({ default: false })
+  is_enriched: boolean;
+
+  @Column('text', { array: true, default: '{}' })
+  genres: string[];
+
   @Column({ nullable: true, length: 255 })
   director?: string;
 
-  @Column('text', { array: true, default: [] })
-  genres: string[];
-
-  @Column({ type: 'text', array: true, nullable: true })
+  @Column('text', { array: true, nullable: true })
   actors?: string[];
 
   @Column('text', { nullable: true })
@@ -42,42 +60,27 @@ export class MovieEntity {
   @Column({ nullable: true })
   runtime?: number;
 
-  @Column('decimal', { precision: 3, scale: 1, nullable: true })
-  user_rating?: number;
-
-  @Column({ nullable: true })
-  date_rated?: string;
-
-  @Column({ nullable: true, length: 100 })
-  watched_date?: string;
-
-  @Column('text', { nullable: true })
-  user_review?: string;
-
-  @Column({ default: false })
-  is_watched: boolean;
-
-  @Column({ default: false })
-  is_enriched: boolean;
-
-  @Column({ length: 50 })
-  source: string;
-
-  @Column({ nullable: true })
-  tmdb_id?: number;
-
+  // ===== POSTER E IMMAGINI =====
+  
   @Column({ nullable: true, length: 500 })
   poster_url?: string;
 
   @Column({ nullable: true, length: 500 })
   backdrop_url?: string;
 
+  // ===== RATING E POPOLARITÀ TMDB =====
+  
   @Column('decimal', { precision: 3, scale: 1, nullable: true })
   tmdb_rating?: number;
 
   @Column({ nullable: true })
   vote_count?: number;
 
+  @Column('decimal', { precision: 10, scale: 3, nullable: true })
+  popularity?: number;
+
+  // ===== DATI PRODUZIONE =====
+  
   @Column('bigint', { nullable: true })
   budget?: number;
 
@@ -87,15 +90,25 @@ export class MovieEntity {
   @Column({ nullable: true, length: 100 })
   status?: string;
 
+  @Column('text', { array: true, default: '{}' })
+  production_companies: string[];
+
+  @Column('text', { array: true, default: '{}' })
+  production_countries: string[];
+
+  // ===== LINGUE E TITOLO ORIGINALE =====
+  
   @Column({ nullable: true, length: 10 })
   original_language?: string;
 
   @Column({ nullable: true, length: 500 })
   original_title?: string;
 
-  @Column('decimal', { precision: 10, scale: 3, nullable: true })
-  popularity?: number;
+  @Column('text', { array: true, default: '{}' })
+  spoken_languages: string[];
 
+  // ===== METADATA VARI =====
+  
   @Column({ default: false })
   adult: boolean;
 
@@ -105,16 +118,7 @@ export class MovieEntity {
   @Column({ nullable: true, length: 20 })
   imdb_id?: string;
 
-  @Column('text', { array: true, default: [] })
-  production_companies: string[];
-
-  @Column('text', { array: true, default: [] })
-  production_countries: string[];
-
-  @Column('text', { array: true, default: [] })
-  spoken_languages: string[];
-
-  @Column('text', { array: true, default: [] })
+  @Column('text', { array: true, default: '{}' })
   keywords: string[];
 
   @Column({ nullable: true, length: 20 })
@@ -123,14 +127,11 @@ export class MovieEntity {
   @Column({ nullable: true, length: 500 })
   trailer_url?: string;
 
+  // ===== TIMESTAMP AUTOMATICI =====
+  
   @CreateDateColumn()
   created_at: Date;
 
   @UpdateDateColumn()
   updated_at: Date;
-
-  // GETTER PER COMPATIBILITÀ
-  get isWatched(): boolean {
-    return this.is_watched;
-  }
 }

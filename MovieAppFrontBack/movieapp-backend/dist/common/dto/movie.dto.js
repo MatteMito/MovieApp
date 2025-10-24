@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BatchUploadDto = exports.EnrichMovieDto = exports.UpdateMovieDto = exports.CreateMovieDto = void 0;
+exports.BatchUploadWithUserDto = exports.UserMovieDto = exports.BatchUploadDto = exports.EnrichMovieDto = exports.UpdateMovieDto = exports.CreateMovieDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateMovieDto {
 }
@@ -37,22 +37,6 @@ __decorate([
     __metadata("design:type", Array)
 ], CreateMovieDto.prototype, "genres", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_validator_1.Max)(10),
-    __metadata("design:type", Number)
-], CreateMovieDto.prototype, "user_rating", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateMovieDto.prototype, "date_rated", void 0);
-__decorate([
-    (0, class_validator_1.IsBoolean)(),
-    __metadata("design:type", Boolean)
-], CreateMovieDto.prototype, "is_watched", void 0);
-__decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateMovieDto.prototype, "source", void 0);
@@ -79,21 +63,6 @@ __decorate([
     (0, class_validator_1.IsArray)(),
     __metadata("design:type", Array)
 ], UpdateMovieDto.prototype, "genres", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], UpdateMovieDto.prototype, "user_rating", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UpdateMovieDto.prototype, "date_rated", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsBoolean)(),
-    __metadata("design:type", Boolean)
-], UpdateMovieDto.prototype, "is_watched", void 0);
 class EnrichMovieDto {
 }
 exports.EnrichMovieDto = EnrichMovieDto;
@@ -111,20 +80,6 @@ __decorate([
     __metadata("design:type", Number)
 ], EnrichMovieDto.prototype, "year", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], EnrichMovieDto.prototype, "user_rating", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], EnrichMovieDto.prototype, "date_rated", void 0);
-__decorate([
-    (0, class_validator_1.IsBoolean)(),
-    __metadata("design:type", Boolean)
-], EnrichMovieDto.prototype, "is_watched", void 0);
-__decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], EnrichMovieDto.prototype, "source", void 0);
@@ -139,4 +94,51 @@ __decorate([
     (0, class_validator_1.IsArray)(),
     __metadata("design:type", Array)
 ], BatchUploadDto.prototype, "watched", void 0);
+class UserMovieDto {
+}
+exports.UserMovieDto = UserMovieDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UserMovieDto.prototype, "movieId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UserMovieDto.prototype, "status", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.Max)(10),
+    __metadata("design:type", Number)
+], UserMovieDto.prototype, "userRating", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UserMovieDto.prototype, "watchedDate", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UserMovieDto.prototype, "userReview", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UserMovieDto.prototype, "source", void 0);
+class BatchUploadWithUserDto {
+}
+exports.BatchUploadWithUserDto = BatchUploadWithUserDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], BatchUploadWithUserDto.prototype, "userId", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], BatchUploadWithUserDto.prototype, "watchlist", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], BatchUploadWithUserDto.prototype, "watched", void 0);
 //# sourceMappingURL=movie.dto.js.map

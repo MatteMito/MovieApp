@@ -2,18 +2,14 @@ export interface Movie {
     id: string;
     title: string;
     year?: number;
+    source: string;
+    tmdb_id?: number;
     director?: string;
     genres?: string[];
     actors?: string[];
     overview?: string;
     tagline?: string;
     runtime?: number;
-    user_rating?: number;
-    watched_date?: string;
-    user_review?: string;
-    is_watched: boolean;
-    source: string;
-    tmdb_id?: number;
     poster_url?: string;
     backdrop_url?: string;
     tmdb_rating?: number;
@@ -185,7 +181,8 @@ export interface TmdbCredits {
     }>;
 }
 export declare enum DataSource {
-    IMDB = "imdb",
-    LETTERBOXD = "letterboxd",
-    MANUAL = "manual"
+    IMDB = "IMDB",
+    LETTERBOXD = "LETTERBOXD",
+    MANUAL = "MANUAL",
+    UNKNOWN = "UNKNOWN"
 }

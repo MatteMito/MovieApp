@@ -1,80 +1,20 @@
-import { ListsService, ListFilters } from './lists.service';
+import { ListsService } from './lists.service';
+interface ApiResponse<T = any> {
+    success: boolean;
+    data?: T;
+    message?: string;
+    timestamp: string;
+}
 export declare class ListsController {
     private readonly listsService;
     private readonly logger;
     constructor(listsService: ListsService);
-    createCustomList(body: {
-        name: string;
-        description?: string;
-        filters: ListFilters;
-    }): Promise<{
-        success: boolean;
-        data: import("./lists.service").MovieList;
-        message: string;
-        timestamp: string;
-    }>;
-    getTopRated(limit?: string): Promise<{
-        success: boolean;
-        data: import("./lists.service").MovieList;
-        message: string;
-        timestamp: string;
-    }>;
-    getRecent(limit?: string): Promise<{
-        success: boolean;
-        data: import("./lists.service").MovieList;
-        message: string;
-        timestamp: string;
-    }>;
-    getClassics(): Promise<{
-        success: boolean;
-        data: import("./lists.service").MovieList;
-        message: string;
-        timestamp: string;
-    }>;
-    getLong(minRuntime?: string): Promise<{
-        success: boolean;
-        data: import("./lists.service").MovieList;
-        message: string;
-        timestamp: string;
-    }>;
-    getByDecade(decade: string): Promise<{
-        success: boolean;
-        data: import("./lists.service").MovieList;
-        message: string;
-        timestamp: string;
-    }>;
-    getWatchlist(): Promise<{
-        success: boolean;
-        data: import("./lists.service").MovieList;
-        message: string;
-        timestamp: string;
-    }>;
-    getByGenre(genre: string): Promise<{
-        success: boolean;
-        data: import("./lists.service").MovieList;
-        message: string;
-        timestamp: string;
-    }>;
-    getByDirector(director: string): Promise<{
-        success: boolean;
-        data: import("./lists.service").MovieList;
-        message: string;
-        timestamp: string;
-    }>;
-    getAllGenres(): Promise<{
-        success: boolean;
-        data: {
-            genres: string[];
-        };
-        message: string;
-        timestamp: string;
-    }>;
-    getAllDirectors(): Promise<{
-        success: boolean;
-        data: {
-            directors: string[];
-        };
-        message: string;
-        timestamp: string;
-    }>;
+    getTopRatedMovies(userId: string, limit?: string): Promise<ApiResponse>;
+    getRecentMovies(userId: string, limit?: string): Promise<ApiResponse>;
+    getClassicMovies(userId: string): Promise<ApiResponse>;
+    getLongMovies(userId: string, minRuntime?: string): Promise<ApiResponse>;
+    getMoviesByGenre(userId: string, genre?: string): Promise<ApiResponse>;
+    getMoviesByDirector(userId: string, director?: string): Promise<ApiResponse>;
+    getPresetLists(userId: string): Promise<ApiResponse>;
 }
+export {};

@@ -1,6 +1,7 @@
 import { Repository } from 'typeorm';
 import { UserMovieEntity, MovieStatus } from '../../database/entities/user-movie.entity';
 import { MovieEntity } from '../../database/entities/movie.entity';
+import { Movie } from '../../common/interfaces/movie.interface';
 export interface UserMovieStats {
     totalMovies: number;
     watchedCount: number;
@@ -33,12 +34,8 @@ export declare class UserMoviesService {
         watchedInFile: number;
         watchlistInFile: number;
     }>;
-    getUserMovies(userId: string, status?: MovieStatus): Promise<Array<UserMovieEntity & {
-        movie: MovieEntity;
-    }>>;
+    getUserMovies(userId: string, status?: MovieStatus): Promise<Movie[]>;
     getUserMovieStats(userId: string): Promise<UserMovieStats>;
-    removeMovieFromUser(userId: string, movieId: string): Promise<void>;
-    removeAllUserMovies(userId: string): Promise<number>;
-    userHasMovie(userId: string, movieId: string): Promise<boolean>;
-    getUserMovieIds(userId: string, status?: MovieStatus): Promise<string[]>;
+    removeUserMovie(userId: string, movieId: string): Promise<void>;
+    updateUserRating(userId: string, movieId: string, rating: number): Promise<UserMovieEntity>;
 }

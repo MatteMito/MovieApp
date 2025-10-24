@@ -18,226 +18,197 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const movie_entity_1 = require("../../database/entities/movie.entity");
+const user_movie_entity_1 = require("../../database/entities/user-movie.entity");
 let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
-    constructor(movieRepository) {
+    constructor(movieRepository, userMovieRepository) {
         this.movieRepository = movieRepository;
+        this.userMovieRepository = userMovieRepository;
         this.logger = new common_1.Logger(AnalyticsService_1.name);
     }
-    async getBasicStats() {
+    async getBasicStats(userId) {
         try {
-            this.logger.log('generazione statistiche base');
-            const allMovies = await this.movieRepository.find();
-            const watchedMovies = allMovies.filter((m) => m.is_watched);
-            const enrichedMovies = allMovies.filter((m) => m.tmdb_id && m.tmdb_id > 0);
-            const ratingsWithValues = allMovies
-                .map((m) => m.user_rating)
+            this.logger.log(`generazione statistiche base per utente ${userId}`);
+            const userMovies = await this.userMovieRepository.find({
+                where: { userId },
+                relations: ['movie'],
+            });
+            const allMovies = userMovies.map(um => um.movie);
+            const watchedMovies = userMovies.filter(um => um.status === user_movie_entity_1.MovieStatus.WATCHED);
+            const enrichedMovies = allMovies.filter(m => m.tmdb_id && m.tmdb_id > 0);
+            const ratingsWithValues = userMovies
+                .map(um => um.userRating)
                 .filter((r) => r !== null && r !== undefined);
             const averageRating = ratingsWithValues.length > 0
-                ? ratingsWithValues.reduce((a, b) => a + b, 0) /
-                    ratingsWithValues.length
+                ? ratingsWithValues.reduce((a, b) => a + b, 0) / ratingsWithValues.length
                 : undefined;
-            const totalRuntime = watchedMovies
-                .map((m) => m.runtime || 0)
+            const totalRuntime = allMovies
+                .map(m => m.runtime || 0)
                 .reduce((a, b) => a + b, 0);
-            const allGenres = new Set(allMovies.flatMap((m) => m.genres || []).filter((g) => g));
-            const allDirectors = new Set(allMovies.map((m) => m.director).filter((d) => d));
-            const stats = {
+            const allGenres = new Set();
+            allMovies.forEach(m => {
+                m.genres?.forEach(g => allGenres.add(g));
+            });
+            const allDirectors = new Set();
+            allMovies.forEach(m => {
+                if (m.director)
+                    allDirectors.add(m.director);
+            });
+            return {
                 totalMovies: allMovies.length,
                 watchedMovies: watchedMovies.length,
-                watchlistMovies: allMovies.length - watchedMovies.length,
+                watchlistMovies: userMovies.filter(um => um.status === user_movie_entity_1.MovieStatus.WATCHLIST).length,
                 enrichedMovies: enrichedMovies.length,
                 averageRating,
                 totalRuntime,
                 uniqueGenres: allGenres.size,
                 uniqueDirectors: allDirectors.size,
             };
-            this.logger.log(`stats generate: ${stats.totalMovies} film`);
-            return stats;
         }
         catch (error) {
-            this.logger.error(`errore stats base: ${error.message}`);
+            this.logger.error(`errore statistiche base: ${error.message}`);
             throw error;
         }
     }
-    async getGenreStats(limit = 10) {
+    async getGenreStats(userId) {
         try {
-            this.logger.log(`generazione stats generi (top ${limit})`);
-            const allMovies = await this.movieRepository.find();
-            const totalMovies = allMovies.length;
-            const genreCounts = new Map();
-            const genreRatings = new Map();
-            allMovies.forEach((movie) => {
-                movie.genres?.forEach((genre) => {
-                    if (genre) {
-                        genreCounts.set(genre, (genreCounts.get(genre) || 0) + 1);
-                        if (movie.user_rating) {
-                            const ratings = genreRatings.get(genre) || [];
-                            ratings.push(movie.user_rating);
-                            genreRatings.set(genre, ratings);
-                        }
+            const userMovies = await this.userMovieRepository.find({
+                where: { userId },
+                relations: ['movie'],
+            });
+            const genreMap = new Map();
+            userMovies.forEach(um => {
+                um.movie.genres?.forEach(genre => {
+                    if (!genreMap.has(genre)) {
+                        genreMap.set(genre, { count: 0, ratings: [] });
+                    }
+                    const stats = genreMap.get(genre);
+                    stats.count++;
+                    if (um.userRating) {
+                        stats.ratings.push(um.userRating);
                     }
                 });
             });
-            const genreStats = Array.from(genreCounts.entries())
-                .map(([genre, count]) => {
-                const ratings = genreRatings.get(genre) || [];
-                const averageRating = ratings.length > 0
-                    ? ratings.reduce((a, b) => a + b, 0) / ratings.length
-                    : undefined;
-                return {
-                    genre,
-                    count,
-                    percentage: (count / totalMovies) * 100,
-                    averageRating,
-                };
-            })
+            const totalMovies = userMovies.length;
+            const genreStats = Array.from(genreMap.entries())
+                .map(([genre, stats]) => ({
+                genre,
+                count: stats.count,
+                percentage: (stats.count / totalMovies) * 100,
+                averageRating: stats.ratings.length > 0
+                    ? stats.ratings.reduce((a, b) => a + b, 0) / stats.ratings.length
+                    : undefined,
+            }))
                 .sort((a, b) => b.count - a.count)
-                .slice(0, limit);
-            this.logger.log(`${genreStats.length} generi generati`);
+                .slice(0, 10);
             return genreStats;
         }
         catch (error) {
-            this.logger.error(`errore stats generi: ${error.message}`);
-            throw error;
+            this.logger.error(`errore statistiche generi: ${error.message}`);
+            return [];
         }
     }
-    async getYearStats() {
+    async getYearStats(userId) {
         try {
-            this.logger.log('generazione stats anni');
-            const allMovies = await this.movieRepository.find();
-            const moviesWithYear = allMovies.filter((m) => m.year && m.year > 1900 && m.year <= new Date().getFullYear());
-            const yearCounts = new Map();
-            const yearRatings = new Map();
-            moviesWithYear.forEach((movie) => {
-                const year = movie.year;
-                yearCounts.set(year, (yearCounts.get(year) || 0) + 1);
-                if (movie.user_rating) {
-                    const ratings = yearRatings.get(year) || [];
-                    ratings.push(movie.user_rating);
-                    yearRatings.set(year, ratings);
+            const userMovies = await this.userMovieRepository.find({
+                where: { userId },
+                relations: ['movie'],
+            });
+            const yearMap = new Map();
+            userMovies.forEach(um => {
+                const year = um.movie.year;
+                if (!year)
+                    return;
+                if (!yearMap.has(year)) {
+                    yearMap.set(year, { count: 0, ratings: [] });
+                }
+                const stats = yearMap.get(year);
+                stats.count++;
+                if (um.userRating) {
+                    stats.ratings.push(um.userRating);
                 }
             });
-            const yearStats = Array.from(yearCounts.entries())
-                .map(([year, count]) => {
-                const ratings = yearRatings.get(year) || [];
-                const averageRating = ratings.length > 0
-                    ? ratings.reduce((a, b) => a + b, 0) / ratings.length
-                    : undefined;
-                return {
-                    year,
-                    count,
-                    averageRating,
-                };
-            })
-                .sort((a, b) => a.year - b.year);
-            this.logger.log(`${yearStats.length} anni generati`);
+            const yearStats = Array.from(yearMap.entries())
+                .map(([year, stats]) => ({
+                year,
+                count: stats.count,
+                averageRating: stats.ratings.length > 0
+                    ? stats.ratings.reduce((a, b) => a + b, 0) / stats.ratings.length
+                    : undefined,
+            }))
+                .sort((a, b) => b.year - a.year);
             return yearStats;
         }
         catch (error) {
-            this.logger.error(`errore stats anni: ${error.message}`);
-            throw error;
+            this.logger.error(`errore statistiche anni: ${error.message}`);
+            return [];
         }
     }
-    async getDirectorStats(limit = 10) {
+    async getDirectorStats(userId) {
         try {
-            this.logger.log(`generazione stats registi (top ${limit})`);
-            const allMovies = await this.movieRepository.find();
-            const moviesWithDirector = allMovies.filter((m) => m.director && m.director.trim());
-            const directorCounts = new Map();
-            const directorRatings = new Map();
-            const directorRuntimes = new Map();
-            moviesWithDirector.forEach((movie) => {
-                const director = movie.director;
-                directorCounts.set(director, (directorCounts.get(director) || 0) + 1);
-                if (movie.user_rating) {
-                    const ratings = directorRatings.get(director) || [];
-                    ratings.push(movie.user_rating);
-                    directorRatings.set(director, ratings);
-                }
-                if (movie.runtime) {
-                    const currentRuntime = directorRuntimes.get(director) || 0;
-                    directorRuntimes.set(director, currentRuntime + movie.runtime);
-                }
+            const userMovies = await this.userMovieRepository.find({
+                where: { userId },
+                relations: ['movie'],
             });
-            const directorStats = Array.from(directorCounts.entries())
-                .map(([director, movieCount]) => {
-                const ratings = directorRatings.get(director) || [];
-                const averageRating = ratings.length > 0
-                    ? ratings.reduce((a, b) => a + b, 0) / ratings.length
-                    : undefined;
-                return {
-                    director,
-                    movieCount,
-                    averageRating,
-                    totalRuntime: directorRuntimes.get(director) || 0,
-                };
-            })
+            const directorMap = new Map();
+            userMovies.forEach(um => {
+                const director = um.movie.director;
+                if (!director)
+                    return;
+                if (!directorMap.has(director)) {
+                    directorMap.set(director, { count: 0, ratings: [], runtime: 0 });
+                }
+                const stats = directorMap.get(director);
+                stats.count++;
+                if (um.userRating) {
+                    stats.ratings.push(um.userRating);
+                }
+                stats.runtime += um.movie.runtime || 0;
+            });
+            const directorStats = Array.from(directorMap.entries())
+                .map(([director, stats]) => ({
+                director,
+                movieCount: stats.count,
+                averageRating: stats.ratings.length > 0
+                    ? stats.ratings.reduce((a, b) => a + b, 0) / stats.ratings.length
+                    : undefined,
+                totalRuntime: stats.runtime,
+            }))
                 .sort((a, b) => b.movieCount - a.movieCount)
-                .slice(0, limit);
-            this.logger.log(`${directorStats.length} registi generati`);
+                .slice(0, 10);
             return directorStats;
         }
         catch (error) {
-            this.logger.error(`errore stats registi: ${error.message}`);
-            throw error;
+            this.logger.error(`errore statistiche registi: ${error.message}`);
+            return [];
         }
     }
-    async getRatingDistribution() {
+    async getAdvancedAnalytics(userId) {
         try {
-            this.logger.log('generazione distribuzione rating');
-            const allMovies = await this.movieRepository.find();
-            const distribution = {};
-            for (let i = 1; i <= 10; i++) {
-                distribution[i.toString()] = 0;
-            }
-            allMovies.forEach((movie) => {
-                if (movie.user_rating) {
-                    const rating = Math.round(movie.user_rating);
-                    if (rating >= 1 && rating <= 10) {
-                        distribution[rating.toString()]++;
-                    }
-                }
-            });
-            this.logger.log('distribuzione rating generata');
-            return distribution;
-        }
-        catch (error) {
-            this.logger.error(`errore distribuzione rating: ${error.message}`);
-            throw error;
-        }
-    }
-    async getDecadeDistribution() {
-        try {
-            this.logger.log('generazione distribuzione decadi');
-            const allMovies = await this.movieRepository.find();
-            const distribution = {};
-            allMovies.forEach((movie) => {
-                if (movie.year && movie.year >= 1900) {
-                    const decade = Math.floor(movie.year / 10) * 10;
-                    const key = `${decade}s`;
-                    distribution[key] = (distribution[key] || 0) + 1;
-                }
-            });
-            this.logger.log('distribuzione decadi generata');
-            return distribution;
-        }
-        catch (error) {
-            this.logger.error(`errore distribuzione decadi: ${error.message}`);
-            throw error;
-        }
-    }
-    async getAdvancedAnalytics() {
-        try {
-            this.logger.log('=== generazione analytics avanzate ===');
-            const [basic, topGenres, moviesByYear, topDirectors, ratingDistribution, decadeDistribution,] = await Promise.all([
-                this.getBasicStats(),
-                this.getGenreStats(10),
-                this.getYearStats(),
-                this.getDirectorStats(10),
-                this.getRatingDistribution(),
-                this.getDecadeDistribution(),
+            this.logger.log(`generazione analytics avanzate per utente ${userId}`);
+            const [basic, topGenres, moviesByYear, topDirectors] = await Promise.all([
+                this.getBasicStats(userId),
+                this.getGenreStats(userId),
+                this.getYearStats(userId),
+                this.getDirectorStats(userId),
             ]);
-            this.logger.log('✅ analytics avanzate complete');
+            const userMovies = await this.userMovieRepository.find({
+                where: { userId },
+                relations: ['movie'],
+            });
+            const ratingDistribution = {};
+            userMovies.forEach(um => {
+                if (um.userRating) {
+                    const rating = Math.round(um.userRating);
+                    ratingDistribution[rating] = (ratingDistribution[rating] || 0) + 1;
+                }
+            });
+            const decadeDistribution = {};
+            userMovies.forEach(um => {
+                if (um.movie.year) {
+                    const decade = Math.floor(um.movie.year / 10) * 10;
+                    decadeDistribution[decade] = (decadeDistribution[decade] || 0) + 1;
+                }
+            });
             return {
                 basic,
                 topGenres,
@@ -252,60 +223,13 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
             throw error;
         }
     }
-    async generateTextReport() {
-        try {
-            const analytics = await this.getAdvancedAnalytics();
-            const report = [
-                '=== MOVIEAPP ANALYTICS REPORT ===',
-                '',
-                '📊 STATISTICHE BASE',
-                `film totali: ${analytics.basic.totalMovies}`,
-                `visti: ${analytics.basic.watchedMovies}`,
-                `da vedere: ${analytics.basic.watchlistMovies}`,
-                `arricchiti: ${analytics.basic.enrichedMovies}`,
-                analytics.basic.averageRating
-                    ? `rating medio: ${analytics.basic.averageRating.toFixed(1)}/10`
-                    : '',
-                `runtime totale: ${Math.round(analytics.basic.totalRuntime / 60)}h`,
-                `generi unici: ${analytics.basic.uniqueGenres}`,
-                `registi unici: ${analytics.basic.uniqueDirectors}`,
-                '',
-                '🎭 TOP 5 GENERI',
-                ...analytics.topGenres.slice(0, 5).map((g, i) => {
-                    const rating = g.averageRating
-                        ? ` (avg: ${g.averageRating.toFixed(1)})`
-                        : '';
-                    return `${i + 1}. ${g.genre}: ${g.count} film (${g.percentage.toFixed(1)}%)${rating}`;
-                }),
-                '',
-                '🎬 TOP 5 REGISTI',
-                ...analytics.topDirectors.slice(0, 5).map((d, i) => {
-                    const rating = d.averageRating
-                        ? ` (avg: ${d.averageRating.toFixed(1)})`
-                        : '';
-                    return `${i + 1}. ${d.director}: ${d.movieCount} film${rating}`;
-                }),
-                '',
-                '📅 DISTRIBUZIONE DECADI',
-                ...Object.entries(analytics.decadeDistribution)
-                    .sort((a, b) => a[0].localeCompare(b[0]))
-                    .map(([decade, count]) => `${decade}: ${count} film`),
-            ]
-                .filter((line) => line !== '')
-                .join('\n');
-            this.logger.log('report testuale generato');
-            return report;
-        }
-        catch (error) {
-            this.logger.error(`errore report: ${error.message}`);
-            throw error;
-        }
-    }
 };
 exports.AnalyticsService = AnalyticsService;
 exports.AnalyticsService = AnalyticsService = AnalyticsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(movie_entity_1.MovieEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(user_movie_entity_1.UserMovieEntity)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository])
 ], AnalyticsService);
 //# sourceMappingURL=analytics.service.js.map

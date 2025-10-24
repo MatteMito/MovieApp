@@ -1,14 +1,22 @@
-//controller analytics con endpoints statistiche
+// File: src/modules/analytics/analytics.controller.ts
+// AGGIORNATO: tutti i metodi richiedono userId
 
 import {
   Controller,
   Get,
-  HttpException,
-  HttpStatus,
-  Logger,
   Query,
+  HttpStatus,
+  HttpException,
+  Logger,
 } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
+
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  timestamp: string;
+}
 
 @Controller('api/v1/analytics')
 export class AnalyticsController {
@@ -17,15 +25,20 @@ export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   /**
-   * GET /api/v1/analytics/basic
-   * statistiche base
+   * GET /api/v1/analytics/basic?userId=xxx
    */
   @Get('basic')
-  async getBasicStats() {
+  async getBasicStats(@Query('userId') userId: string): Promise<ApiResponse> {
     try {
-      this.logger.log('richiesta stats base');
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const stats = await this.analyticsService.getBasicStats();
+      this.logger.log(`📊 statistiche base richieste per utente ${userId}`);
+      const stats = await this.analyticsService.getBasicStats(userId);
 
       return {
         success: true,
@@ -34,235 +47,145 @@ export class AnalyticsController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore stats base: ${error.message}`);
-
+      this.logger.error(`errore statistiche base: ${error.message}`);
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero statistiche',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   /**
-   * GET /api/v1/analytics/genres
-   * statistiche generi
+   * GET /api/v1/analytics/genres?userId=xxx&limit=10
    */
   @Get('genres')
-  async getGenreStats(@Query('limit') limit?: string) {
+  async getGenreStats(
+    @Query('userId') userId: string,
+    @Query('limit') limit?: string,
+  ): Promise<ApiResponse> {
     try {
-      const limitNum = limit ? parseInt(limit) : 10;
-      this.logger.log(`richiesta stats generi (limit: ${limitNum})`);
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const stats = await this.analyticsService.getGenreStats(limitNum);
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+      this.logger.log(`📊 statistiche generi per utente ${userId}`);
+      
+      const stats = await this.analyticsService.getGenreStats(userId);
+      const limitedStats = stats.slice(0, limitNum);
 
       return {
         success: true,
-        data: stats,
-        message: `top ${stats.length} generi recuperati`,
+        data: limitedStats,
+        message: `top ${limitedStats.length} generi`,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore stats generi: ${error.message}`);
-
+      this.logger.error(`errore statistiche generi: ${error.message}`);
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero statistiche generi',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   /**
-   * GET /api/v1/analytics/years
-   * statistiche anni
+   * GET /api/v1/analytics/years?userId=xxx
    */
   @Get('years')
-  async getYearStats() {
+  async getYearStats(@Query('userId') userId: string): Promise<ApiResponse> {
     try {
-      this.logger.log('richiesta stats anni');
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const stats = await this.analyticsService.getYearStats();
+      this.logger.log(`📊 statistiche anni per utente ${userId}`);
+      const stats = await this.analyticsService.getYearStats(userId);
 
       return {
         success: true,
         data: stats,
-        message: `statistiche ${stats.length} anni recuperate`,
+        message: 'distribuzione per anno',
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore stats anni: ${error.message}`);
-
+      this.logger.error(`errore statistiche anni: ${error.message}`);
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero statistiche anni',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   /**
-   * GET /api/v1/analytics/directors
-   * statistiche registi
+   * GET /api/v1/analytics/directors?userId=xxx&limit=10
    */
   @Get('directors')
-  async getDirectorStats(@Query('limit') limit?: string) {
+  async getDirectorStats(
+    @Query('userId') userId: string,
+    @Query('limit') limit?: string,
+  ): Promise<ApiResponse> {
     try {
-      const limitNum = limit ? parseInt(limit) : 10;
-      this.logger.log(`richiesta stats registi (limit: ${limitNum})`);
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const stats = await this.analyticsService.getDirectorStats(limitNum);
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+      this.logger.log(`📊 statistiche registi per utente ${userId}`);
+      
+      const stats = await this.analyticsService.getDirectorStats(userId);
+      const limitedStats = stats.slice(0, limitNum);
 
       return {
         success: true,
-        data: stats,
-        message: `top ${stats.length} registi recuperati`,
+        data: limitedStats,
+        message: `top ${limitedStats.length} registi`,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore stats registi: ${error.message}`);
-
+      this.logger.error(`errore statistiche registi: ${error.message}`);
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero statistiche registi',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   /**
-   * GET /api/v1/analytics/rating-distribution
-   * distribuzione rating
-   */
-  @Get('rating-distribution')
-  async getRatingDistribution() {
-    try {
-      this.logger.log('richiesta distribuzione rating');
-
-      const distribution =
-        await this.analyticsService.getRatingDistribution();
-
-      return {
-        success: true,
-        data: distribution,
-        message: 'distribuzione rating recuperata',
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore distribuzione rating: ${error.message}`);
-
-      throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero distribuzione rating',
-          timestamp: new Date().toISOString(),
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/analytics/decade-distribution
-   * distribuzione decadi
-   */
-  @Get('decade-distribution')
-  async getDecadeDistribution() {
-    try {
-      this.logger.log('richiesta distribuzione decadi');
-
-      const distribution =
-        await this.analyticsService.getDecadeDistribution();
-
-      return {
-        success: true,
-        data: distribution,
-        message: 'distribuzione decadi recuperata',
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore distribuzione decadi: ${error.message}`);
-
-      throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero distribuzione decadi',
-          timestamp: new Date().toISOString(),
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/analytics/advanced
-   * analytics avanzate complete
+   * GET /api/v1/analytics/advanced?userId=xxx
    */
   @Get('advanced')
-  async getAdvancedAnalytics() {
+  async getAdvancedAnalytics(@Query('userId') userId: string): Promise<ApiResponse> {
     try {
-      this.logger.log('richiesta analytics avanzate');
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const analytics = await this.analyticsService.getAdvancedAnalytics();
+      this.logger.log(`📊 analytics avanzate per utente ${userId}`);
+      const analytics = await this.analyticsService.getAdvancedAnalytics(userId);
 
       return {
         success: true,
         data: analytics,
-        message: 'analytics avanzate recuperate',
+        message: 'analytics complete',
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
       this.logger.error(`errore analytics avanzate: ${error.message}`);
-
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero analytics avanzate',
-          timestamp: new Date().toISOString(),
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/analytics/report
-   * report testuale completo
-   */
-  @Get('report')
-  async getTextReport() {
-    try {
-      this.logger.log('richiesta report testuale');
-
-      const report = await this.analyticsService.generateTextReport();
-
-      return {
-        success: true,
-        data: { report },
-        message: 'report generato',
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore report: ${error.message}`);
-
-      throw new HttpException(
-        {
-          success: false,
-          message: 'errore generazione report',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

@@ -3,9 +3,6 @@ export declare class CreateMovieDto {
     year?: number;
     director?: string;
     genres?: string[];
-    user_rating?: number;
-    date_rated?: string;
-    is_watched: boolean;
     source: string;
 }
 export declare class UpdateMovieDto {
@@ -13,20 +10,42 @@ export declare class UpdateMovieDto {
     year?: number;
     director?: string;
     genres?: string[];
-    user_rating?: number;
-    date_rated?: string;
-    is_watched?: boolean;
 }
 export declare class EnrichMovieDto {
     id: string;
     title: string;
     year?: number;
-    user_rating?: number;
-    date_rated?: string;
-    is_watched: boolean;
     source: string;
 }
 export declare class BatchUploadDto {
     watchlist: EnrichMovieDto[];
     watched: EnrichMovieDto[];
+}
+export declare class UserMovieDto {
+    movieId: string;
+    status: 'watched' | 'watchlist';
+    userRating?: number;
+    watchedDate?: string;
+    userReview?: string;
+    source: string;
+}
+export declare class BatchUploadWithUserDto {
+    userId: string;
+    watchlist: Array<{
+        id: string;
+        title: string;
+        year?: number;
+        source: string;
+        userRating?: number;
+        userReview?: string;
+    }>;
+    watched: Array<{
+        id: string;
+        title: string;
+        year?: number;
+        source: string;
+        userRating?: number;
+        watchedDate?: string;
+        userReview?: string;
+    }>;
 }

@@ -15,6 +15,7 @@ const axios_1 = require("@nestjs/axios");
 const movie_entity_1 = require("./database/entities/movie.entity");
 const user_entity_1 = require("./database/entities/user.entity");
 const tmdb_cache_entity_1 = require("./database/entities/tmdb-cache.entity");
+const user_movie_entity_1 = require("./database/entities/user-movie.entity");
 const movies_module_1 = require("./modules/movies/movies.module");
 const auth_module_1 = require("./modules/auth/auth.module");
 const analytics_module_1 = require("./modules/analytics/analytics.module");
@@ -39,8 +40,13 @@ exports.AppModule = AppModule = __decorate([
                     username: configService.get('DB_USERNAME', 'postgres'),
                     password: configService.get('DB_PASSWORD', 'password'),
                     database: configService.get('DB_NAME', 'movieapp'),
-                    entities: [movie_entity_1.MovieEntity, user_entity_1.UserEntity, tmdb_cache_entity_1.TmdbCacheEntity],
-                    synchronize: configService.get('NODE_ENV') !== 'production',
+                    entities: [
+                        movie_entity_1.MovieEntity,
+                        user_entity_1.UserEntity,
+                        tmdb_cache_entity_1.TmdbCacheEntity,
+                        user_movie_entity_1.UserMovieEntity,
+                    ],
+                    synchronize: false,
                     logging: true,
                 }),
                 inject: [config_1.ConfigService],

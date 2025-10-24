@@ -25,18 +25,11 @@ export declare class TmdbService {
         totalProcessed: number;
         successRate: number;
     }>;
+    private generateTmdbCacheKey;
+    private enforceRateLimit;
     private findByImdbIdWithCache;
     private searchByTitleWithCache;
-    private getMovieDetailsWithCache;
-    private enforceRateLimit;
-    private recordApiCall;
-    private generateTmdbCacheKey;
+    private getMovieDetails;
     private findBestMatch;
     private mapTmdbToMovie;
-    private delay;
-    healthCheck(): Promise<{
-        status: string;
-        details?: any;
-    }>;
-    getApiUsageStats(): any;
 }

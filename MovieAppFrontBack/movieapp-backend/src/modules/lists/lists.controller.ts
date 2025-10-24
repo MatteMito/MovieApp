@@ -1,16 +1,22 @@
-//controller per gestione liste film
+// File: src/modules/lists/lists.controller.ts
+// AGGIORNATO: tutti i metodi richiedono userId
 
 import {
   Controller,
   Get,
-  Post,
-  Body,
   Query,
-  HttpException,
   HttpStatus,
+  HttpException,
   Logger,
 } from '@nestjs/common';
-import { ListsService, ListFilters } from './lists.service';
+import { ListsService } from './lists.service';
+
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  timestamp: string;
+}
 
 @Controller('api/v1/lists')
 export class ListsController {
@@ -19,351 +25,321 @@ export class ListsController {
   constructor(private readonly listsService: ListsService) {}
 
   /**
-   * POST /api/v1/lists/custom
-   * crea lista personalizzata con filtri
-   */
-  @Post('custom')
-  async createCustomList(
-    @Body() body: { name: string; description?: string; filters: ListFilters },
-  ) {
-    try {
-      this.logger.log(`richiesta lista custom: ${body.name}`);
-
-      const list = await this.listsService.createCustomList(
-        body.name,
-        body.filters,
-        body.description,
-      );
-
-      return {
-        success: true,
-        data: list,
-        message: `lista "${body.name}" creata con ${list.totalMovies} film`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore lista custom: ${error.message}`);
-
-      throw new HttpException(
-        {
-          success: false,
-          message: 'errore creazione lista',
-          timestamp: new Date().toISOString(),
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/lists/top-rated
-   * top film per rating
+   * GET /api/v1/lists/top-rated?userId=xxx&limit=20
    */
   @Get('top-rated')
-  async getTopRated(@Query('limit') limit?: string) {
+  async getTopRatedMovies(
+    @Query('userId') userId: string,
+    @Query('limit') limit?: string,
+  ): Promise<ApiResponse> {
     try {
-      const limitNum = limit ? parseInt(limit) : 50;
-      this.logger.log(`richiesta top rated (limit: ${limitNum})`);
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const list = await this.listsService.getTopRatedMovies(limitNum);
+      const limitNum = limit ? parseInt(limit, 10) : 20;
+      this.logger.log(`🎬 top rated per utente ${userId}`);
+
+      const list = await this.listsService.createCustomList(
+        'Top Rated',
+        {
+          userId,
+          minRating: 7,
+          sortBy: 'rating',
+          sortOrder: 'DESC',
+        },
+        'Film con i voti più alti',
+      );
+
+      // Limita i risultati
+      list.movies = list.movies.slice(0, limitNum);
+      list.totalMovies = list.movies.length;
 
       return {
         success: true,
         data: list,
-        message: `top ${list.totalMovies} film recuperati`,
+        message: `top ${limitNum} film`,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
       this.logger.error(`errore top rated: ${error.message}`);
-
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero top rated',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   /**
-   * GET /api/v1/lists/recent
-   * film recenti (ultimi 5 anni)
+   * GET /api/v1/lists/recent?userId=xxx&limit=20
    */
   @Get('recent')
-  async getRecent(@Query('limit') limit?: string) {
+  async getRecentMovies(
+    @Query('userId') userId: string,
+    @Query('limit') limit?: string,
+  ): Promise<ApiResponse> {
     try {
-      const limitNum = limit ? parseInt(limit) : 50;
-      this.logger.log(`richiesta recent movies (limit: ${limitNum})`);
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const list = await this.listsService.getRecentMovies(limitNum);
+      const limitNum = limit ? parseInt(limit, 10) : 20;
+      this.logger.log(`🎬 film recenti per utente ${userId}`);
+
+      const list = await this.listsService.createCustomList(
+        'Recent Movies',
+        {
+          userId,
+          sortBy: 'year',
+          sortOrder: 'DESC',
+        },
+        'Film più recenti',
+      );
+
+      list.movies = list.movies.slice(0, limitNum);
+      list.totalMovies = list.movies.length;
 
       return {
         success: true,
         data: list,
-        message: `${list.totalMovies} film recenti recuperati`,
+        message: `${limitNum} film recenti`,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
       this.logger.error(`errore recent movies: ${error.message}`);
-
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero film recenti',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   /**
-   * GET /api/v1/lists/classics
-   * film classici (1950-1999)
+   * GET /api/v1/lists/classics?userId=xxx
    */
   @Get('classics')
-  async getClassics() {
+  async getClassicMovies(@Query('userId') userId: string): Promise<ApiResponse> {
     try {
-      this.logger.log('richiesta classic movies');
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const list = await this.listsService.getClassicMovies();
+      this.logger.log(`🎬 classici per utente ${userId}`);
+
+      const list = await this.listsService.createCustomList(
+        'Classics',
+        {
+          userId,
+          maxYear: 1980,
+          minRating: 7,
+          sortBy: 'year',
+          sortOrder: 'ASC',
+        },
+        'Film classici (pre-1980)',
+      );
 
       return {
         success: true,
         data: list,
-        message: `${list.totalMovies} film classici recuperati`,
+        message: 'film classici',
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore classic movies: ${error.message}`);
-
+      this.logger.error(`errore classics: ${error.message}`);
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero film classici',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   /**
-   * GET /api/v1/lists/long
-   * film lunghi (180+ min)
+   * GET /api/v1/lists/long?userId=xxx&minRuntime=150
    */
   @Get('long')
-  async getLong(@Query('minRuntime') minRuntime?: string) {
+  async getLongMovies(
+    @Query('userId') userId: string,
+    @Query('minRuntime') minRuntime?: string,
+  ): Promise<ApiResponse> {
     try {
-      const minRuntimeNum = minRuntime ? parseInt(minRuntime) : 180;
-      this.logger.log(`richiesta long movies (${minRuntimeNum}+ min)`);
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const list = await this.listsService.getLongMovies(minRuntimeNum);
+      const minRuntimeNum = minRuntime ? parseInt(minRuntime, 10) : 150;
+      this.logger.log(`🎬 film lunghi per utente ${userId}`);
+
+      const list = await this.listsService.createCustomList(
+        'Long Movies',
+        {
+          userId,
+          sortBy: 'runtime',
+          sortOrder: 'DESC',
+        },
+        `Film con durata >= ${minRuntimeNum} minuti`,
+      );
+
+      // Filtra per runtime manualmente
+      list.movies = list.movies.filter(m => (m.runtime || 0) >= minRuntimeNum);
+      list.totalMovies = list.movies.length;
 
       return {
         success: true,
         data: list,
-        message: `${list.totalMovies} film lunghi recuperati`,
+        message: 'film lunghi',
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
       this.logger.error(`errore long movies: ${error.message}`);
-
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero film lunghi',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   /**
-   * GET /api/v1/lists/decade/:decade
-   * film per decade
+   * GET /api/v1/lists/by-genre?userId=xxx&genre=Action
    */
-  @Get('decade/:decade')
-  async getByDecade(@Query('decade') decade: string) {
+  @Get('by-genre')
+  async getMoviesByGenre(
+    @Query('userId') userId: string,
+    @Query('genre') genre?: string,
+  ): Promise<ApiResponse> {
     try {
-      const decadeNum = parseInt(decade);
-      this.logger.log(`richiesta movies decade ${decadeNum}`);
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const list = await this.listsService.getMoviesByDecade(decadeNum);
+      if (!genre) {
+        throw new HttpException(
+          { success: false, message: 'genre mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      this.logger.log(`🎬 film per genere ${genre} per utente ${userId}`);
+
+      const list = await this.listsService.createCustomList(
+        `${genre} Movies`,
+        {
+          userId,
+          genre,
+          sortBy: 'rating',
+          sortOrder: 'DESC',
+        },
+        `Film del genere ${genre}`,
+      );
 
       return {
         success: true,
         data: list,
-        message: `${list.totalMovies} film anni ${decadeNum} recuperati`,
+        message: `film genere ${genre}`,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore decade movies: ${error.message}`);
-
+      this.logger.error(`errore by genre: ${error.message}`);
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero film per decade',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   /**
-   * GET /api/v1/lists/watchlist
-   * watchlist non vista
+   * GET /api/v1/lists/by-director?userId=xxx&director=Nolan
    */
-  @Get('watchlist')
-  async getWatchlist() {
+  @Get('by-director')
+  async getMoviesByDirector(
+    @Query('userId') userId: string,
+    @Query('director') director?: string,
+  ): Promise<ApiResponse> {
     try {
-      this.logger.log('richiesta unwatched watchlist');
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const list = await this.listsService.getUnwatchedWatchlist();
+      if (!director) {
+        throw new HttpException(
+          { success: false, message: 'director mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      this.logger.log(`🎬 film per regista ${director} per utente ${userId}`);
+
+      const list = await this.listsService.createCustomList(
+        `${director} Films`,
+        {
+          userId,
+          director,
+          sortBy: 'year',
+          sortOrder: 'DESC',
+        },
+        `Film diretti da ${director}`,
+      );
 
       return {
         success: true,
         data: list,
-        message: `${list.totalMovies} film da vedere`,
+        message: `film di ${director}`,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore watchlist: ${error.message}`);
-
+      this.logger.error(`errore by director: ${error.message}`);
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero watchlist',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   /**
-   * GET /api/v1/lists/genre/:genre
-   * film per genere
+   * GET /api/v1/lists/preset?userId=xxx
+   * Ritorna le liste predefinite (top rated, recent, longest)
    */
-  @Get('genre/:genre')
-  async getByGenre(@Query('genre') genre: string) {
+  @Get('preset')
+  async getPresetLists(@Query('userId') userId: string): Promise<ApiResponse> {
     try {
-      this.logger.log(`richiesta movies genere: ${genre}`);
+      if (!userId) {
+        throw new HttpException(
+          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      const list = await this.listsService.getMoviesByGenre(genre);
+      this.logger.log(`🎬 preset lists per utente ${userId}`);
+
+      const presetLists = await this.listsService.getPresetLists(userId);
 
       return {
         success: true,
-        data: list,
-        message: `${list.totalMovies} film ${genre} recuperati`,
+        data: presetLists,
+        message: 'preset lists',
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore genre movies: ${error.message}`);
-
+      this.logger.error(`errore preset lists: ${error.message}`);
       throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero film per genere',
-          timestamp: new Date().toISOString(),
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/lists/director/:director
-   * film per regista
-   */
-  @Get('director/:director')
-  async getByDirector(@Query('director') director: string) {
-    try {
-      this.logger.log(`richiesta movies regista: ${director}`);
-
-      const list = await this.listsService.getMoviesByDirector(director);
-
-      return {
-        success: true,
-        data: list,
-        message: `${list.totalMovies} film di ${director} recuperati`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore director movies: ${error.message}`);
-
-      throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero film per regista',
-          timestamp: new Date().toISOString(),
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/lists/genres
-   * tutti i generi disponibili
-   */
-  @Get('genres')
-  async getAllGenres() {
-    try {
-      this.logger.log('richiesta tutti i generi');
-
-      const genres = await this.listsService.getAllGenres();
-
-      return {
-        success: true,
-        data: { genres },
-        message: `${genres.length} generi recuperati`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore generi: ${error.message}`);
-
-      throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero generi',
-          timestamp: new Date().toISOString(),
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/lists/directors
-   * tutti i registi disponibili
-   */
-  @Get('directors')
-  async getAllDirectors() {
-    try {
-      this.logger.log('richiesta tutti i registi');
-
-      const directors = await this.listsService.getAllDirectors();
-
-      return {
-        success: true,
-        data: { directors },
-        message: `${directors.length} registi recuperati`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore registi: ${error.message}`);
-
-      throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero registi',
-          timestamp: new Date().toISOString(),
-        },
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

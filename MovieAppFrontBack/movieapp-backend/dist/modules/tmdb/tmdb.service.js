@@ -31,7 +31,7 @@ let TmdbService = TmdbService_1 = class TmdbService {
         if (!this.apiKey) {
             throw new Error('TMDB_API_KEY non trovata nelle variabili ambiente');
         }
-        this.logger.log('✅ tmdb service inizializzato con cache e rate limiting');
+        this.logger.log('✅ tmdb service inizializzato');
     }
     async enrichMovie(movie) {
         const cacheKey = this.generateTmdbCacheKey(movie);
@@ -42,10 +42,6 @@ let TmdbService = TmdbService_1 = class TmdbService {
                 return {
                     ...existingMovie,
                     id: movie.id,
-                    user_rating: movie.user_rating,
-                    watched_date: movie.watched_date,
-                    user_review: movie.user_review,
-                    is_watched: movie.is_watched,
                     source: movie.source,
                 };
             }
@@ -73,21 +69,9 @@ let TmdbService = TmdbService_1 = class TmdbService {
                 this.logger.warn(`⚠️ nessun risultato tmdb per: ${movie.title}`);
                 return movie;
             }
-            const director = tmdbMovie.credits?.crew?.find((person) => person.job === 'Director')?.name || 'unknown';
-            const cast = tmdbMovie.credits?.cast
-                ?.slice(0, 5)
-                .map((actor) => actor.name) || [];
-            const genres = tmdbMovie.genres?.map((g) => g.name) || [];
-            const keywords = tmdbMovie.keywords?.keywords
-                ?.slice(0, 10)
-                .map((k) => k.name) || [];
-            this.logger.log(`📊 dati estratti per ${movie.title}:`);
-            this.logger.log(`   regista: ${director}`);
-            this.logger.log(`   generi: ${genres.join(', ')}`);
-            this.logger.log(`   cast: ${cast.join(', ')}`);
             await this.databaseService.saveTmdbCache(cacheKey, tmdbMovie);
             const enrichedMovie = this.mapTmdbToMovie(movie, tmdbMovie);
-            this.logger.log(`✅ film arricchito e cachato: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
+            this.logger.log(`✅ film arricchito: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
             return enrichedMovie;
         }
         catch (error) {
@@ -110,163 +94,123 @@ let TmdbService = TmdbService_1 = class TmdbService {
                 const merged = {
                     ...existing,
                     id: movie.id,
-                    user_rating: movie.user_rating,
-                    watched_date: movie.watched_date,
-                    user_review: movie.user_review,
-                    is_watched: movie.is_watched,
                     source: movie.source,
                 };
                 results.successfulMovies.push(merged);
-                this.logger.debug(`skip enrichment (già fatto): ${movie.title}`);
+                this.logger.debug(`💰 cache hit database: ${movie.title}`);
             }
             else {
                 moviesToEnrich.push(movie);
             }
         }
-        this.logger.log(`📊 film da arricchire: ${moviesToEnrich.length}/${movies.length}`);
-        this.logger.log(`✅ film già arricchiti: ${results.successfulMovies.length}`);
-        const batchSize = 5;
-        for (let i = 0; i < moviesToEnrich.length; i += batchSize) {
-            const batch = moviesToEnrich.slice(i, i + batchSize);
-            const promises = batch.map(async (movie, batchIndex) => {
-                try {
-                    const enriched = await this.enrichMovie(movie);
-                    const totalProcessed = results.successfulMovies.length + i + batchIndex + 1;
-                    if (options?.onProgress) {
-                        await options.onProgress(totalProcessed, movies.length, movie.title);
-                    }
-                    return { success: true, movie: enriched };
-                }
-                catch (error) {
-                    return {
-                        success: false,
-                        movie,
-                        error: error.message,
-                    };
-                }
-            });
-            const batchResults = await Promise.all(promises);
-            batchResults.forEach((result) => {
-                results.totalProcessed++;
-                if (result.success) {
-                    results.successfulMovies.push(result.movie);
+        this.logger.log(`📊 film da arricchire: ${moviesToEnrich.length}`);
+        this.logger.log(`💰 cache hits: ${results.successfulMovies.length}`);
+        for (let i = 0; i < moviesToEnrich.length; i++) {
+            const movie = moviesToEnrich[i];
+            try {
+                const enriched = await this.enrichMovie(movie);
+                if (enriched.tmdb_id) {
+                    results.successfulMovies.push(enriched);
                 }
                 else {
                     results.failedMovies.push({
-                        movie: result.movie,
-                        error: result.error,
+                        movie,
+                        error: 'TMDB data not found',
                     });
                 }
-            });
-            if (i + batchSize < moviesToEnrich.length) {
-                await this.delay(2000);
-                this.logger.debug(`batch ${Math.floor(i / batchSize) + 1} completato, pausa rate limiting`);
+                if (options?.onProgress) {
+                    await options.onProgress(results.successfulMovies.length + results.failedMovies.length, movies.length, movie.title);
+                }
+            }
+            catch (error) {
+                this.logger.error(`errore arricchimento ${movie.title}: ${error.message}`);
+                results.failedMovies.push({
+                    movie,
+                    error: error.message,
+                });
             }
         }
-        results.successRate = results.successfulMovies.length / movies.length;
-        const enrichedCount = results.successfulMovies.filter((m) => m.tmdb_id).length;
-        this.logger.log(`✅ enrichment batch completato: ${enrichedCount}/${movies.length} film arricchiti`);
+        results.totalProcessed = results.successfulMovies.length + results.failedMovies.length;
+        results.successRate = results.totalProcessed > 0
+            ? results.successfulMovies.length / results.totalProcessed
+            : 0;
+        this.logger.log(`✅ enrichment batch completato:`);
+        this.logger.log(`   successi: ${results.successfulMovies.length}`);
+        this.logger.log(`   falliti: ${results.failedMovies.length}`);
+        this.logger.log(`   success rate: ${(results.successRate * 100).toFixed(1)}%`);
         return results;
+    }
+    generateTmdbCacheKey(movie) {
+        return `${movie.title.toLowerCase()}_${movie.year || 'unknown'}`;
+    }
+    async enforceRateLimit() {
+        const now = Date.now();
+        this.requestHistory = this.requestHistory.filter((timestamp) => now - timestamp < this.rateLimitWindow);
+        if (this.requestHistory.length >= this.maxRequestsPerWindow) {
+            const oldestRequest = this.requestHistory[0];
+            const waitTime = this.rateLimitWindow - (now - oldestRequest) + 100;
+            this.logger.debug(`⏳ rate limit raggiunto, attesa ${waitTime}ms`);
+            await new Promise((resolve) => setTimeout(resolve, waitTime));
+            return this.enforceRateLimit();
+        }
+        this.requestHistory.push(now);
     }
     async findByImdbIdWithCache(imdbId, cacheKey) {
         try {
-            const cleanImdbId = imdbId.startsWith('tt') ? imdbId : `tt${imdbId}`;
-            await this.enforceRateLimit();
-            const url = `${this.baseUrl}/find/${cleanImdbId}`;
+            const url = `${this.baseUrl}/find/${imdbId}`;
             const response = await (0, rxjs_1.firstValueFrom)(this.httpService.get(url, {
                 params: {
                     api_key: this.apiKey,
                     external_source: 'imdb_id',
-                    language: 'it-IT',
+                    append_to_response: 'credits,keywords,videos,releases',
                 },
-                timeout: 15000,
             }));
-            this.recordApiCall();
-            if (response.data.movie_results?.length > 0) {
-                const movieId = response.data.movie_results[0].id;
-                const movieDetails = await this.getMovieDetailsWithCache(movieId, cacheKey);
-                return movieDetails;
-            }
-            return null;
+            const movie = response.data.movie_results[0];
+            if (!movie)
+                return null;
+            return await this.getMovieDetails(movie.id);
         }
         catch (error) {
-            this.logger.error(`errore ricerca imdb id ${imdbId}: ${error.message}`);
+            this.logger.error(`errore ricerca imdb ${imdbId}: ${error.message}`);
             return null;
         }
     }
     async searchByTitleWithCache(title, year, cacheKey) {
         try {
-            await this.enforceRateLimit();
             const url = `${this.baseUrl}/search/movie`;
             const response = await (0, rxjs_1.firstValueFrom)(this.httpService.get(url, {
                 params: {
                     api_key: this.apiKey,
                     query: title,
-                    year: year || undefined,
-                    language: 'it-IT',
+                    year,
                     include_adult: false,
                 },
-                timeout: 15000,
             }));
-            this.recordApiCall();
-            if (response.data.results?.length > 0) {
-                const bestMatch = this.findBestMatch(response.data.results, title, year);
-                if (bestMatch) {
-                    const movieDetails = await this.getMovieDetailsWithCache(bestMatch.id, cacheKey);
-                    return movieDetails;
-                }
-            }
-            return null;
+            const bestMatch = this.findBestMatch(response.data.results, title, year);
+            if (!bestMatch)
+                return null;
+            return await this.getMovieDetails(bestMatch.id);
         }
         catch (error) {
             this.logger.error(`errore ricerca titolo ${title}: ${error.message}`);
             return null;
         }
     }
-    async getMovieDetailsWithCache(tmdbId, cacheKey) {
+    async getMovieDetails(tmdbId) {
         try {
-            await this.enforceRateLimit();
             const url = `${this.baseUrl}/movie/${tmdbId}`;
             const response = await (0, rxjs_1.firstValueFrom)(this.httpService.get(url, {
                 params: {
                     api_key: this.apiKey,
-                    language: 'it-IT',
                     append_to_response: 'credits,keywords,videos,releases',
                 },
-                timeout: 20000,
             }));
-            this.recordApiCall();
-            const movieDetails = response.data;
-            if (cacheKey) {
-                await this.databaseService.saveTmdbCache(cacheKey, movieDetails);
-            }
-            return movieDetails;
+            return response.data;
         }
         catch (error) {
-            this.logger.error(`errore dettagli film id ${tmdbId}: ${error.message}`);
+            this.logger.error(`errore dettagli film ${tmdbId}: ${error.message}`);
             return null;
         }
-    }
-    async enforceRateLimit() {
-        const now = Date.now();
-        this.requestHistory = this.requestHistory.filter((timestamp) => now - timestamp < this.rateLimitWindow);
-        if (this.requestHistory.length >= this.maxRequestsPerWindow) {
-            const oldestRequest = Math.min(...this.requestHistory);
-            const waitTime = this.rateLimitWindow - (now - oldestRequest) + 100;
-            this.logger.debug(`⏳ rate limit raggiunto, attesa ${waitTime}ms`);
-            await this.delay(waitTime);
-        }
-    }
-    recordApiCall() {
-        this.requestHistory.push(Date.now());
-    }
-    generateTmdbCacheKey(movie) {
-        const titleKey = movie.title
-            .toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '')
-            .replace(/\s+/g, '_')
-            .substring(0, 50);
-        return `${titleKey}_${movie.year || 'unknown'}`;
     }
     findBestMatch(movies, originalTitle, originalYear) {
         if (!movies || movies.length === 0)
@@ -334,80 +278,28 @@ let TmdbService = TmdbService_1 = class TmdbService {
                 ? `https://image.tmdb.org/t/p/w500${tmdb.poster_path}`
                 : undefined,
             backdrop_url: tmdb.backdrop_path
-                ? `https://image.tmdb.org/t/p/w1280${tmdb.backdrop_path}`
+                ? `https://image.tmdb.org/t/p/original${tmdb.backdrop_path}`
                 : undefined,
             tmdb_rating: tmdb.vote_average,
             vote_count: tmdb.vote_count,
-            popularity: tmdb.popularity,
             runtime: tmdb.runtime,
             budget: tmdb.budget,
             revenue: tmdb.revenue,
             status: tmdb.status,
             original_language: tmdb.original_language,
             original_title: tmdb.original_title,
+            popularity: tmdb.popularity,
             adult: tmdb.adult,
             homepage: tmdb.homepage,
             imdb_id: tmdb.imdb_id,
             production_companies: tmdb.production_companies?.map((c) => c.name) || [],
             production_countries: tmdb.production_countries?.map((c) => c.name) || [],
             spoken_languages: tmdb.spoken_languages?.map((l) => l.name) || [],
-            keywords: tmdb.keywords?.keywords?.map((k) => k.name) || [],
-            certification: tmdb.releases?.countries?.find((c) => c.iso_3166_1 === 'IT')?.certification,
-            trailer_url: tmdb.videos?.results?.find((v) => v.type === 'Trailer' && v.site === 'YouTube')
-                ?.key
-                ? `https://www.youtube.com/watch?v=${tmdb.videos.results.find((v) => v.type === 'Trailer' && v.site === 'YouTube')?.key}`
+            keywords: tmdb.keywords?.keywords?.slice(0, 10).map((k) => k.name) || [],
+            certification: tmdb.releases?.countries?.find((c) => c.iso_3166_1 === 'US')?.certification,
+            trailer_url: tmdb.videos?.results?.find((v) => v.type === 'Trailer')?.key
+                ? `https://www.youtube.com/watch?v=${tmdb.videos.results.find((v) => v.type === 'Trailer')?.key}`
                 : undefined,
-        };
-    }
-    delay(ms) {
-        return new Promise((resolve) => setTimeout(resolve, ms));
-    }
-    async healthCheck() {
-        try {
-            const testUrl = `${this.baseUrl}/configuration`;
-            await this.enforceRateLimit();
-            const response = await (0, rxjs_1.firstValueFrom)(this.httpService.get(testUrl, {
-                params: { api_key: this.apiKey },
-                timeout: 10000,
-            }));
-            this.recordApiCall();
-            const cacheStats = await this.databaseService.getTmdbCacheStats();
-            return {
-                status: 'healthy',
-                details: {
-                    tmdbApi: 'connected',
-                    baseUrl: this.baseUrl,
-                    cacheIntegration: 'active',
-                    enrichmentOptimization: 'enabled with is_enriched flag',
-                    rateLimiting: `${this.requestHistory.length}/${this.maxRequestsPerWindow} requests`,
-                    cacheStats: cacheStats,
-                    timestamp: new Date().toISOString(),
-                },
-            };
-        }
-        catch (error) {
-            return {
-                status: 'unhealthy',
-                details: {
-                    error: error.message,
-                    cacheIntegration: this.databaseService.isDatabaseAvailable() ? 'active' : 'disabled',
-                    timestamp: new Date().toISOString(),
-                },
-            };
-        }
-    }
-    getApiUsageStats() {
-        const now = Date.now();
-        const recentCalls = this.requestHistory.filter((timestamp) => now - timestamp < this.rateLimitWindow);
-        return {
-            recentCalls: recentCalls.length,
-            maxAllowed: this.maxRequestsPerWindow,
-            rateLimitWindow: `${this.rateLimitWindow / 1000}s`,
-            utilizationPercentage: Math.round((recentCalls.length / this.maxRequestsPerWindow) * 100),
-            canMakeRequest: recentCalls.length < this.maxRequestsPerWindow,
-            nextResetIn: recentCalls.length > 0
-                ? Math.max(0, this.rateLimitWindow - (now - Math.min(...recentCalls)))
-                : 0,
         };
     }
 };

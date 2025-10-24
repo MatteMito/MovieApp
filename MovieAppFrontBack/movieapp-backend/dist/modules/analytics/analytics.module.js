@@ -12,16 +12,17 @@ const typeorm_1 = require("@nestjs/typeorm");
 const analytics_controller_1 = require("./analytics.controller");
 const analytics_service_1 = require("./analytics.service");
 const movie_entity_1 = require("../../database/entities/movie.entity");
-const tmdb_cache_entity_1 = require("../../database/entities/tmdb-cache.entity");
-const database_module_1 = require("../../database/database.module");
+const user_movie_entity_1 = require("../../database/entities/user-movie.entity");
 let AnalyticsModule = class AnalyticsModule {
 };
 exports.AnalyticsModule = AnalyticsModule;
 exports.AnalyticsModule = AnalyticsModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([movie_entity_1.MovieEntity, tmdb_cache_entity_1.TmdbCacheEntity]),
-            database_module_1.DatabaseModule,
+            typeorm_1.TypeOrmModule.forFeature([
+                movie_entity_1.MovieEntity,
+                user_movie_entity_1.UserMovieEntity,
+            ]),
         ],
         controllers: [analytics_controller_1.AnalyticsController],
         providers: [analytics_service_1.AnalyticsService],

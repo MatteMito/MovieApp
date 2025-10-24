@@ -37,6 +37,7 @@ const core_1 = require("@nestjs/core");
 const common_1 = require("@nestjs/common");
 const app_module_1 = require("./app.module");
 const bodyParser = __importStar(require("body-parser"));
+const os = __importStar(require("os"));
 async function bootstrap() {
     const logger = new common_1.Logger('Bootstrap');
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
@@ -53,12 +54,27 @@ async function bootstrap() {
     const port = process.env.PORT || 3001;
     const host = process.env.HOST || '0.0.0.0';
     await app.listen(port, host);
-    logger.log(`🚀 MovieApp Backend v2.1 attivo su http://${host}:${port}`);
+    const localIp = getLocalIpAddress();
+    logger.log(`🚀 MovieApp Backend v2.1 attivo su http://${localIp}:${port}`);
     logger.log(`📚 Database: PostgreSQL`);
     logger.log(`🔄 WebSocket: attivo`);
     logger.log(`📦 Body Parser Limit: 50MB`);
     logger.log(`✅ CORS: abilitato per tutti gli origin`);
     logger.log(`\n=== Backend pronto per ricevere richieste ===\n`);
+}
+function getLocalIpAddress() {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        const iface = interfaces[name];
+        if (!iface)
+            continue;
+        for (const alias of iface) {
+            if (alias.family === 'IPv4' && !alias.internal) {
+                return alias.address;
+            }
+        }
+    }
+    return 'localhost';
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

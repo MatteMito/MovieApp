@@ -1,13 +1,18 @@
-//modulo principale applicazione nestjs
+// Modulo principale applicazione NestJS
 
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { HttpModule } from '@nestjs/axios';
+
+// ✅ Import di TUTTE le entities
 import { MovieEntity } from './database/entities/movie.entity';
 import { UserEntity } from './database/entities/user.entity';
 import { TmdbCacheEntity } from './database/entities/tmdb-cache.entity';
+import { UserMovieEntity } from './database/entities/user-movie.entity';
+
+// Modules
 import { MoviesModule } from './modules/movies/movies.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
@@ -16,13 +21,13 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
 
 @Module({
   imports: [
-    //configurazione ambiente
+    // Configurazione ambiente
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
 
-    //database postgresql con typeorm
+    // Database PostgreSQL con TypeORM
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -32,14 +37,25 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
         username: configService.get('DB_USERNAME', 'postgres'),
         password: configService.get('DB_PASSWORD', 'password'),
         database: configService.get('DB_NAME', 'movieapp'),
-        entities: [MovieEntity, UserEntity, TmdbCacheEntity],
-        synchronize: configService.get('NODE_ENV') !== 'production',
+        
+        // ✅ Tutte le entities incluse
+        entities: [
+          MovieEntity,
+          UserEntity,
+          TmdbCacheEntity,
+          UserMovieEntity, // ⬅️ AGGIUNTA
+        ],
+        
+        // ⚠️ DISABILITA synchronize dopo aver eseguito schema.sql
+        // Usa migrations manuali per evitare problemi
+        synchronize: false,
+        
         logging: true,
       }),
       inject: [ConfigService],
     }),
 
-    //jwt per autenticazione
+    // JWT per autenticazione
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -52,13 +68,13 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
       global: true,
     }),
 
-    //http module per chiamate api esterne
+    // HTTP module per chiamate API esterne
     HttpModule.register({
       timeout: 30000,
       maxRedirects: 5,
     }),
 
-    //feature modules
+    // Feature modules
     MoviesModule,
     AuthModule,
     AnalyticsModule,

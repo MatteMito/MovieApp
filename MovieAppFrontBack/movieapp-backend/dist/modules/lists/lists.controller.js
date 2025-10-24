@@ -21,305 +21,239 @@ let ListsController = ListsController_1 = class ListsController {
         this.listsService = listsService;
         this.logger = new common_1.Logger(ListsController_1.name);
     }
-    async createCustomList(body) {
+    async getTopRatedMovies(userId, limit) {
         try {
-            this.logger.log(`richiesta lista custom: ${body.name}`);
-            const list = await this.listsService.createCustomList(body.name, body.filters, body.description);
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            const limitNum = limit ? parseInt(limit, 10) : 20;
+            this.logger.log(`🎬 top rated per utente ${userId}`);
+            const list = await this.listsService.createCustomList('Top Rated', {
+                userId,
+                minRating: 7,
+                sortBy: 'rating',
+                sortOrder: 'DESC',
+            }, 'Film con i voti più alti');
+            list.movies = list.movies.slice(0, limitNum);
+            list.totalMovies = list.movies.length;
             return {
                 success: true,
                 data: list,
-                message: `lista "${body.name}" creata con ${list.totalMovies} film`,
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore lista custom: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore creazione lista',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    async getTopRated(limit) {
-        try {
-            const limitNum = limit ? parseInt(limit) : 50;
-            this.logger.log(`richiesta top rated (limit: ${limitNum})`);
-            const list = await this.listsService.getTopRatedMovies(limitNum);
-            return {
-                success: true,
-                data: list,
-                message: `top ${list.totalMovies} film recuperati`,
+                message: `top ${limitNum} film`,
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
             this.logger.error(`errore top rated: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero top rated',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getRecent(limit) {
+    async getRecentMovies(userId, limit) {
         try {
-            const limitNum = limit ? parseInt(limit) : 50;
-            this.logger.log(`richiesta recent movies (limit: ${limitNum})`);
-            const list = await this.listsService.getRecentMovies(limitNum);
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            const limitNum = limit ? parseInt(limit, 10) : 20;
+            this.logger.log(`🎬 film recenti per utente ${userId}`);
+            const list = await this.listsService.createCustomList('Recent Movies', {
+                userId,
+                sortBy: 'year',
+                sortOrder: 'DESC',
+            }, 'Film più recenti');
+            list.movies = list.movies.slice(0, limitNum);
+            list.totalMovies = list.movies.length;
             return {
                 success: true,
                 data: list,
-                message: `${list.totalMovies} film recenti recuperati`,
+                message: `${limitNum} film recenti`,
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
             this.logger.error(`errore recent movies: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero film recenti',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getClassics() {
+    async getClassicMovies(userId) {
         try {
-            this.logger.log('richiesta classic movies');
-            const list = await this.listsService.getClassicMovies();
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            this.logger.log(`🎬 classici per utente ${userId}`);
+            const list = await this.listsService.createCustomList('Classics', {
+                userId,
+                maxYear: 1980,
+                minRating: 7,
+                sortBy: 'year',
+                sortOrder: 'ASC',
+            }, 'Film classici (pre-1980)');
             return {
                 success: true,
                 data: list,
-                message: `${list.totalMovies} film classici recuperati`,
+                message: 'film classici',
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
-            this.logger.error(`errore classic movies: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero film classici',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            this.logger.error(`errore classics: ${error.message}`);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getLong(minRuntime) {
+    async getLongMovies(userId, minRuntime) {
         try {
-            const minRuntimeNum = minRuntime ? parseInt(minRuntime) : 180;
-            this.logger.log(`richiesta long movies (${minRuntimeNum}+ min)`);
-            const list = await this.listsService.getLongMovies(minRuntimeNum);
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            const minRuntimeNum = minRuntime ? parseInt(minRuntime, 10) : 150;
+            this.logger.log(`🎬 film lunghi per utente ${userId}`);
+            const list = await this.listsService.createCustomList('Long Movies', {
+                userId,
+                sortBy: 'runtime',
+                sortOrder: 'DESC',
+            }, `Film con durata >= ${minRuntimeNum} minuti`);
+            list.movies = list.movies.filter(m => (m.runtime || 0) >= minRuntimeNum);
+            list.totalMovies = list.movies.length;
             return {
                 success: true,
                 data: list,
-                message: `${list.totalMovies} film lunghi recuperati`,
+                message: 'film lunghi',
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
             this.logger.error(`errore long movies: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero film lunghi',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getByDecade(decade) {
+    async getMoviesByGenre(userId, genre) {
         try {
-            const decadeNum = parseInt(decade);
-            this.logger.log(`richiesta movies decade ${decadeNum}`);
-            const list = await this.listsService.getMoviesByDecade(decadeNum);
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            if (!genre) {
+                throw new common_1.HttpException({ success: false, message: 'genre mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            this.logger.log(`🎬 film per genere ${genre} per utente ${userId}`);
+            const list = await this.listsService.createCustomList(`${genre} Movies`, {
+                userId,
+                genre,
+                sortBy: 'rating',
+                sortOrder: 'DESC',
+            }, `Film del genere ${genre}`);
             return {
                 success: true,
                 data: list,
-                message: `${list.totalMovies} film anni ${decadeNum} recuperati`,
+                message: `film genere ${genre}`,
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
-            this.logger.error(`errore decade movies: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero film per decade',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            this.logger.error(`errore by genre: ${error.message}`);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getWatchlist() {
+    async getMoviesByDirector(userId, director) {
         try {
-            this.logger.log('richiesta unwatched watchlist');
-            const list = await this.listsService.getUnwatchedWatchlist();
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            if (!director) {
+                throw new common_1.HttpException({ success: false, message: 'director mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            this.logger.log(`🎬 film per regista ${director} per utente ${userId}`);
+            const list = await this.listsService.createCustomList(`${director} Films`, {
+                userId,
+                director,
+                sortBy: 'year',
+                sortOrder: 'DESC',
+            }, `Film diretti da ${director}`);
             return {
                 success: true,
                 data: list,
-                message: `${list.totalMovies} film da vedere`,
+                message: `film di ${director}`,
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
-            this.logger.error(`errore watchlist: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero watchlist',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            this.logger.error(`errore by director: ${error.message}`);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getByGenre(genre) {
+    async getPresetLists(userId) {
         try {
-            this.logger.log(`richiesta movies genere: ${genre}`);
-            const list = await this.listsService.getMoviesByGenre(genre);
+            if (!userId) {
+                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            this.logger.log(`🎬 preset lists per utente ${userId}`);
+            const presetLists = await this.listsService.getPresetLists(userId);
             return {
                 success: true,
-                data: list,
-                message: `${list.totalMovies} film ${genre} recuperati`,
+                data: presetLists,
+                message: 'preset lists',
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
-            this.logger.error(`errore genre movies: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero film per genere',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    async getByDirector(director) {
-        try {
-            this.logger.log(`richiesta movies regista: ${director}`);
-            const list = await this.listsService.getMoviesByDirector(director);
-            return {
-                success: true,
-                data: list,
-                message: `${list.totalMovies} film di ${director} recuperati`,
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore director movies: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero film per regista',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    async getAllGenres() {
-        try {
-            this.logger.log('richiesta tutti i generi');
-            const genres = await this.listsService.getAllGenres();
-            return {
-                success: true,
-                data: { genres },
-                message: `${genres.length} generi recuperati`,
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore generi: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero generi',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    async getAllDirectors() {
-        try {
-            this.logger.log('richiesta tutti i registi');
-            const directors = await this.listsService.getAllDirectors();
-            return {
-                success: true,
-                data: { directors },
-                message: `${directors.length} registi recuperati`,
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore registi: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero registi',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            this.logger.error(`errore preset lists: ${error.message}`);
+            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 };
 exports.ListsController = ListsController;
 __decorate([
-    (0, common_1.Post)('custom'),
-    __param(0, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], ListsController.prototype, "createCustomList", null);
-__decorate([
     (0, common_1.Get)('top-rated'),
-    __param(0, (0, common_1.Query)('limit')),
+    __param(0, (0, common_1.Query)('userId')),
+    __param(1, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
-], ListsController.prototype, "getTopRated", null);
+], ListsController.prototype, "getTopRatedMovies", null);
 __decorate([
     (0, common_1.Get)('recent'),
-    __param(0, (0, common_1.Query)('limit')),
+    __param(0, (0, common_1.Query)('userId')),
+    __param(1, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
-], ListsController.prototype, "getRecent", null);
+], ListsController.prototype, "getRecentMovies", null);
 __decorate([
     (0, common_1.Get)('classics'),
+    __param(0, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], ListsController.prototype, "getClassics", null);
+], ListsController.prototype, "getClassicMovies", null);
 __decorate([
     (0, common_1.Get)('long'),
-    __param(0, (0, common_1.Query)('minRuntime')),
+    __param(0, (0, common_1.Query)('userId')),
+    __param(1, (0, common_1.Query)('minRuntime')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], ListsController.prototype, "getLongMovies", null);
+__decorate([
+    (0, common_1.Get)('by-genre'),
+    __param(0, (0, common_1.Query)('userId')),
+    __param(1, (0, common_1.Query)('genre')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], ListsController.prototype, "getMoviesByGenre", null);
+__decorate([
+    (0, common_1.Get)('by-director'),
+    __param(0, (0, common_1.Query)('userId')),
+    __param(1, (0, common_1.Query)('director')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], ListsController.prototype, "getMoviesByDirector", null);
+__decorate([
+    (0, common_1.Get)('preset'),
+    __param(0, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], ListsController.prototype, "getLong", null);
-__decorate([
-    (0, common_1.Get)('decade/:decade'),
-    __param(0, (0, common_1.Query)('decade')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], ListsController.prototype, "getByDecade", null);
-__decorate([
-    (0, common_1.Get)('watchlist'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], ListsController.prototype, "getWatchlist", null);
-__decorate([
-    (0, common_1.Get)('genre/:genre'),
-    __param(0, (0, common_1.Query)('genre')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], ListsController.prototype, "getByGenre", null);
-__decorate([
-    (0, common_1.Get)('director/:director'),
-    __param(0, (0, common_1.Query)('director')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], ListsController.prototype, "getByDirector", null);
-__decorate([
-    (0, common_1.Get)('genres'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], ListsController.prototype, "getAllGenres", null);
-__decorate([
-    (0, common_1.Get)('directors'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], ListsController.prototype, "getAllDirectors", null);
+], ListsController.prototype, "getPresetLists", null);
 exports.ListsController = ListsController = ListsController_1 = __decorate([
     (0, common_1.Controller)('api/v1/lists'),
     __metadata("design:paramtypes", [lists_service_1.ListsService])

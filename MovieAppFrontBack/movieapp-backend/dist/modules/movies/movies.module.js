@@ -9,37 +9,39 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MoviesModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
-const axios_1 = require("@nestjs/axios");
-const config_1 = require("@nestjs/config");
 const movies_controller_1 = require("./movies.controller");
 const movies_service_1 = require("./movies.service");
-const tmdb_service_1 = require("../tmdb/tmdb.service");
+const user_movies_service_1 = require("./user-movies.service");
 const movie_entity_1 = require("../../database/entities/movie.entity");
+const user_movie_entity_1 = require("../../database/entities/user-movie.entity");
 const tmdb_cache_entity_1 = require("../../database/entities/tmdb-cache.entity");
 const database_module_1 = require("../../database/database.module");
+const tmdb_module_1 = require("../tmdb/tmdb.module");
 const websocket_module_1 = require("../websocket/websocket.module");
-const websocket_gateway_1 = require("../websocket/websocket.gateway");
-const user_movie_entity_1 = require("../../database/entities/user-movie.entity");
-const user_movies_service_1 = require("./user-movies.service");
-const database_service_1 = require("../../database/database.service");
 let MoviesModule = class MoviesModule {
 };
 exports.MoviesModule = MoviesModule;
 exports.MoviesModule = MoviesModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([movie_entity_1.MovieEntity, tmdb_cache_entity_1.TmdbCacheEntity, user_movie_entity_1.UserMovieEntity]),
-            axios_1.HttpModule.register({
-                timeout: 30000,
-                maxRedirects: 5,
-            }),
-            config_1.ConfigModule,
+            typeorm_1.TypeOrmModule.forFeature([
+                movie_entity_1.MovieEntity,
+                user_movie_entity_1.UserMovieEntity,
+                tmdb_cache_entity_1.TmdbCacheEntity,
+            ]),
             database_module_1.DatabaseModule,
+            tmdb_module_1.TmdbModule,
             websocket_module_1.WebsocketModule,
         ],
         controllers: [movies_controller_1.MoviesController],
-        providers: [movies_service_1.MoviesService, database_service_1.DatabaseService, tmdb_service_1.TmdbService, websocket_gateway_1.WebsocketGateway, user_movies_service_1.UserMoviesService],
-        exports: [movies_service_1.MoviesService, user_movies_service_1.UserMoviesService],
+        providers: [
+            movies_service_1.MoviesService,
+            user_movies_service_1.UserMoviesService,
+        ],
+        exports: [
+            movies_service_1.MoviesService,
+            user_movies_service_1.UserMoviesService,
+        ],
     })
 ], MoviesModule);
 //# sourceMappingURL=movies.module.js.map

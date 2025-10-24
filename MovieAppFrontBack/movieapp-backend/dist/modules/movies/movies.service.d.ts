@@ -13,13 +13,6 @@ export declare class MoviesService {
     batchUploadWithUserAssociation(userId: string, watchlist: Movie[], watched: Movie[]): Promise<BatchUploadResult & {
         importCounters: ImportCounters;
     }>;
-    healthCheck(): Promise<{
-        status: string;
-        timestamp: string;
-    }>;
-    getAllMovies(): Promise<Movie[]>;
-    getUnenrichedMovies(): Promise<Movie[]>;
-    deleteAllMovies(): Promise<void>;
     getUserMovies(userId: string, filters?: {
         status?: 'watched' | 'watchlist';
         query?: string;
@@ -38,15 +31,11 @@ export declare class MoviesService {
     }>;
     getUserStats(userId: string): Promise<any>;
     enrichMovies(movies: Movie[]): Promise<EnrichmentResult>;
-    private sortMovies;
-    batchUpload(watchlist: Movie[], watched: Movie[]): Promise<BatchUploadResult>;
     searchMovies(filters: {
         query?: string;
         genre?: string;
         year?: number;
         director?: string;
-        minRating?: number;
-        maxRating?: number;
         sortBy?: string;
         sortOrder?: 'ASC' | 'DESC';
         limit?: number;
@@ -55,9 +44,14 @@ export declare class MoviesService {
         movies: Movie[];
         total: number;
     }>;
-    getMovieById(id: string): Promise<Movie | null>;
-    updateMovie(id: string, updates: Partial<Movie>): Promise<Movie>;
-    deleteMovie(id: string): Promise<void>;
+    private sortMovies;
+    healthCheck(): Promise<{
+        status: string;
+        timestamp: string;
+    }>;
     getStats(): Promise<any>;
-    private extractGenres;
+    getAllMovies(): Promise<Movie[]>;
+    getMovieById(id: string): Promise<Movie | null>;
+    getUnenrichedMovies(): Promise<Movie[]>;
+    deleteAllMovies(): Promise<void>;
 }

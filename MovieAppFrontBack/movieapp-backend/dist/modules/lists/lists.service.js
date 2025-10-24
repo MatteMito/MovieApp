@@ -18,26 +18,34 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const movie_entity_1 = require("../../database/entities/movie.entity");
+const user_movie_entity_1 = require("../../database/entities/user-movie.entity");
 let ListsService = ListsService_1 = class ListsService {
-    constructor(movieRepository) {
+    constructor(movieRepository, userMovieRepository) {
         this.movieRepository = movieRepository;
+        this.userMovieRepository = userMovieRepository;
         this.logger = new common_1.Logger(ListsService_1.name);
     }
     async createCustomList(name, filters, description) {
         try {
-            this.logger.log(`creazione lista personalizzata: ${name}`);
+            this.logger.log(`creazione lista personalizzata: ${name} per utente ${filters.userId}`);
             const movies = await this.filterMovies(filters);
             const totalRuntime = movies
                 .map((m) => m.runtime || 0)
                 .reduce((a, b) => a + b, 0);
-            const ratingsWithValues = movies
-                .map((m) => m.user_rating || m.tmdb_rating)
-                .filter((r) => r !== null && r !== undefined);
+            const movieIds = movies.map(m => m.id);
+            const userMovies = await this.userMovieRepository.find({
+                where: {
+                    userId: filters.userId,
+                    movieId: movieIds,
+                },
+            });
+            const ratingsWithValues = userMovies
+                .map(um => um.userRating || 0)
+                .filter(r => r > 0);
             const averageRating = ratingsWithValues.length > 0
-                ? ratingsWithValues.reduce((a, b) => a + b, 0) /
-                    ratingsWithValues.length
+                ? ratingsWithValues.reduce((a, b) => a + b, 0) / ratingsWithValues.length
                 : undefined;
-            const list = {
+            return {
                 name,
                 description,
                 movies,
@@ -46,8 +54,6 @@ let ListsService = ListsService_1 = class ListsService {
                 totalRuntime,
                 averageRating,
             };
-            this.logger.log(`lista creata: ${movies.length} film`);
-            return list;
         }
         catch (error) {
             this.logger.error(`errore creazione lista: ${error.message}`);
@@ -56,249 +62,106 @@ let ListsService = ListsService_1 = class ListsService {
     }
     async filterMovies(filters) {
         try {
-            let query = this.movieRepository.createQueryBuilder('movie');
-            if (filters.genre) {
-                query = query.andWhere(':genre = ANY(movie.genres)', {
-                    genre: filters.genre,
+            const { userId, status, ...movieFilters } = filters;
+            const userMoviesQuery = this.userMovieRepository
+                .createQueryBuilder('um')
+                .leftJoinAndSelect('um.movie', 'movie')
+                .where('um.userId = :userId', { userId });
+            if (status) {
+                const movieStatus = status === 'watched' ? user_movie_entity_1.MovieStatus.WATCHED : user_movie_entity_1.MovieStatus.WATCHLIST;
+                userMoviesQuery.andWhere('um.status = :status', { status: movieStatus });
+            }
+            const userMovies = await userMoviesQuery.getMany();
+            let movies = userMovies.map(um => um.movie);
+            if (movieFilters.genre) {
+                movies = movies.filter(m => m.genres?.some(g => g.toLowerCase().includes(movieFilters.genre.toLowerCase())));
+            }
+            if (movieFilters.director) {
+                movies = movies.filter(m => m.director?.toLowerCase().includes(movieFilters.director.toLowerCase()));
+            }
+            if (movieFilters.minYear) {
+                movies = movies.filter(m => m.year && m.year >= movieFilters.minYear);
+            }
+            if (movieFilters.maxYear) {
+                movies = movies.filter(m => m.year && m.year <= movieFilters.maxYear);
+            }
+            if (movieFilters.minRating || movieFilters.maxRating || movieFilters.hasRating) {
+                const movieIds = movies.map(m => m.id);
+                const userMoviesWithRatings = await this.userMovieRepository.find({
+                    where: {
+                        userId,
+                        movieId: movieIds,
+                    },
+                });
+                const ratingMap = new Map(userMoviesWithRatings.map(um => [um.movieId, um.userRating]));
+                movies = movies.filter(m => {
+                    const rating = ratingMap.get(m.id);
+                    if (movieFilters.hasRating && !rating)
+                        return false;
+                    if (movieFilters.minRating && (!rating || rating < movieFilters.minRating))
+                        return false;
+                    if (movieFilters.maxRating && (!rating || rating > movieFilters.maxRating))
+                        return false;
+                    return true;
                 });
             }
-            if (filters.director) {
-                query = query.andWhere('movie.director ILIKE :director', {
-                    director: `%${filters.director}%`,
-                });
+            if (movieFilters.sortBy) {
+                movies = this.sortMovies(movies, movieFilters.sortBy, movieFilters.sortOrder || 'ASC');
             }
-            if (filters.minYear) {
-                query = query.andWhere('movie.year >= :minYear', {
-                    minYear: filters.minYear,
-                });
-            }
-            if (filters.maxYear) {
-                query = query.andWhere('movie.year <= :maxYear', {
-                    maxYear: filters.maxYear,
-                });
-            }
-            if (filters.minRating) {
-                query = query.andWhere('(movie.user_rating >= :minRating OR movie.tmdb_rating >= :minRating)', { minRating: filters.minRating });
-            }
-            if (filters.maxRating) {
-                query = query.andWhere('(movie.user_rating <= :maxRating OR movie.tmdb_rating <= :maxRating)', { maxRating: filters.maxRating });
-            }
-            if (filters.watched !== undefined) {
-                query = query.andWhere('movie.is_watched = :watched', {
-                    watched: filters.watched,
-                });
-            }
-            if (filters.hasRating) {
-                query = query.andWhere('(movie.user_rating IS NOT NULL OR movie.tmdb_rating IS NOT NULL)');
-            }
-            const sortBy = filters.sortBy || 'title';
-            const sortOrder = filters.sortOrder || 'ASC';
-            switch (sortBy) {
-                case 'year':
-                    query = query.orderBy('movie.year', sortOrder, 'NULLS LAST');
-                    break;
-                case 'rating':
-                    query = query.orderBy('COALESCE(movie.user_rating, movie.tmdb_rating)', sortOrder, 'NULLS LAST');
-                    break;
-                case 'runtime':
-                    query = query.orderBy('movie.runtime', sortOrder, 'NULLS LAST');
-                    break;
-                default:
-                    query = query.orderBy('movie.title', sortOrder);
-            }
-            const movies = await query.getMany();
-            this.logger.log(`filtro applicato: ${movies.length} film trovati`);
             return movies;
         }
         catch (error) {
-            this.logger.error(`errore filtro: ${error.message}`);
-            throw error;
+            this.logger.error(`errore filtro film: ${error.message}`);
+            return [];
         }
     }
-    async getTopRatedMovies(limit = 50) {
+    sortMovies(movies, sortBy, sortOrder) {
+        const sorted = [...movies].sort((a, b) => {
+            let comparison = 0;
+            switch (sortBy) {
+                case 'title':
+                    comparison = a.title.localeCompare(b.title);
+                    break;
+                case 'year':
+                    comparison = (a.year || 0) - (b.year || 0);
+                    break;
+                case 'runtime':
+                    comparison = (a.runtime || 0) - (b.runtime || 0);
+                    break;
+                case 'rating':
+                    comparison = (a.tmdb_rating || 0) - (b.tmdb_rating || 0);
+                    break;
+                default:
+                    comparison = 0;
+            }
+            return sortOrder === 'DESC' ? -comparison : comparison;
+        });
+        return sorted;
+    }
+    async getPresetLists(userId) {
         try {
-            this.logger.log(`recupero top ${limit} film`);
-            const movies = await this.movieRepository
-                .createQueryBuilder('movie')
-                .where('movie.user_rating IS NOT NULL OR movie.tmdb_rating IS NOT NULL')
-                .orderBy('COALESCE(movie.user_rating, movie.tmdb_rating)', 'DESC')
-                .limit(limit)
-                .getMany();
-            return this.buildListFromMovies('Top Rated Movies', movies);
+            const [topRated, recentlyAdded, longestMovies] = await Promise.all([
+                this.createCustomList('Top Rated', {
+                    userId,
+                    minRating: 8,
+                    sortBy: 'rating',
+                    sortOrder: 'DESC',
+                }, 'I tuoi film con il rating più alto'),
+                this.createCustomList('Recently Added', {
+                    userId,
+                    sortBy: 'year',
+                    sortOrder: 'DESC',
+                }, 'Film aggiunti di recente'),
+                this.createCustomList('Longest Movies', {
+                    userId,
+                    sortBy: 'runtime',
+                    sortOrder: 'DESC',
+                }, 'I film più lunghi della tua collezione'),
+            ]);
+            return { topRated, recentlyAdded, longestMovies };
         }
         catch (error) {
-            this.logger.error(`errore top rated: ${error.message}`);
-            throw error;
-        }
-    }
-    async getRecentMovies(limit = 50) {
-        try {
-            this.logger.log(`recupero ${limit} film recenti`);
-            const currentYear = new Date().getFullYear();
-            const movies = await this.movieRepository
-                .createQueryBuilder('movie')
-                .where('movie.year >= :minYear', { minYear: currentYear - 5 })
-                .orderBy('movie.year', 'DESC')
-                .limit(limit)
-                .getMany();
-            return this.buildListFromMovies('Recent Movies', movies);
-        }
-        catch (error) {
-            this.logger.error(`errore recent movies: ${error.message}`);
-            throw error;
-        }
-    }
-    async getClassicMovies() {
-        try {
-            this.logger.log('recupero film classici');
-            const movies = await this.movieRepository
-                .createQueryBuilder('movie')
-                .where('movie.year >= :minYear AND movie.year <= :maxYear', {
-                minYear: 1950,
-                maxYear: 1999,
-            })
-                .orderBy('movie.year', 'ASC')
-                .getMany();
-            return this.buildListFromMovies('Classic Movies (1950-1999)', movies);
-        }
-        catch (error) {
-            this.logger.error(`errore classic movies: ${error.message}`);
-            throw error;
-        }
-    }
-    async getLongMovies(minRuntime = 180) {
-        try {
-            this.logger.log(`recupero film lunghi (>${minRuntime}min)`);
-            const movies = await this.movieRepository
-                .createQueryBuilder('movie')
-                .where('movie.runtime >= :minRuntime', { minRuntime })
-                .orderBy('movie.runtime', 'DESC')
-                .getMany();
-            return this.buildListFromMovies(`Long Movies (${minRuntime}+ min)`, movies);
-        }
-        catch (error) {
-            this.logger.error(`errore long movies: ${error.message}`);
-            throw error;
-        }
-    }
-    async getMoviesByDecade(decade) {
-        try {
-            this.logger.log(`recupero film anni ${decade}`);
-            const movies = await this.movieRepository
-                .createQueryBuilder('movie')
-                .where('movie.year >= :startYear AND movie.year < :endYear', {
-                startYear: decade,
-                endYear: decade + 10,
-            })
-                .orderBy('movie.year', 'ASC')
-                .getMany();
-            return this.buildListFromMovies(`Movies from ${decade}s`, movies);
-        }
-        catch (error) {
-            this.logger.error(`errore movies by decade: ${error.message}`);
-            throw error;
-        }
-    }
-    async getUnwatchedWatchlist() {
-        try {
-            this.logger.log('recupero watchlist non vista');
-            const movies = await this.movieRepository
-                .createQueryBuilder('movie')
-                .where('movie.is_watched = :watched', { watched: false })
-                .orderBy('movie.title', 'ASC')
-                .getMany();
-            return this.buildListFromMovies('Watchlist (Unwatched)', movies);
-        }
-        catch (error) {
-            this.logger.error(`errore unwatched watchlist: ${error.message}`);
-            throw error;
-        }
-    }
-    async getMoviesByGenre(genre) {
-        try {
-            this.logger.log(`recupero film genere: ${genre}`);
-            const movies = await this.movieRepository
-                .createQueryBuilder('movie')
-                .where(':genre = ANY(movie.genres)', { genre })
-                .orderBy('movie.title', 'ASC')
-                .getMany();
-            return this.buildListFromMovies(`${genre} Movies`, movies);
-        }
-        catch (error) {
-            this.logger.error(`errore movies by genre: ${error.message}`);
-            throw error;
-        }
-    }
-    async getMoviesByDirector(director) {
-        try {
-            this.logger.log(`recupero film regista: ${director}`);
-            const movies = await this.movieRepository
-                .createQueryBuilder('movie')
-                .where('movie.director ILIKE :director', { director: `%${director}%` })
-                .orderBy('movie.year', 'ASC')
-                .getMany();
-            return this.buildListFromMovies(`Movies by ${director}`, movies);
-        }
-        catch (error) {
-            this.logger.error(`errore movies by director: ${error.message}`);
-            throw error;
-        }
-    }
-    buildListFromMovies(name, movies) {
-        const totalRuntime = movies
-            .map((m) => m.runtime || 0)
-            .reduce((a, b) => a + b, 0);
-        const ratingsWithValues = movies
-            .map((m) => m.user_rating || m.tmdb_rating)
-            .filter((r) => r !== null && r !== undefined);
-        const averageRating = ratingsWithValues.length > 0
-            ? ratingsWithValues.reduce((a, b) => a + b, 0) /
-                ratingsWithValues.length
-            : undefined;
-        return {
-            name,
-            movies,
-            createdAt: new Date(),
-            totalMovies: movies.length,
-            totalRuntime,
-            averageRating,
-        };
-    }
-    async getAllGenres() {
-        try {
-            this.logger.log('recupero tutti i generi');
-            const movies = await this.movieRepository.find();
-            const genresSet = new Set();
-            movies.forEach((movie) => {
-                movie.genres?.forEach((genre) => {
-                    if (genre)
-                        genresSet.add(genre);
-                });
-            });
-            const genres = Array.from(genresSet).sort();
-            this.logger.log(`${genres.length} generi trovati`);
-            return genres;
-        }
-        catch (error) {
-            this.logger.error(`errore recupero generi: ${error.message}`);
-            throw error;
-        }
-    }
-    async getAllDirectors() {
-        try {
-            this.logger.log('recupero tutti i registi');
-            const movies = await this.movieRepository.find();
-            const directorsSet = new Set();
-            movies.forEach((movie) => {
-                if (movie.director)
-                    directorsSet.add(movie.director);
-            });
-            const directors = Array.from(directorsSet).sort();
-            this.logger.log(`${directors.length} registi trovati`);
-            return directors;
-        }
-        catch (error) {
-            this.logger.error(`errore recupero registi: ${error.message}`);
+            this.logger.error(`errore recupero preset lists: ${error.message}`);
             throw error;
         }
     }
@@ -307,6 +170,8 @@ exports.ListsService = ListsService;
 exports.ListsService = ListsService = ListsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(movie_entity_1.MovieEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(user_movie_entity_1.UserMovieEntity)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository])
 ], ListsService);
 //# sourceMappingURL=lists.service.js.map
