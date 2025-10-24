@@ -1,15 +1,21 @@
-// File: src/modules/lists/lists.controller.ts
-// AGGIORNATO: tutti i metodi richiedono userId
+// FILE: src/modules/lists/lists.controller.ts
+// Controller completo per gestione liste personalizzate
 
 import {
   Controller,
   Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
   Query,
   HttpStatus,
   HttpException,
   Logger,
 } from '@nestjs/common';
 import { ListsService } from './lists.service';
+import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dto/list.dto';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -25,13 +31,37 @@ export class ListsController {
   constructor(private readonly listsService: ListsService) {}
 
   /**
-   * GET /api/v1/lists/top-rated?userId=xxx&limit=20
+   * POST /api/v1/lists
+   * Crea nuova lista personalizzata
    */
-  @Get('top-rated')
-  async getTopRatedMovies(
-    @Query('userId') userId: string,
-    @Query('limit') limit?: string,
-  ): Promise<ApiResponse> {
+  @Post()
+  async createList(@Body() createDto: CreateListDto): Promise<ApiResponse> {
+    try {
+      this.logger.log(`📝 Creazione lista: ${createDto.name}`);
+
+      const list = await this.listsService.createUserList(createDto);
+
+      return {
+        success: true,
+        data: list,
+        message: 'Lista creata con successo',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`❌ Errore creazione lista: ${error.message}`);
+      throw new HttpException(
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * GET /api/v1/lists?userId=xxx
+   * Recupera tutte le liste dell'utente
+   */
+  @Get()
+  async getUserLists(@Query('userId') userId: string): Promise<ApiResponse> {
     try {
       if (!userId) {
         throw new HttpException(
@@ -40,32 +70,45 @@ export class ListsController {
         );
       }
 
+      this.logger.log(`📋 Recupero liste per utente ${userId}`);
+
+      const lists = await this.listsService.getUserLists(userId);
+
+      return {
+        success: true,
+        data: lists,
+        message: `${lists.length} liste trovate`,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`❌ Errore recupero liste: ${error.message}`);
+      throw new HttpException(
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * GET /api/v1/lists/public?limit=20
+   * Recupera liste pubbliche
+   */
+  @Get('public')
+  async getPublicLists(@Query('limit') limit?: string): Promise<ApiResponse> {
+    try {
       const limitNum = limit ? parseInt(limit, 10) : 20;
-      this.logger.log(`🎬 top rated per utente ${userId}`);
+      this.logger.log(`🌍 Recupero liste pubbliche (limit: ${limitNum})`);
 
-      const list = await this.listsService.createCustomList(
-        'Top Rated',
-        {
-          userId,
-          minRating: 7,
-          sortBy: 'rating',
-          sortOrder: 'DESC',
-        },
-        'Film con i voti più alti',
-      );
-
-      // Limita i risultati
-      list.movies = list.movies.slice(0, limitNum);
-      list.totalMovies = list.movies.length;
+      const lists = await this.listsService.getPublicLists(limitNum);
 
       return {
         success: true,
-        data: list,
-        message: `top ${limitNum} film`,
+        data: lists,
+        message: `${lists.length} liste pubbliche`,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore top rated: ${error.message}`);
+      this.logger.error(`❌ Errore liste pubbliche: ${error.message}`);
       throw new HttpException(
         { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -74,12 +117,158 @@ export class ListsController {
   }
 
   /**
-   * GET /api/v1/lists/recent?userId=xxx&limit=20
+   * GET /api/v1/lists/:id
+   * Dettaglio singola lista con film
    */
-  @Get('recent')
-  async getRecentMovies(
-    @Query('userId') userId: string,
-    @Query('limit') limit?: string,
+  @Get(':id')
+  async getListById(@Param('id') listId: string): Promise<ApiResponse> {
+    try {
+      this.logger.log(`📄 Recupero dettaglio lista ${listId}`);
+
+      const list = await this.listsService.getListWithMovies(listId);
+
+      if (!list) {
+        throw new HttpException(
+          { success: false, message: 'Lista non trovata', timestamp: new Date().toISOString() },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      return {
+        success: true,
+        data: list,
+        message: 'Lista trovata',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`❌ Errore recupero lista: ${error.message}`);
+      throw new HttpException(
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * PUT /api/v1/lists/:id
+   * Aggiorna lista esistente
+   */
+  @Put(':id')
+  async updateList(
+    @Param('id') listId: string,
+    @Body() updateDto: UpdateListDto,
+  ): Promise<ApiResponse> {
+    try {
+      this.logger.log(`✏️ Aggiornamento lista ${listId}`);
+
+      const list = await this.listsService.updateList(listId, updateDto);
+
+      return {
+        success: true,
+        data: list,
+        message: 'Lista aggiornata',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`❌ Errore aggiornamento lista: ${error.message}`);
+      throw new HttpException(
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * DELETE /api/v1/lists/:id
+   * Elimina lista
+   */
+  @Delete(':id')
+  async deleteList(@Param('id') listId: string): Promise<ApiResponse> {
+    try {
+      this.logger.log(`🗑️ Eliminazione lista ${listId}`);
+
+      await this.listsService.deleteList(listId);
+
+      return {
+        success: true,
+        message: 'Lista eliminata',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`❌ Errore eliminazione lista: ${error.message}`);
+      throw new HttpException(
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST /api/v1/lists/:id/movies
+   * Aggiungi film a lista
+   */
+  @Post(':id/movies')
+  async addMovieToList(
+    @Param('id') listId: string,
+    @Body() addMovieDto: AddMovieToListDto,
+  ): Promise<ApiResponse> {
+    try {
+      this.logger.log(`➕ Aggiunta film ${addMovieDto.movie_id} a lista ${listId}`);
+
+      const list = await this.listsService.addMovieToList(listId, addMovieDto.movie_id);
+
+      return {
+        success: true,
+        data: list,
+        message: 'Film aggiunto alla lista',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`❌ Errore aggiunta film: ${error.message}`);
+      throw new HttpException(
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * DELETE /api/v1/lists/:id/movies/:movieId
+   * Rimuovi film da lista
+   */
+  @Delete(':id/movies/:movieId')
+  async removeMovieFromList(
+    @Param('id') listId: string,
+    @Param('movieId') movieId: string,
+  ): Promise<ApiResponse> {
+    try {
+      this.logger.log(`➖ Rimozione film ${movieId} da lista ${listId}`);
+
+      const list = await this.listsService.removeMovieFromList(listId, movieId);
+
+      return {
+        success: true,
+        data: list,
+        message: 'Film rimosso dalla lista',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`❌ Errore rimozione film: ${error.message}`);
+      throw new HttpException(
+        { success: false, message: error.message, timestamp: new Date().toISOString() },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST /api/v1/lists/:id/follow
+   * Segui lista pubblica
+   */
+  @Post(':id/follow')
+  async followList(
+    @Param('id') listId: string,
+    @Body('userId') userId: string,
   ): Promise<ApiResponse> {
     try {
       if (!userId) {
@@ -89,255 +278,18 @@ export class ListsController {
         );
       }
 
-      const limitNum = limit ? parseInt(limit, 10) : 20;
-      this.logger.log(`🎬 film recenti per utente ${userId}`);
+      this.logger.log(`👥 Utente ${userId} segue lista ${listId}`);
 
-      const list = await this.listsService.createCustomList(
-        'Recent Movies',
-        {
-          userId,
-          sortBy: 'year',
-          sortOrder: 'DESC',
-        },
-        'Film più recenti',
-      );
-
-      list.movies = list.movies.slice(0, limitNum);
-      list.totalMovies = list.movies.length;
+      const list = await this.listsService.followList(listId, userId);
 
       return {
         success: true,
         data: list,
-        message: `${limitNum} film recenti`,
+        message: 'Lista seguita con successo',
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore recent movies: ${error.message}`);
-      throw new HttpException(
-        { success: false, message: error.message, timestamp: new Date().toISOString() },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/lists/classics?userId=xxx
-   */
-  @Get('classics')
-  async getClassicMovies(@Query('userId') userId: string): Promise<ApiResponse> {
-    try {
-      if (!userId) {
-        throw new HttpException(
-          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      this.logger.log(`🎬 classici per utente ${userId}`);
-
-      const list = await this.listsService.createCustomList(
-        'Classics',
-        {
-          userId,
-          maxYear: 1980,
-          minRating: 7,
-          sortBy: 'year',
-          sortOrder: 'ASC',
-        },
-        'Film classici (pre-1980)',
-      );
-
-      return {
-        success: true,
-        data: list,
-        message: 'film classici',
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore classics: ${error.message}`);
-      throw new HttpException(
-        { success: false, message: error.message, timestamp: new Date().toISOString() },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/lists/long?userId=xxx&minRuntime=150
-   */
-  @Get('long')
-  async getLongMovies(
-    @Query('userId') userId: string,
-    @Query('minRuntime') minRuntime?: string,
-  ): Promise<ApiResponse> {
-    try {
-      if (!userId) {
-        throw new HttpException(
-          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      const minRuntimeNum = minRuntime ? parseInt(minRuntime, 10) : 150;
-      this.logger.log(`🎬 film lunghi per utente ${userId}`);
-
-      const list = await this.listsService.createCustomList(
-        'Long Movies',
-        {
-          userId,
-          sortBy: 'runtime',
-          sortOrder: 'DESC',
-        },
-        `Film con durata >= ${minRuntimeNum} minuti`,
-      );
-
-      // Filtra per runtime manualmente
-      list.movies = list.movies.filter(m => (m.runtime || 0) >= minRuntimeNum);
-      list.totalMovies = list.movies.length;
-
-      return {
-        success: true,
-        data: list,
-        message: 'film lunghi',
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore long movies: ${error.message}`);
-      throw new HttpException(
-        { success: false, message: error.message, timestamp: new Date().toISOString() },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/lists/by-genre?userId=xxx&genre=Action
-   */
-  @Get('by-genre')
-  async getMoviesByGenre(
-    @Query('userId') userId: string,
-    @Query('genre') genre?: string,
-  ): Promise<ApiResponse> {
-    try {
-      if (!userId) {
-        throw new HttpException(
-          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      if (!genre) {
-        throw new HttpException(
-          { success: false, message: 'genre mancante', timestamp: new Date().toISOString() },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      this.logger.log(`🎬 film per genere ${genre} per utente ${userId}`);
-
-      const list = await this.listsService.createCustomList(
-        `${genre} Movies`,
-        {
-          userId,
-          genre,
-          sortBy: 'rating',
-          sortOrder: 'DESC',
-        },
-        `Film del genere ${genre}`,
-      );
-
-      return {
-        success: true,
-        data: list,
-        message: `film genere ${genre}`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore by genre: ${error.message}`);
-      throw new HttpException(
-        { success: false, message: error.message, timestamp: new Date().toISOString() },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/lists/by-director?userId=xxx&director=Nolan
-   */
-  @Get('by-director')
-  async getMoviesByDirector(
-    @Query('userId') userId: string,
-    @Query('director') director?: string,
-  ): Promise<ApiResponse> {
-    try {
-      if (!userId) {
-        throw new HttpException(
-          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      if (!director) {
-        throw new HttpException(
-          { success: false, message: 'director mancante', timestamp: new Date().toISOString() },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      this.logger.log(`🎬 film per regista ${director} per utente ${userId}`);
-
-      const list = await this.listsService.createCustomList(
-        `${director} Films`,
-        {
-          userId,
-          director,
-          sortBy: 'year',
-          sortOrder: 'DESC',
-        },
-        `Film diretti da ${director}`,
-      );
-
-      return {
-        success: true,
-        data: list,
-        message: `film di ${director}`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore by director: ${error.message}`);
-      throw new HttpException(
-        { success: false, message: error.message, timestamp: new Date().toISOString() },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * GET /api/v1/lists/preset?userId=xxx
-   * Ritorna le liste predefinite (top rated, recent, longest)
-   */
-  @Get('preset')
-  async getPresetLists(@Query('userId') userId: string): Promise<ApiResponse> {
-    try {
-      if (!userId) {
-        throw new HttpException(
-          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      this.logger.log(`🎬 preset lists per utente ${userId}`);
-
-      const presetLists = await this.listsService.getPresetLists(userId);
-
-      return {
-        success: true,
-        data: presetLists,
-        message: 'preset lists',
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore preset lists: ${error.message}`);
+      this.logger.error(`❌ Errore follow lista: ${error.message}`);
       throw new HttpException(
         { success: false, message: error.message, timestamp: new Date().toISOString() },
         HttpStatus.INTERNAL_SERVER_ERROR,

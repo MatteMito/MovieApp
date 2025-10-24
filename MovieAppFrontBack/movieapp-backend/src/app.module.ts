@@ -18,6 +18,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ListsModule } from './modules/lists/lists.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
+import { MovieListEntity } from './database/entities/list.entity';
 
 @Module({
   imports: [
@@ -43,7 +44,8 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
           MovieEntity,
           UserEntity,
           TmdbCacheEntity,
-          UserMovieEntity, // ⬅️ AGGIUNTA
+          UserMovieEntity,
+          MovieListEntity, // ⬅️ AGGIUNTA
         ],
         
         // ⚠️ DISABILITA synchronize dopo aver eseguito schema.sql

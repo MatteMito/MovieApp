@@ -11,8 +11,8 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const lists_controller_1 = require("./lists.controller");
 const lists_service_1 = require("./lists.service");
+const list_entity_1 = require("../../database/entities/list.entity");
 const movie_entity_1 = require("../../database/entities/movie.entity");
-const user_movie_entity_1 = require("../../database/entities/user-movie.entity");
 let ListsModule = class ListsModule {
 };
 exports.ListsModule = ListsModule;
@@ -20,8 +20,8 @@ exports.ListsModule = ListsModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([
+                list_entity_1.MovieListEntity,
                 movie_entity_1.MovieEntity,
-                user_movie_entity_1.UserMovieEntity,
             ]),
         ],
         controllers: [lists_controller_1.ListsController],

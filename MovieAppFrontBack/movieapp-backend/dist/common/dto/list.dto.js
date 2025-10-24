@@ -9,11 +9,15 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AddMovieToListDto = exports.UpdateListDto = exports.CreateListDto = void 0;
+exports.SearchMovieDto = exports.AddMovieToListDto = exports.UpdateListDto = exports.CreateListDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateListDto {
 }
 exports.CreateListDto = CreateListDto;
+__decorate([
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateListDto.prototype, "user_id", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MinLength)(1),
@@ -23,6 +27,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(1000),
     __metadata("design:type", String)
 ], CreateListDto.prototype, "description", void 0);
 __decorate([
@@ -38,6 +43,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(50),
     __metadata("design:type", String)
 ], CreateListDto.prototype, "frequency", void 0);
 __decorate([
@@ -51,11 +57,14 @@ exports.UpdateListDto = UpdateListDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(1),
+    (0, class_validator_1.MaxLength)(200),
     __metadata("design:type", String)
 ], UpdateListDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(1000),
     __metadata("design:type", String)
 ], UpdateListDto.prototype, "description", void 0);
 __decorate([
@@ -71,6 +80,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(50),
     __metadata("design:type", String)
 ], UpdateListDto.prototype, "frequency", void 0);
 __decorate([
@@ -85,4 +95,27 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], AddMovieToListDto.prototype, "movie_id", void 0);
+class SearchMovieDto {
+}
+exports.SearchMovieDto = SearchMovieDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], SearchMovieDto.prototype, "query", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], SearchMovieDto.prototype, "director", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], SearchMovieDto.prototype, "genre", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], SearchMovieDto.prototype, "year", void 0);
 //# sourceMappingURL=list.dto.js.map

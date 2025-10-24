@@ -21,6 +21,7 @@ const auth_module_1 = require("./modules/auth/auth.module");
 const analytics_module_1 = require("./modules/analytics/analytics.module");
 const lists_module_1 = require("./modules/lists/lists.module");
 const websocket_module_1 = require("./modules/websocket/websocket.module");
+const list_entity_1 = require("./database/entities/list.entity");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -45,6 +46,7 @@ exports.AppModule = AppModule = __decorate([
                         user_entity_1.UserEntity,
                         tmdb_cache_entity_1.TmdbCacheEntity,
                         user_movie_entity_1.UserMovieEntity,
+                        list_entity_1.MovieListEntity,
                     ],
                     synchronize: false,
                     logging: true,

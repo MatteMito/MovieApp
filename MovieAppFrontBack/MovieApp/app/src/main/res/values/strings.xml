@@ -5,7 +5,7 @@
 
     <!-- NAVIGATION TITLES -->
     <string name="title_home">Home</string>
-    <string name="title_dashboard">Info</string>
+    <string name="title_lists">Liste</string>
     <string name="title_notifications">Statistiche</string>
 
     <!-- HOME SCREEN -->

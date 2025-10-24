@@ -1,255 +1,266 @@
-// File: src/modules/lists/lists.service.ts
-// AGGIORNATO: usa UserMovieEntity per dati utente
+// FILE: movieapp-backend/src/modules/lists/lists.service.ts
+// Service completo per gestione liste personalizzate
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { MovieListEntity } from '../../database/entities/list.entity';
 import { MovieEntity } from '../../database/entities/movie.entity';
-import { UserMovieEntity, MovieStatus } from '../../database/entities/user-movie.entity';
-
-export interface MovieList {
-  name: string;
-  description?: string;
-  movies: MovieEntity[];
-  createdAt: Date;
-  totalMovies: number;
-  totalRuntime: number;
-  averageRating?: number;
-}
-
-export interface ListFilters {
-  genre?: string;
-  director?: string;
-  minYear?: number;
-  maxYear?: number;
-  minRating?: number;
-  maxRating?: number;
-  status?: 'watched' | 'watchlist';
-  hasRating?: boolean;
-  sortBy?: 'title' | 'year' | 'rating' | 'runtime';
-  sortOrder?: 'ASC' | 'DESC';
-  userId: string; // OBBLIGATORIO per filtrare i film dell'utente
-}
+import { CreateListDto, UpdateListDto } from '../../common/dto/list.dto';
 
 @Injectable()
 export class ListsService {
   private readonly logger = new Logger(ListsService.name);
 
   constructor(
+    @InjectRepository(MovieListEntity)
+    private listRepository: Repository<MovieListEntity>,
+
     @InjectRepository(MovieEntity)
     private movieRepository: Repository<MovieEntity>,
-    
-    @InjectRepository(UserMovieEntity)
-    private userMovieRepository: Repository<UserMovieEntity>,
   ) {}
 
   /**
-   * Crea lista personalizzata con filtri per un utente specifico
+   * Crea nuova lista utente
    */
-  async createCustomList(
-    name: string,
-    filters: ListFilters,
-    description?: string,
-  ): Promise<MovieList> {
+  async createUserList(createDto: CreateListDto): Promise<MovieListEntity> {
     try {
-      this.logger.log(`creazione lista personalizzata: ${name} per utente ${filters.userId}`);
-
-      const movies = await this.filterMovies(filters);
-
-      // Calcola statistiche lista
-      const totalRuntime = movies
-        .map((m) => m.runtime || 0)
-        .reduce((a, b) => a + b, 0);
-
-      // Per il rating medio, dobbiamo recuperare i dati da user_movies
-      const movieIds = movies.map(m => m.id);
-      const userMovies = await this.userMovieRepository.find({
-        where: { 
-          userId: filters.userId,
-          movieId: movieIds as any, // TypeORM gestisce l'IN automaticamente
-        },
+      const list = this.listRepository.create({
+        user_id: createDto.user_id,
+        name: createDto.name,
+        description: createDto.description,
+        is_public: createDto.is_public || false,
+        movie_ids: createDto.movie_ids || [],
+        target_date: createDto.target_date ? new Date(createDto.target_date) : null,
+        frequency: createDto.frequency,
+        followers_count: 0,
+        follower_ids: [],
       });
 
-      const ratingsWithValues = userMovies
-        .map(um => um.userRating || 0)
-        .filter(r => r > 0);
+      const saved = await this.listRepository.save(list);
+      this.logger.log(`✅ Lista creata: ${saved.name} (${saved.id})`);
 
-      const averageRating = ratingsWithValues.length > 0
-        ? ratingsWithValues.reduce((a, b) => a + b, 0) / ratingsWithValues.length
-        : undefined;
-
-      return {
-        name,
-        description,
-        movies,
-        createdAt: new Date(),
-        totalMovies: movies.length,
-        totalRuntime,
-        averageRating,
-      };
+      return saved;
     } catch (error) {
-      this.logger.error(`errore creazione lista: ${error.message}`);
+      this.logger.error(`❌ Errore creazione lista: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * Filtra film in base ai criteri specificati
+   * Recupera tutte le liste dell'utente
    */
-  private async filterMovies(filters: ListFilters): Promise<MovieEntity[]> {
+  async getUserLists(userId: string): Promise<MovieListEntity[]> {
     try {
-      const { userId, status, ...movieFilters } = filters;
+      const lists = await this.listRepository.find({
+        where: { user_id: userId },
+        order: { created_at: 'DESC' },
+      });
 
-      // STEP 1: Recupera i film dell'utente con lo status richiesto
-      const userMoviesQuery = this.userMovieRepository
-        .createQueryBuilder('um')
-        .leftJoinAndSelect('um.movie', 'movie')
-        .where('um.userId = :userId', { userId });
-
-      if (status) {
-        const movieStatus = status === 'watched' ? MovieStatus.WATCHED : MovieStatus.WATCHLIST;
-        userMoviesQuery.andWhere('um.status = :status', { status: movieStatus });
-      }
-
-      const userMovies = await userMoviesQuery.getMany();
-      let movies = userMovies.map(um => um.movie);
-
-      // STEP 2: Applica filtri sui film
-      if (movieFilters.genre) {
-        movies = movies.filter(m => 
-          m.genres?.some(g => g.toLowerCase().includes(movieFilters.genre!.toLowerCase()))
-        );
-      }
-
-      if (movieFilters.director) {
-        movies = movies.filter(m => 
-          m.director?.toLowerCase().includes(movieFilters.director!.toLowerCase())
-        );
-      }
-
-      if (movieFilters.minYear) {
-        movies = movies.filter(m => m.year && m.year >= movieFilters.minYear!);
-      }
-
-      if (movieFilters.maxYear) {
-        movies = movies.filter(m => m.year && m.year <= movieFilters.maxYear!);
-      }
-
-      // Per i filtri sui rating, dobbiamo usare i dati di user_movies
-      if (movieFilters.minRating || movieFilters.maxRating || movieFilters.hasRating) {
-        const movieIds = movies.map(m => m.id);
-        const userMoviesWithRatings = await this.userMovieRepository.find({
-          where: { 
-            userId,
-            movieId: movieIds as any,
-          },
-        });
-
-        const ratingMap = new Map(
-          userMoviesWithRatings.map(um => [um.movieId, um.userRating])
-        );
-
-        movies = movies.filter(m => {
-          const rating = ratingMap.get(m.id);
-          
-          if (movieFilters.hasRating && !rating) return false;
-          if (movieFilters.minRating && (!rating || rating < movieFilters.minRating)) return false;
-          if (movieFilters.maxRating && (!rating || rating > movieFilters.maxRating)) return false;
-          
-          return true;
-        });
-      }
-
-      // STEP 3: Ordinamento
-      if (movieFilters.sortBy) {
-        movies = this.sortMovies(movies, movieFilters.sortBy, movieFilters.sortOrder || 'ASC');
-      }
-
-      return movies;
+      this.logger.log(`📋 ${lists.length} liste trovate per utente ${userId}`);
+      return lists;
     } catch (error) {
-      this.logger.error(`errore filtro film: ${error.message}`);
-      return [];
+      this.logger.error(`❌ Errore recupero liste utente: ${error.message}`);
+      throw error;
     }
   }
 
   /**
-   * Ordina film in base al criterio specificato
+   * Recupera liste pubbliche
    */
-  private sortMovies(
-    movies: MovieEntity[],
-    sortBy: string,
-    sortOrder: 'ASC' | 'DESC',
-  ): MovieEntity[] {
-    const sorted = [...movies].sort((a, b) => {
-      let comparison = 0;
+  async getPublicLists(limit: number = 20): Promise<MovieListEntity[]> {
+    try {
+      const lists = await this.listRepository.find({
+        where: { is_public: true },
+        order: { followers_count: 'DESC', created_at: 'DESC' },
+        take: limit,
+      });
 
-      switch (sortBy) {
-        case 'title':
-          comparison = a.title.localeCompare(b.title);
-          break;
-        case 'year':
-          comparison = (a.year || 0) - (b.year || 0);
-          break;
-        case 'runtime':
-          comparison = (a.runtime || 0) - (b.runtime || 0);
-          break;
-        case 'rating':
-          // Per il rating, useremmo tmdb_rating come fallback
-          comparison = (a.tmdb_rating || 0) - (b.tmdb_rating || 0);
-          break;
-        default:
-          comparison = 0;
-      }
-
-      return sortOrder === 'DESC' ? -comparison : comparison;
-    });
-
-    return sorted;
+      this.logger.log(`🌍 ${lists.length} liste pubbliche recuperate`);
+      return lists;
+    } catch (error) {
+      this.logger.error(`❌ Errore recupero liste pubbliche: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
-   * Recupera le liste predefinite per un utente
+   * Recupera dettaglio lista con film
    */
-  async getPresetLists(userId: string): Promise<{
-    topRated: MovieList;
-    recentlyAdded: MovieList;
-    longestMovies: MovieList;
-  }> {
+  async getListWithMovies(listId: string): Promise<any> {
     try {
-      const [topRated, recentlyAdded, longestMovies] = await Promise.all([
-        this.createCustomList(
-          'Top Rated',
-          {
-            userId,
-            minRating: 8,
-            sortBy: 'rating',
-            sortOrder: 'DESC',
-          },
-          'I tuoi film con il rating più alto',
-        ),
-        this.createCustomList(
-          'Recently Added',
-          {
-            userId,
-            sortBy: 'year',
-            sortOrder: 'DESC',
-          },
-          'Film aggiunti di recente',
-        ),
-        this.createCustomList(
-          'Longest Movies',
-          {
-            userId,
-            sortBy: 'runtime',
-            sortOrder: 'DESC',
-          },
-          'I film più lunghi della tua collezione',
-        ),
-      ]);
+      const list = await this.listRepository.findOne({
+        where: { id: listId },
+      });
 
-      return { topRated, recentlyAdded, longestMovies };
+      if (!list) {
+        throw new NotFoundException(`Lista ${listId} non trovata`);
+      }
+
+      // Carica i film associati
+      let movies: MovieEntity[] = [];
+      if (list.movie_ids && list.movie_ids.length > 0) {
+        movies = await this.movieRepository
+          .createQueryBuilder('movie')
+          .where('movie.id IN (:...ids)', { ids: list.movie_ids })
+          .getMany();
+      }
+
+      return {
+        ...list,
+        movies,
+        movie_count: list.movie_ids.length,
+      };
     } catch (error) {
-      this.logger.error(`errore recupero preset lists: ${error.message}`);
+      this.logger.error(`❌ Errore recupero lista: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Aggiorna lista esistente
+   */
+  async updateList(listId: string, updateDto: UpdateListDto): Promise<MovieListEntity> {
+    try {
+      const list = await this.listRepository.findOne({
+        where: { id: listId },
+      });
+
+      if (!list) {
+        throw new NotFoundException(`Lista ${listId} non trovata`);
+      }
+
+      // Aggiorna campi
+      if (updateDto.name !== undefined) list.name = updateDto.name;
+      if (updateDto.description !== undefined) list.description = updateDto.description;
+      if (updateDto.is_public !== undefined) list.is_public = updateDto.is_public;
+      if (updateDto.movie_ids !== undefined) list.movie_ids = updateDto.movie_ids;
+      if (updateDto.target_date !== undefined) {
+        list.target_date = updateDto.target_date ? new Date(updateDto.target_date) : null;
+      }
+      if (updateDto.frequency !== undefined) list.frequency = updateDto.frequency;
+
+      const updated = await this.listRepository.save(list);
+      this.logger.log(`✅ Lista aggiornata: ${updated.id}`);
+
+      return updated;
+    } catch (error) {
+      this.logger.error(`❌ Errore aggiornamento lista: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina lista
+   */
+  async deleteList(listId: string): Promise<void> {
+    try {
+      const result = await this.listRepository.delete(listId);
+
+      if (result.affected === 0) {
+        throw new NotFoundException(`Lista ${listId} non trovata`);
+      }
+
+      this.logger.log(`🗑️ Lista eliminata: ${listId}`);
+    } catch (error) {
+      this.logger.error(`❌ Errore eliminazione lista: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Aggiungi film a lista
+   */
+  async addMovieToList(listId: string, movieId: string): Promise<MovieListEntity> {
+    try {
+      const list = await this.listRepository.findOne({
+        where: { id: listId },
+      });
+
+      if (!list) {
+        throw new NotFoundException(`Lista ${listId} non trovata`);
+      }
+
+      // Verifica che il film esista
+      const movie = await this.movieRepository.findOne({
+        where: { id: movieId },
+      });
+
+      if (!movie) {
+        throw new NotFoundException(`Film ${movieId} non trovato`);
+      }
+
+      // Aggiungi film se non già presente
+      if (!list.movie_ids.includes(movieId)) {
+        list.movie_ids.push(movieId);
+        await this.listRepository.save(list);
+        this.logger.log(`➕ Film ${movieId} aggiunto a lista ${listId}`);
+      } else {
+        this.logger.log(`⚠️ Film ${movieId} già presente in lista ${listId}`);
+      }
+
+      return list;
+    } catch (error) {
+      this.logger.error(`❌ Errore aggiunta film: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Rimuovi film da lista
+   */
+  async removeMovieFromList(listId: string, movieId: string): Promise<MovieListEntity> {
+    try {
+      const list = await this.listRepository.findOne({
+        where: { id: listId },
+      });
+
+      if (!list) {
+        throw new NotFoundException(`Lista ${listId} non trovata`);
+      }
+
+      // Rimuovi film
+      list.movie_ids = list.movie_ids.filter(id => id !== movieId);
+      await this.listRepository.save(list);
+
+      this.logger.log(`➖ Film ${movieId} rimosso da lista ${listId}`);
+      return list;
+    } catch (error) {
+      this.logger.error(`❌ Errore rimozione film: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Segui lista pubblica
+   */
+  async followList(listId: string, userId: string): Promise<MovieListEntity> {
+    try {
+      const list = await this.listRepository.findOne({
+        where: { id: listId },
+      });
+
+      if (!list) {
+        throw new NotFoundException(`Lista ${listId} non trovata`);
+      }
+
+      if (!list.is_public) {
+        throw new Error('Puoi seguire solo liste pubbliche');
+      }
+
+      // Aggiungi follower se non già presente
+      if (!list.follower_ids.includes(userId)) {
+        list.follower_ids.push(userId);
+        list.followers_count = list.follower_ids.length;
+        await this.listRepository.save(list);
+        this.logger.log(`👥 Utente ${userId} segue lista ${listId}`);
+      } else {
+        this.logger.log(`⚠️ Utente ${userId} già segue lista ${listId}`);
+      }
+
+      return list;
+    } catch (error) {
+      this.logger.error(`❌ Errore follow lista: ${error.message}`);
       throw error;
     }
   }

@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FILE: app/src/main/res/layout/item_social_list.xml -->
+<!-- Layout per singolo item lista -->
+
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="?attr/colorOutline">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header con nome e badge -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/text_list_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:maxLines="2"
+                android:ellipsize="end"
+                tools:text="I miei film preferiti del 2024"/>
+
+            <TextView
+                android:id="@+id/badge_public"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:background="@drawable/badge_public_background"
+                android:textColor="@android:color/white"
+                tools:text="🌍 PUBBLICA"/>
+        </LinearLayout>
+
+        <!-- Descrizione -->
+        <TextView
+            android:id="@+id/text_list_description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:layout_marginBottom="12dp"
+            tools:text="Una collezione dei migliori film che ho visto quest'anno"
+            tools:visibility="visible"/>
+
+        <!-- Info: Film count, Followers, Deadline -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/text_movie_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:drawablePadding="4dp"
+                app:drawableStartCompat="@drawable/ic_home"
+                app:drawableTint="?attr/colorPrimary"
+                tools:text="24 film"/>
+
+            <TextView
+                android:id="@+id/text_followers"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:textSize="13sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:visibility="gone"
+                tools:visibility="visible"
+                tools:text="👥 15 followers"/>
+
+            <TextView
+                android:id="@+id/text_deadline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:textSize="13sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:visibility="gone"
+                tools:visibility="visible"
+                tools:text="📅 31/12/2024"/>
+        </LinearLayout>
+
+        <!-- Azioni: Edit, Delete (per liste proprie) -->
+        <LinearLayout
+            android:id="@+id/layout_actions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_edit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Modifica"
+                android:textSize="12sp"
+                android:textAllCaps="false"
+                app:icon="@android:drawable/ic_menu_edit"
+                app:iconSize="16dp"
+                style="@style/Widget.Material3.Button.TextButton"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_delete"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Elimina"
+                android:textSize="12sp"
+                android:textAllCaps="false"
+                android:textColor="@android:color/holo_red_dark"
+                app:icon="@android:drawable/ic_menu_delete"
+                app:iconSize="16dp"
+                app:iconTint="@android:color/holo_red_dark"
+                style="@style/Widget.Material3.Button.TextButton"/>
+        </LinearLayout>
+
+        <!-- Bottone Follow (per liste pubbliche altrui) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_follow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Segui Lista"
+            android:textAllCaps="false"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            app:icon="@android:drawable/btn_star"
+            style="@style/Widget.Material3.Button.TonalButton"
+            tools:visibility="visible"/>
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

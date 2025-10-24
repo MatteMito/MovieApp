@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- FILE: app/src/main/res/navigation/mobile_navigation.xml -->
+<!-- Navigazione aggiornata con SocialFragment - SENZA ANIMAZIONI -->
+
 <navigation
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -13,12 +16,18 @@
         android:label="@string/title_home"
         tools:layout="@layout/fragment_home" />
 
-    <!-- DASHBOARD FRAGMENT -->
+    <!-- SOCIAL FRAGMENT (sostituisce Dashboard) -->
     <fragment
         android:id="@+id/navigation_dashboard"
-        android:name="com.example.movieapp.ui.dashboard.DashboardFragment"
-        android:label="@string/title_dashboard"
-        tools:layout="@layout/fragment_dashboard" />
+        android:name="com.example.movieapp.ui.social.SocialFragment"
+        android:label="Liste"
+        tools:layout="@layout/fragment_social" >
+
+        <!-- Azione per navigare al dettaglio lista -->
+        <action
+            android:id="@+id/action_social_to_listDetail"
+            app:destination="@+id/listDetailFragment" />
+    </fragment>
 
     <!-- NOTIFICATIONS FRAGMENT (GRAFICI) -->
     <fragment
@@ -26,5 +35,24 @@
         android:name="com.example.movieapp.ui.notifications.NotificationsFragment"
         android:label="@string/title_notifications"
         tools:layout="@layout/fragment_notifications" />
+
+    <!-- LIST DETAIL FRAGMENT (nuovo) -->
+    <fragment
+        android:id="@+id/listDetailFragment"
+        android:name="com.example.movieapp.ui.social.ListDetailFragment"
+        android:label="Dettaglio Lista"
+        tools:layout="@layout/fragment_list_detail" >
+
+        <argument
+            android:name="list_id"
+            app:argType="string" />
+        <argument
+            android:name="list_name"
+            app:argType="string" />
+        <argument
+            android:name="is_owner"
+            app:argType="boolean"
+            android:defaultValue="false" />
+    </fragment>
 
 </navigation>

@@ -1,39 +1,19 @@
 import { Repository } from 'typeorm';
+import { MovieListEntity } from '../../database/entities/list.entity';
 import { MovieEntity } from '../../database/entities/movie.entity';
-import { UserMovieEntity } from '../../database/entities/user-movie.entity';
-export interface MovieList {
-    name: string;
-    description?: string;
-    movies: MovieEntity[];
-    createdAt: Date;
-    totalMovies: number;
-    totalRuntime: number;
-    averageRating?: number;
-}
-export interface ListFilters {
-    genre?: string;
-    director?: string;
-    minYear?: number;
-    maxYear?: number;
-    minRating?: number;
-    maxRating?: number;
-    status?: 'watched' | 'watchlist';
-    hasRating?: boolean;
-    sortBy?: 'title' | 'year' | 'rating' | 'runtime';
-    sortOrder?: 'ASC' | 'DESC';
-    userId: string;
-}
+import { CreateListDto, UpdateListDto } from '../../common/dto/list.dto';
 export declare class ListsService {
+    private listRepository;
     private movieRepository;
-    private userMovieRepository;
     private readonly logger;
-    constructor(movieRepository: Repository<MovieEntity>, userMovieRepository: Repository<UserMovieEntity>);
-    createCustomList(name: string, filters: ListFilters, description?: string): Promise<MovieList>;
-    private filterMovies;
-    private sortMovies;
-    getPresetLists(userId: string): Promise<{
-        topRated: MovieList;
-        recentlyAdded: MovieList;
-        longestMovies: MovieList;
-    }>;
+    constructor(listRepository: Repository<MovieListEntity>, movieRepository: Repository<MovieEntity>);
+    createUserList(createDto: CreateListDto): Promise<MovieListEntity>;
+    getUserLists(userId: string): Promise<MovieListEntity[]>;
+    getPublicLists(limit?: number): Promise<MovieListEntity[]>;
+    getListWithMovies(listId: string): Promise<any>;
+    updateList(listId: string, updateDto: UpdateListDto): Promise<MovieListEntity>;
+    deleteList(listId: string): Promise<void>;
+    addMovieToList(listId: string, movieId: string): Promise<MovieListEntity>;
+    removeMovieFromList(listId: string, movieId: string): Promise<MovieListEntity>;
+    followList(listId: string, userId: string): Promise<MovieListEntity>;
 }
