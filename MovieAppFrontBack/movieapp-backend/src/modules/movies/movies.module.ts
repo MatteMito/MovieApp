@@ -1,13 +1,13 @@
 // File: src/modules/movies/movies.module.ts
+// ✅ OTTIMIZZATO: rimosso TmdbCacheEntity
 
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MoviesController } from './movies.controller';
 import { MoviesService } from './movies.service';
-import { UserMoviesService } from './user-movies.service'; // ⬅️ AGGIUNTO
+import { UserMoviesService } from './user-movies.service';
 import { MovieEntity } from '../../database/entities/movie.entity';
-import { UserMovieEntity } from '../../database/entities/user-movie.entity'; // ⬅️ AGGIUNTO
-import { TmdbCacheEntity } from '../../database/entities/tmdb-cache.entity';
+import { UserMovieEntity } from '../../database/entities/user-movie.entity';
 import { DatabaseModule } from '../../database/database.module';
 import { TmdbModule } from '../tmdb/tmdb.module';
 import { WebsocketModule } from '../websocket/websocket.module';
@@ -16,8 +16,7 @@ import { WebsocketModule } from '../websocket/websocket.module';
   imports: [
     TypeOrmModule.forFeature([
       MovieEntity,
-      UserMovieEntity, // ⬅️ AGGIUNTO
-      TmdbCacheEntity,
+      UserMovieEntity,
     ]),
     DatabaseModule,
     TmdbModule,
@@ -26,11 +25,11 @@ import { WebsocketModule } from '../websocket/websocket.module';
   controllers: [MoviesController],
   providers: [
     MoviesService,
-    UserMoviesService, // ⬅️ AGGIUNTO
+    UserMoviesService,
   ],
   exports: [
     MoviesService,
-    UserMoviesService, // ⬅️ AGGIUNTO
+    UserMoviesService,
   ],
 })
 export class MoviesModule {}

@@ -25,10 +25,9 @@ export declare class TmdbService {
         totalProcessed: number;
         successRate: number;
     }>;
-    private generateTmdbCacheKey;
     private enforceRateLimit;
-    private findByImdbIdWithCache;
-    private searchByTitleWithCache;
+    private findByImdbId;
+    private searchByTitle;
     private getMovieDetails;
     private findBestMatch;
     private mapTmdbToMovie;

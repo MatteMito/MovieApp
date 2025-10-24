@@ -36,13 +36,12 @@ export class UserMoviesService {
   ) {}
 
   /**
-   * Associa un singolo film ad un utente
+   * ✅ CORRETTO: Associa un singolo film ad un utente (senza source)
    */
   async associateMovieToUser(
     userId: string,
     movieId: string,
     status: MovieStatus,
-    source: string,
     userRating?: number,
     watchedDate?: Date,
     userReview?: string,
@@ -55,7 +54,6 @@ export class UserMoviesService {
       if (userMovie) {
         // Aggiorna esistente
         userMovie.status = status;
-        userMovie.source = source;
         userMovie.userRating = userRating;
         userMovie.watchedDate = watchedDate;
         userMovie.userReview = userReview;
@@ -67,7 +65,6 @@ export class UserMoviesService {
           userId,
           movieId,
           status,
-          source,
           userRating,
           watchedDate,
           userReview,
@@ -84,14 +81,13 @@ export class UserMoviesService {
   }
 
   /**
-   * Associa multipli film in batch
+   * ✅ CORRETTO: Associa batch di film a un utente (senza source)
    */
   async batchAssociateMoviesToUser(
     userId: string,
     movies: Array<{
       movieId: string;
       status: MovieStatus;
-      source: string;
       userRating?: number;
       watchedDate?: Date;
       userReview?: string;
@@ -126,7 +122,6 @@ export class UserMoviesService {
 
           if (existing) {
             existing.status = movie.status;
-            existing.source = movie.source;
             existing.userRating = movie.userRating;
             existing.watchedDate = movie.watchedDate;
             existing.userReview = movie.userReview;
@@ -137,7 +132,6 @@ export class UserMoviesService {
               userId,
               movieId: movie.movieId,
               status: movie.status,
-              source: movie.source,
               userRating: movie.userRating,
               watchedDate: movie.watchedDate,
               userReview: movie.userReview,
@@ -162,7 +156,7 @@ export class UserMoviesService {
   }
 
   /**
-   * Recupera tutti i film di un utente
+   * ✅ CORRETTO: Recupera tutti i film di un utente
    */
   async getUserMovies(
     userId: string,

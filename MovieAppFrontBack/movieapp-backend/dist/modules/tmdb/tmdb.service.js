@@ -31,36 +31,30 @@ let TmdbService = TmdbService_1 = class TmdbService {
         if (!this.apiKey) {
             throw new Error('TMDB_API_KEY non trovata nelle variabili ambiente');
         }
-        this.logger.log('✅ tmdb service inizializzato');
+        this.logger.log('✅ tmdb service inizializzato (cache = movies table)');
     }
     async enrichMovie(movie) {
-        const cacheKey = this.generateTmdbCacheKey(movie);
         try {
             const existingMovie = await this.databaseService.findMovieByTitleYear(movie.title, movie.year);
             if (existingMovie && existingMovie.tmdb_id) {
-                this.logger.log(`✅ film già arricchito in db: ${movie.title} (skip tmdb api)`);
+                this.logger.log(`✅ CACHE HIT (movies table): ${movie.title}`);
                 return {
                     ...existingMovie,
                     id: movie.id,
                     source: movie.source,
                 };
             }
-            const cachedTmdbData = await this.databaseService.getTmdbCache(cacheKey);
-            if (cachedTmdbData) {
-                this.logger.log(`✅ cache tmdb hit: ${movie.title} (${movie.year})`);
-                return this.mapTmdbToMovie(movie, cachedTmdbData);
-            }
             this.logger.log(`🔍 ricerca tmdb: ${movie.title} (${movie.year})`);
             await this.enforceRateLimit();
             let tmdbMovie = null;
             if (movie.id.startsWith('tt')) {
-                tmdbMovie = await this.findByImdbIdWithCache(movie.id, cacheKey);
+                tmdbMovie = await this.findByImdbId(movie.id);
                 if (tmdbMovie) {
                     this.logger.log(`✅ trovato via imdb id: ${tmdbMovie.id} per ${movie.title}`);
                 }
             }
             if (!tmdbMovie) {
-                tmdbMovie = await this.searchByTitleWithCache(movie.title, movie.year, cacheKey);
+                tmdbMovie = await this.searchByTitle(movie.title, movie.year);
                 if (tmdbMovie) {
                     this.logger.log(`✅ trovato via titolo: ${tmdbMovie.id} per ${movie.title}`);
                 }
@@ -69,9 +63,9 @@ let TmdbService = TmdbService_1 = class TmdbService {
                 this.logger.warn(`⚠️ nessun risultato tmdb per: ${movie.title}`);
                 return movie;
             }
-            await this.databaseService.saveTmdbCache(cacheKey, tmdbMovie);
             const enrichedMovie = this.mapTmdbToMovie(movie, tmdbMovie);
-            this.logger.log(`✅ film arricchito: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
+            await this.databaseService.saveMovie(enrichedMovie);
+            this.logger.log(`✅ film arricchito e salvato: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
             return enrichedMovie;
         }
         catch (error) {
@@ -97,7 +91,7 @@ let TmdbService = TmdbService_1 = class TmdbService {
                     source: movie.source,
                 };
                 results.successfulMovies.push(merged);
-                this.logger.debug(`💰 cache hit database: ${movie.title}`);
+                this.logger.debug(`💰 CACHE HIT: ${movie.title}`);
             }
             else {
                 moviesToEnrich.push(movie);
@@ -111,6 +105,8 @@ let TmdbService = TmdbService_1 = class TmdbService {
                 const enriched = await this.enrichMovie(movie);
                 if (enriched.tmdb_id) {
                     results.successfulMovies.push(enriched);
+                    await this.databaseService.saveMovie(enriched);
+                    this.logger.debug(`✅ Film arricchito e salvato: ${enriched.title}`);
                 }
                 else {
                     results.failedMovies.push({
@@ -140,9 +136,6 @@ let TmdbService = TmdbService_1 = class TmdbService {
         this.logger.log(`   success rate: ${(results.successRate * 100).toFixed(1)}%`);
         return results;
     }
-    generateTmdbCacheKey(movie) {
-        return `${movie.title.toLowerCase()}_${movie.year || 'unknown'}`;
-    }
     async enforceRateLimit() {
         const now = Date.now();
         this.requestHistory = this.requestHistory.filter((timestamp) => now - timestamp < this.rateLimitWindow);
@@ -155,7 +148,7 @@ let TmdbService = TmdbService_1 = class TmdbService {
         }
         this.requestHistory.push(now);
     }
-    async findByImdbIdWithCache(imdbId, cacheKey) {
+    async findByImdbId(imdbId) {
         try {
             const url = `${this.baseUrl}/find/${imdbId}`;
             const response = await (0, rxjs_1.firstValueFrom)(this.httpService.get(url, {
@@ -175,7 +168,7 @@ let TmdbService = TmdbService_1 = class TmdbService {
             return null;
         }
     }
-    async searchByTitleWithCache(title, year, cacheKey) {
+    async searchByTitle(title, year) {
         try {
             const url = `${this.baseUrl}/search/movie`;
             const response = await (0, rxjs_1.firstValueFrom)(this.httpService.get(url, {
@@ -213,65 +206,52 @@ let TmdbService = TmdbService_1 = class TmdbService {
         }
     }
     findBestMatch(movies, originalTitle, originalYear) {
-        if (!movies || movies.length === 0)
+        if (movies.length === 0)
             return null;
-        return movies.reduce((best, current) => {
-            let currentScore = 0;
-            let bestScore = 0;
-            const currentTitleLower = current.title.toLowerCase();
-            const originalTitleLower = originalTitle.toLowerCase();
-            if (currentTitleLower === originalTitleLower) {
-                currentScore += 20;
+        const normalizeTitle = (title) => title.toLowerCase().replace(/[^\w\s]/g, '').trim();
+        const normalizedOriginal = normalizeTitle(originalTitle);
+        let bestMatch = movies[0];
+        let bestScore = 0;
+        for (const movie of movies) {
+            const normalizedTitle = normalizeTitle(movie.title);
+            let score = 0;
+            if (normalizedTitle === normalizedOriginal) {
+                score += 100;
             }
-            else if (currentTitleLower.includes(originalTitleLower) ||
-                originalTitleLower.includes(currentTitleLower)) {
-                currentScore += 10;
+            else if (normalizedTitle.includes(normalizedOriginal)) {
+                score += 50;
             }
-            if (best) {
-                const bestTitleLower = best.title.toLowerCase();
-                if (bestTitleLower === originalTitleLower) {
-                    bestScore += 20;
-                }
-                else if (bestTitleLower.includes(originalTitleLower) ||
-                    originalTitleLower.includes(bestTitleLower)) {
-                    bestScore += 10;
-                }
+            else if (normalizedOriginal.includes(normalizedTitle)) {
+                score += 40;
             }
-            if (originalYear && current.release_date) {
-                const currentYear = new Date(current.release_date).getFullYear();
-                if (currentYear === originalYear) {
-                    currentScore += 15;
+            if (originalYear && movie.release_date) {
+                const movieYear = parseInt(movie.release_date.substring(0, 4));
+                if (movieYear === originalYear) {
+                    score += 50;
                 }
-                else {
-                    const yearDiff = Math.abs(currentYear - originalYear);
-                    currentScore -= yearDiff;
+                else if (Math.abs(movieYear - originalYear) <= 1) {
+                    score += 20;
                 }
             }
-            if (originalYear && best && best.release_date) {
-                const bestYear = new Date(best.release_date).getFullYear();
-                if (bestYear === originalYear) {
-                    bestScore += 15;
-                }
-                else {
-                    const yearDiff = Math.abs(bestYear - originalYear);
-                    bestScore -= yearDiff;
-                }
+            if (movie.popularity) {
+                score += Math.min(movie.popularity / 10, 10);
             }
-            if (Math.abs(currentScore - bestScore) <= 2) {
-                currentScore += (current.popularity || 0) * 0.1;
-                if (best)
-                    bestScore += (best.popularity || 0) * 0.1;
+            if (score > bestScore) {
+                bestScore = score;
+                bestMatch = movie;
             }
-            return currentScore > bestScore ? current : best;
-        });
+        }
+        return bestMatch;
     }
-    mapTmdbToMovie(original, tmdb) {
+    mapTmdbToMovie(movie, tmdb) {
         return {
-            ...original,
+            ...movie,
             tmdb_id: tmdb.id,
+            title: tmdb.title || movie.title,
+            year: tmdb.release_date ? parseInt(tmdb.release_date.substring(0, 4)) : movie.year,
             genres: tmdb.genres?.map((g) => g.name) || [],
             director: tmdb.credits?.crew?.find((c) => c.job === 'Director')?.name,
-            actors: tmdb.credits?.cast?.slice(0, 10).map((c) => c.name) || [],
+            actors: tmdb.credits?.cast?.slice(0, 5).map((a) => a.name) || [],
             overview: tmdb.overview,
             tagline: tmdb.tagline,
             poster_url: tmdb.poster_path

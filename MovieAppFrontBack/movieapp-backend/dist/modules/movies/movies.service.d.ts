@@ -52,6 +52,5 @@ export declare class MoviesService {
     getStats(): Promise<any>;
     getAllMovies(): Promise<Movie[]>;
     getMovieById(id: string): Promise<Movie | null>;
-    getUnenrichedMovies(): Promise<Movie[]>;
     deleteAllMovies(): Promise<void>;
 }

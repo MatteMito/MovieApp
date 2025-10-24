@@ -25,14 +25,13 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
         this.movieRepository = movieRepository;
         this.logger = new common_1.Logger(UserMoviesService_1.name);
     }
-    async associateMovieToUser(userId, movieId, status, source, userRating, watchedDate, userReview) {
+    async associateMovieToUser(userId, movieId, status, userRating, watchedDate, userReview) {
         try {
             let userMovie = await this.userMovieRepository.findOne({
                 where: { userId, movieId },
             });
             if (userMovie) {
                 userMovie.status = status;
-                userMovie.source = source;
                 userMovie.userRating = userRating;
                 userMovie.watchedDate = watchedDate;
                 userMovie.userReview = userReview;
@@ -43,7 +42,6 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
                     userId,
                     movieId,
                     status,
-                    source,
                     userRating,
                     watchedDate,
                     userReview,
@@ -75,7 +73,6 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
                     });
                     if (existing) {
                         existing.status = movie.status;
-                        existing.source = movie.source;
                         existing.userRating = movie.userRating;
                         existing.watchedDate = movie.watchedDate;
                         existing.userReview = movie.userReview;
@@ -87,7 +84,6 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
                             userId,
                             movieId: movie.movieId,
                             status: movie.status,
-                            source: movie.source,
                             userRating: movie.userRating,
                             watchedDate: movie.watchedDate,
                             userReview: movie.userReview,

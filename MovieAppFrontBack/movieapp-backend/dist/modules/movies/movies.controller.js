@@ -243,26 +243,6 @@ let MoviesController = MoviesController_1 = class MoviesController {
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getUnenrichedMovies() {
-        try {
-            this.logger.log('📊 richiesta film non arricchiti');
-            const movies = await this.moviesService.getUnenrichedMovies();
-            return {
-                success: true,
-                data: { movies },
-                message: `trovati ${movies.length} film da arricchire`,
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore recupero film non arricchiti: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero film',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
     async deleteAllMovies() {
         try {
             this.logger.log('🗑️ richiesta eliminazione tutti i film');
@@ -414,12 +394,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], MoviesController.prototype, "getMovieById", null);
-__decorate([
-    (0, common_1.Get)('filter/unenriched'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], MoviesController.prototype, "getUnenrichedMovies", null);
 __decorate([
     (0, common_1.Delete)('all'),
     __metadata("design:type", Function),

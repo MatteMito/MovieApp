@@ -405,37 +405,6 @@ export class MoviesController {
   }
 
   /**
-   * GET /api/v1/movies/filter/unenriched
-   * recupera solo film non arricchiti
-   */
-  @Get('filter/unenriched')
-  async getUnenrichedMovies(): Promise<ApiResponse> {
-    try {
-      this.logger.log('📊 richiesta film non arricchiti');
-
-      const movies = await this.moviesService.getUnenrichedMovies();
-
-      return {
-        success: true,
-        data: { movies },
-        message: `trovati ${movies.length} film da arricchire`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore recupero film non arricchiti: ${error.message}`);
-
-      throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero film',
-          timestamp: new Date().toISOString(),
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
    * DELETE /api/v1/movies/all
    * elimina tutti i film
    */

@@ -38,8 +38,13 @@ let MoviesService = MoviesService_1 = class MoviesService {
             const allMovies = [...watchlist, ...watched];
             await this.databaseService.saveMovies(allMovies);
             this.logger.log(`✅ salvati ${allMovies.length} film in tabella movies`);
+            await this.websocketGateway.notifyEnrichmentStarted(sessionId, allMovies.length);
             this.logger.log(`🎬 enrichment watchlist...`);
-            const watchlistEnrichment = await this.tmdbService.enrichMovies(watchlist);
+            const watchlistEnrichment = await this.tmdbService.enrichMovies(watchlist, {
+                onProgress: async (processed, total, currentMovie) => {
+                    await this.websocketGateway.notifyEnrichmentProgress(sessionId, processed, total, currentMovie);
+                }
+            });
             const watchlistResult = {
                 sessionId: (0, uuid_1.v4)(),
                 successfulMovies: watchlistEnrichment.successfulMovies,
@@ -49,7 +54,11 @@ let MoviesService = MoviesService_1 = class MoviesService {
                 cacheHits: 0,
             };
             this.logger.log(`🎬 enrichment watched...`);
-            const watchedEnrichment = await this.tmdbService.enrichMovies(watched);
+            const watchedEnrichment = await this.tmdbService.enrichMovies(watched, {
+                onProgress: async (processed, total, currentMovie) => {
+                    await this.websocketGateway.notifyEnrichmentProgress(sessionId, watchlist.length + processed, allMovies.length, currentMovie);
+                }
+            });
             const watchedResult = {
                 sessionId: (0, uuid_1.v4)(),
                 successfulMovies: watchedEnrichment.successfulMovies,
@@ -58,26 +67,17 @@ let MoviesService = MoviesService_1 = class MoviesService {
                 successRate: watchedEnrichment.successRate,
                 cacheHits: 0,
             };
-            this.logger.log(`🔗 associazione film all'utente...`);
-            const watchlistAssociations = watchlistResult.successfulMovies.map((movie) => ({
-                movieId: movie.id,
+            this.logger.log(`🔗 creazione associazioni user_movies...`);
+            const watchlistAssociations = watchlistResult.successfulMovies.map(m => ({
+                movieId: m.id,
                 status: user_movie_entity_1.MovieStatus.WATCHLIST,
-                source: movie.source || 'UNKNOWN',
-                userRating: undefined,
-                watchedDate: undefined,
-                userReview: undefined,
             }));
-            const watchedAssociations = watchedResult.successfulMovies.map((movie) => ({
-                movieId: movie.id,
+            const watchedAssociations = watchedResult.successfulMovies.map(m => ({
+                movieId: m.id,
                 status: user_movie_entity_1.MovieStatus.WATCHED,
-                source: movie.source || 'UNKNOWN',
-                userRating: undefined,
-                watchedDate: undefined,
-                userReview: undefined,
             }));
-            const watchlistBatch = await this.userMoviesService.batchAssociateMoviesToUser(userId, watchlistAssociations);
-            const watchedBatch = await this.userMoviesService.batchAssociateMoviesToUser(userId, watchedAssociations);
-            this.logger.log(`✅ associazioni completate`);
+            await this.userMoviesService.batchAssociateMoviesToUser(userId, [...watchlistAssociations, ...watchedAssociations]);
+            this.logger.log(`✅ associazioni create per ${watchlistAssociations.length + watchedAssociations.length} film`);
             const userStats = await this.userMoviesService.getUserMovieStats(userId);
             const importCounters = {
                 watchedFromFile: watched.length,
@@ -89,6 +89,7 @@ let MoviesService = MoviesService_1 = class MoviesService {
             const totalEnriched = watchlistResult.successfulMovies.filter((m) => m.tmdb_id).length +
                 watchedResult.successfulMovies.filter((m) => m.tmdb_id).length;
             const totalCacheHits = watchlistResult.cacheHits + watchedResult.cacheHits;
+            await this.websocketGateway.notifyEnrichmentCompleted(sessionId, totalMovies, totalEnriched, totalCacheHits);
             const duration = Date.now() - startTime;
             this.logger.log(`=== BATCH UPLOAD COMPLETATO ===`);
             this.logger.log(`durata: ${(duration / 1000).toFixed(1)}s`);
@@ -110,6 +111,7 @@ let MoviesService = MoviesService_1 = class MoviesService {
         }
         catch (error) {
             this.logger.error(`❌ errore batch upload: ${error.message}`);
+            await this.websocketGateway.notifyEnrichmentError(sessionId, error.message);
             throw error;
         }
     }
@@ -283,15 +285,6 @@ let MoviesService = MoviesService_1 = class MoviesService {
         catch (error) {
             this.logger.error(`errore getMovieById: ${error.message}`);
             return null;
-        }
-    }
-    async getUnenrichedMovies() {
-        try {
-            return await this.databaseService.getUnenrichedMovies();
-        }
-        catch (error) {
-            this.logger.error(`errore getUnenrichedMovies: ${error.message}`);
-            return [];
         }
     }
     async deleteAllMovies() {

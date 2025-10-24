@@ -43,6 +43,23 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
         this.connectedClients.delete(client.id);
         this.logger.log(`❌ client disconnesso: ${client.id} (totale: ${this.connectedClients.size})`);
     }
+    async notifyEnrichmentStarted(sessionId, total) {
+        try {
+            const message = {
+                sessionId,
+                type: 'started',
+                total,
+                processed: 0,
+                message: `🎬 Avvio enrichment per ${total} film...`,
+                percentage: 0,
+            };
+            this.server.emit('enrichment:started', message);
+            this.logger.log(`🎬 Enrichment avviato: sessione ${sessionId}, ${total} film`);
+        }
+        catch (error) {
+            this.logger.error(`errore notifica started: ${error.message}`);
+        }
+    }
     async notifyEnrichmentProgress(sessionId, processed, total, currentMovie) {
         try {
             const percentage = total > 0 ? Math.round((processed / total) * 100) : 0;

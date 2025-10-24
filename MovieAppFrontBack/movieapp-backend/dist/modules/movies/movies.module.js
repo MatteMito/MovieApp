@@ -14,7 +14,6 @@ const movies_service_1 = require("./movies.service");
 const user_movies_service_1 = require("./user-movies.service");
 const movie_entity_1 = require("../../database/entities/movie.entity");
 const user_movie_entity_1 = require("../../database/entities/user-movie.entity");
-const tmdb_cache_entity_1 = require("../../database/entities/tmdb-cache.entity");
 const database_module_1 = require("../../database/database.module");
 const tmdb_module_1 = require("../tmdb/tmdb.module");
 const websocket_module_1 = require("../websocket/websocket.module");
@@ -27,7 +26,6 @@ exports.MoviesModule = MoviesModule = __decorate([
             typeorm_1.TypeOrmModule.forFeature([
                 movie_entity_1.MovieEntity,
                 user_movie_entity_1.UserMovieEntity,
-                tmdb_cache_entity_1.TmdbCacheEntity,
             ]),
             database_module_1.DatabaseModule,
             tmdb_module_1.TmdbModule,

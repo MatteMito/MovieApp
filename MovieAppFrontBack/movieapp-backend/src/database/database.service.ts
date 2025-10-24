@@ -1,11 +1,10 @@
 // File: src/database/database.service.ts
-// AGGIORNATO: rimozione campi utente da MovieEntity
+// ✅ OTTIMIZZATO: rimossa logica tmdb_cache ridondante
 
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { MovieEntity } from './entities/movie.entity';
-import { TmdbCacheEntity } from './entities/tmdb-cache.entity';
 import { Movie } from '../common/interfaces/movie.interface';
 
 @Injectable()
@@ -16,26 +15,18 @@ export class DatabaseService {
   constructor(
     @InjectRepository(MovieEntity)
     private movieRepository: Repository<MovieEntity>,
-    
-    @InjectRepository(TmdbCacheEntity)
-    private tmdbCacheRepository: Repository<TmdbCacheEntity>,
   ) {}
 
   // ===== CONVERSIONI ENTITY <-> MODEL =====
 
-  /**
-   * Converte Movie model in MovieEntity (SENZA dati utente)
-   */
   private movieToEntity(movie: Movie): MovieEntity {
     const entity = new MovieEntity();
 
-    // Dati base
     entity.id = movie.id;
     entity.title = movie.title;
     entity.year = movie.year;
     entity.source = movie.source as any;
 
-    // Dati TMDB
     entity.tmdb_id = movie.tmdb_id;
     entity.genres = movie.genres?.length > 0 ? movie.genres : [];
     entity.director = movie.director;
@@ -63,37 +54,28 @@ export class DatabaseService {
     entity.certification = movie.certification;
     entity.trailer_url = movie.trailer_url;
 
-    // Flag arricchimento
     entity.is_enriched = !!(movie.tmdb_id && movie.tmdb_id > 0);
-
+    
     return entity;
   }
 
-  /**
-   * Converte MovieEntity in Movie model (SENZA dati utente)
-   * I dati utente vengono gestiti da UserMoviesService
-   */
   private entityToMovie(entity: MovieEntity): Movie {
     return {
       id: entity.id,
       title: entity.title,
       year: entity.year,
-      source: entity.source as any,
-
-      // ⚠️ RIMOSSI: user_rating, watched_date, user_review, is_watched
-      // Questi dati sono ora in UserMovieEntity
-
+      source: entity.source,
       tmdb_id: entity.tmdb_id,
-      genres: entity.genres || [],
       director: entity.director,
+      genres: entity.genres || [],
       actors: entity.actors || [],
       overview: entity.overview,
       tagline: entity.tagline,
+      runtime: entity.runtime,
       poster_url: entity.poster_url,
       backdrop_url: entity.backdrop_url,
       tmdb_rating: entity.tmdb_rating,
       vote_count: entity.vote_count,
-      runtime: entity.runtime,
       budget: entity.budget,
       revenue: entity.revenue,
       status: entity.status,
@@ -109,20 +91,20 @@ export class DatabaseService {
       keywords: entity.keywords || [],
       certification: entity.certification,
       trailer_url: entity.trailer_url,
+      created_at: entity.created_at,
+      updated_at: entity.updated_at,
     };
   }
 
-  // ===== GESTIONE FILM =====
+  // ===== OPERAZIONI CRUD MOVIES =====
 
-  async saveMovie(movie: Movie): Promise<MovieEntity> {
+  async saveMovie(movie: Movie): Promise<Movie> {
     try {
-      const movieEntity = this.movieToEntity(movie);
-      movieEntity.is_enriched = !!(movieEntity.tmdb_id && movieEntity.tmdb_id > 0);
+      const entity = this.movieToEntity(movie);
+      const saved = await this.movieRepository.save(entity);
       
-      const saved = await this.movieRepository.save(movieEntity);
-      this.logger.debug(`film salvato: ${saved.title} (arricchito: ${saved.is_enriched})`);
-      
-      return saved;
+      this.logger.debug(`💾 film salvato: ${movie.title}`);
+      return this.entityToMovie(saved);
     } catch (error) {
       this.logger.error(`errore salvataggio film ${movie.title}: ${error.message}`);
       throw error;
@@ -131,13 +113,6 @@ export class DatabaseService {
 
   async saveMovies(movies: Movie[]): Promise<MovieEntity[]> {
     try {
-      this.logger.log(`📦 avvio salvataggio batch: ${movies.length} film`);
-
-      if (movies.length === 0) {
-        this.logger.warn('⚠️ nessun film da salvare');
-        return [];
-      }
-
       const entities = movies.map((movie) => {
         const entity = this.movieToEntity(movie);
         entity.is_enriched = !!(movie.tmdb_id && movie.tmdb_id > 0);
@@ -234,32 +209,14 @@ export class DatabaseService {
           .getOne();
       }
 
-      if (entity) {
-        this.logger.debug(`film trovato: ${title} (${year}) - arricchito: ${entity.is_enriched}`);
-        return this.entityToMovie(entity);
+      if (!entity) {
+        return null;
       }
 
-      return null;
+      return this.entityToMovie(entity);
     } catch (error) {
       this.logger.error(`errore ricerca film ${title}: ${error.message}`);
       return null;
-    }
-  }
-
-  async getUnenrichedMovies(): Promise<Movie[]> {
-    try {
-      const entities = await this.movieRepository.find({
-        where: { is_enriched: false },
-        order: { created_at: 'ASC' },
-      });
-
-      const movies = entities.map((entity) => this.entityToMovie(entity));
-      this.logger.log(`📊 trovati ${movies.length} film da arricchire`);
-
-      return movies;
-    } catch (error) {
-      this.logger.error(`errore recupero film non arricchiti: ${error.message}`);
-      return [];
     }
   }
 
@@ -271,9 +228,12 @@ export class DatabaseService {
         throw new Error(`Movie ${id} not found`);
       }
 
-      Object.assign(entity, this.movieToEntity({ ...this.entityToMovie(entity), ...updates }));
-      
-      const updated = await this.movieRepository.save(entity);
+      const updatedEntity = this.movieToEntity({
+        ...this.entityToMovie(entity),
+        ...updates,
+      });
+
+      const updated = await this.movieRepository.save(updatedEntity);
       this.logger.debug(`✅ film ${id} aggiornato`);
       
       return this.entityToMovie(updated);
@@ -316,65 +276,7 @@ export class DatabaseService {
     }
   }
 
-  // ===== TMDB CACHE =====
-
-  async saveTmdbCache(cacheKey: string, tmdbData: any): Promise<void> {
-    try {
-      const entity = new TmdbCacheEntity();
-      entity.cache_key = cacheKey;
-      entity.tmdb_id = tmdbData.id;
-      entity.tmdb_data = tmdbData;
-      entity.title = tmdbData.title;
-      entity.year = tmdbData.release_date?.substring(0, 4);
-      entity.imdb_id = tmdbData.imdb_id;
-      entity.expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-      await this.tmdbCacheRepository.save(entity);
-      this.logger.debug(`💾 cache tmdb salvata: ${cacheKey}`);
-    } catch (error) {
-      this.logger.error(`errore salvataggio cache ${cacheKey}: ${error.message}`);
-    }
-  }
-
-  async getTmdbCache(cacheKey: string): Promise<any | null> {
-    try {
-      const cached = await this.tmdbCacheRepository.findOne({
-        where: { cache_key: cacheKey },
-      });
-
-      if (!cached) {
-        return null;
-      }
-
-      if (cached.expires_at && cached.expires_at < new Date()) {
-        await this.tmdbCacheRepository.remove(cached);
-        this.logger.debug(`🗑️ cache scaduta rimossa: ${cacheKey}`);
-        return null;
-      }
-
-      cached.hit_count = (cached.hit_count || 0) + 1;
-      cached.last_accessed_at = new Date();
-      await this.tmdbCacheRepository.save(cached);
-
-      this.logger.debug(`✅ cache hit: ${cacheKey}`);
-      return cached.tmdb_data;
-    } catch (error) {
-      this.logger.error(`errore recupero cache ${cacheKey}: ${error.message}`);
-      return null;
-    }
-  }
-
-  async getCachedTmdbData(title: string, year?: number): Promise<any | null> {
-    try {
-      const cacheKey = `${title.toLowerCase()}_${year || 'unknown'}`;
-      return await this.getTmdbCache(cacheKey);
-    } catch (error) {
-      this.logger.error(`errore recupero cache per ${title}: ${error.message}`);
-      return null;
-    }
-  }
-
-  // ===== ANALYTICS CACHE =====
+  // ===== ANALYTICS CACHE (in-memory) =====
 
   async saveAnalytics(userId: string, analyticsData: any): Promise<void> {
     try {
@@ -406,6 +308,6 @@ export class DatabaseService {
   }
 
   isDatabaseAvailable(): boolean {
-    return this.movieRepository !== undefined && this.tmdbCacheRepository !== undefined;
+    return this.movieRepository !== undefined;
   }
 }

@@ -8,6 +8,7 @@ export declare class WebsocketGateway implements OnGatewayInit, OnGatewayConnect
     afterInit(server: Server): void;
     handleConnection(client: Socket): void;
     handleDisconnect(client: Socket): void;
+    notifyEnrichmentStarted(sessionId: string, total: number): Promise<void>;
     notifyEnrichmentProgress(sessionId: string, processed: number, total: number, currentMovie?: string): Promise<void>;
     notifyEnrichmentCompleted(sessionId: string, total: number, successful: number, cacheHits?: number): Promise<void>;
     notifyEnrichmentError(sessionId: string, error: string): Promise<void>;

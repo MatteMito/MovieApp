@@ -14,7 +14,7 @@ export declare class UserMovieEntity {
     userRating?: number;
     watchedDate?: Date;
     userReview?: string;
-    source: string;
+    isFavorite?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

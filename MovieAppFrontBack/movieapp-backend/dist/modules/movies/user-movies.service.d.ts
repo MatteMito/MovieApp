@@ -20,11 +20,10 @@ export declare class UserMoviesService {
     private movieRepository;
     private readonly logger;
     constructor(userMovieRepository: Repository<UserMovieEntity>, movieRepository: Repository<MovieEntity>);
-    associateMovieToUser(userId: string, movieId: string, status: MovieStatus, source: string, userRating?: number, watchedDate?: Date, userReview?: string): Promise<UserMovieEntity>;
+    associateMovieToUser(userId: string, movieId: string, status: MovieStatus, userRating?: number, watchedDate?: Date, userReview?: string): Promise<UserMovieEntity>;
     batchAssociateMoviesToUser(userId: string, movies: Array<{
         movieId: string;
         status: MovieStatus;
-        source: string;
         userRating?: number;
         watchedDate?: Date;
         userReview?: string;

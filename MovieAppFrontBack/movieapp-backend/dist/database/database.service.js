@@ -18,11 +18,9 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const movie_entity_1 = require("./entities/movie.entity");
-const tmdb_cache_entity_1 = require("./entities/tmdb-cache.entity");
 let DatabaseService = DatabaseService_1 = class DatabaseService {
-    constructor(movieRepository, tmdbCacheRepository) {
+    constructor(movieRepository) {
         this.movieRepository = movieRepository;
-        this.tmdbCacheRepository = tmdbCacheRepository;
         this.logger = new common_1.Logger(DatabaseService_1.name);
         this.analyticsCache = new Map();
     }
@@ -68,16 +66,16 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
             year: entity.year,
             source: entity.source,
             tmdb_id: entity.tmdb_id,
-            genres: entity.genres || [],
             director: entity.director,
+            genres: entity.genres || [],
             actors: entity.actors || [],
             overview: entity.overview,
             tagline: entity.tagline,
+            runtime: entity.runtime,
             poster_url: entity.poster_url,
             backdrop_url: entity.backdrop_url,
             tmdb_rating: entity.tmdb_rating,
             vote_count: entity.vote_count,
-            runtime: entity.runtime,
             budget: entity.budget,
             revenue: entity.revenue,
             status: entity.status,
@@ -93,15 +91,16 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
             keywords: entity.keywords || [],
             certification: entity.certification,
             trailer_url: entity.trailer_url,
+            created_at: entity.created_at,
+            updated_at: entity.updated_at,
         };
     }
     async saveMovie(movie) {
         try {
-            const movieEntity = this.movieToEntity(movie);
-            movieEntity.is_enriched = !!(movieEntity.tmdb_id && movieEntity.tmdb_id > 0);
-            const saved = await this.movieRepository.save(movieEntity);
-            this.logger.debug(`film salvato: ${saved.title} (arricchito: ${saved.is_enriched})`);
-            return saved;
+            const entity = this.movieToEntity(movie);
+            const saved = await this.movieRepository.save(entity);
+            this.logger.debug(`💾 film salvato: ${movie.title}`);
+            return this.entityToMovie(saved);
         }
         catch (error) {
             this.logger.error(`errore salvataggio film ${movie.title}: ${error.message}`);
@@ -110,11 +109,6 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
     }
     async saveMovies(movies) {
         try {
-            this.logger.log(`📦 avvio salvataggio batch: ${movies.length} film`);
-            if (movies.length === 0) {
-                this.logger.warn('⚠️ nessun film da salvare');
-                return [];
-            }
             const entities = movies.map((movie) => {
                 const entity = this.movieToEntity(movie);
                 entity.is_enriched = !!(movie.tmdb_id && movie.tmdb_id > 0);
@@ -196,30 +190,14 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
                     .andWhere(year ? 'movie.year = :year' : '1=1', { year })
                     .getOne();
             }
-            if (entity) {
-                this.logger.debug(`film trovato: ${title} (${year}) - arricchito: ${entity.is_enriched}`);
-                return this.entityToMovie(entity);
+            if (!entity) {
+                return null;
             }
-            return null;
+            return this.entityToMovie(entity);
         }
         catch (error) {
             this.logger.error(`errore ricerca film ${title}: ${error.message}`);
             return null;
-        }
-    }
-    async getUnenrichedMovies() {
-        try {
-            const entities = await this.movieRepository.find({
-                where: { is_enriched: false },
-                order: { created_at: 'ASC' },
-            });
-            const movies = entities.map((entity) => this.entityToMovie(entity));
-            this.logger.log(`📊 trovati ${movies.length} film da arricchire`);
-            return movies;
-        }
-        catch (error) {
-            this.logger.error(`errore recupero film non arricchiti: ${error.message}`);
-            return [];
         }
     }
     async updateMovie(id, updates) {
@@ -228,8 +206,11 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
             if (!entity) {
                 throw new Error(`Movie ${id} not found`);
             }
-            Object.assign(entity, this.movieToEntity({ ...this.entityToMovie(entity), ...updates }));
-            const updated = await this.movieRepository.save(entity);
+            const updatedEntity = this.movieToEntity({
+                ...this.entityToMovie(entity),
+                ...updates,
+            });
+            const updated = await this.movieRepository.save(updatedEntity);
             this.logger.debug(`✅ film ${id} aggiornato`);
             return this.entityToMovie(updated);
         }
@@ -267,57 +248,6 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
             return null;
         }
     }
-    async saveTmdbCache(cacheKey, tmdbData) {
-        try {
-            const entity = new tmdb_cache_entity_1.TmdbCacheEntity();
-            entity.cache_key = cacheKey;
-            entity.tmdb_id = tmdbData.id;
-            entity.tmdb_data = tmdbData;
-            entity.title = tmdbData.title;
-            entity.year = tmdbData.release_date?.substring(0, 4);
-            entity.imdb_id = tmdbData.imdb_id;
-            entity.expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-            await this.tmdbCacheRepository.save(entity);
-            this.logger.debug(`💾 cache tmdb salvata: ${cacheKey}`);
-        }
-        catch (error) {
-            this.logger.error(`errore salvataggio cache ${cacheKey}: ${error.message}`);
-        }
-    }
-    async getTmdbCache(cacheKey) {
-        try {
-            const cached = await this.tmdbCacheRepository.findOne({
-                where: { cache_key: cacheKey },
-            });
-            if (!cached) {
-                return null;
-            }
-            if (cached.expires_at && cached.expires_at < new Date()) {
-                await this.tmdbCacheRepository.remove(cached);
-                this.logger.debug(`🗑️ cache scaduta rimossa: ${cacheKey}`);
-                return null;
-            }
-            cached.hit_count = (cached.hit_count || 0) + 1;
-            cached.last_accessed_at = new Date();
-            await this.tmdbCacheRepository.save(cached);
-            this.logger.debug(`✅ cache hit: ${cacheKey}`);
-            return cached.tmdb_data;
-        }
-        catch (error) {
-            this.logger.error(`errore recupero cache ${cacheKey}: ${error.message}`);
-            return null;
-        }
-    }
-    async getCachedTmdbData(title, year) {
-        try {
-            const cacheKey = `${title.toLowerCase()}_${year || 'unknown'}`;
-            return await this.getTmdbCache(cacheKey);
-        }
-        catch (error) {
-            this.logger.error(`errore recupero cache per ${title}: ${error.message}`);
-            return null;
-        }
-    }
     async saveAnalytics(userId, analyticsData) {
         try {
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -346,15 +276,13 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
         }
     }
     isDatabaseAvailable() {
-        return this.movieRepository !== undefined && this.tmdbCacheRepository !== undefined;
+        return this.movieRepository !== undefined;
     }
 };
 exports.DatabaseService = DatabaseService;
 exports.DatabaseService = DatabaseService = DatabaseService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(movie_entity_1.MovieEntity)),
-    __param(1, (0, typeorm_1.InjectRepository)(tmdb_cache_entity_1.TmdbCacheEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository])
+    __metadata("design:paramtypes", [typeorm_2.Repository])
 ], DatabaseService);
 //# sourceMappingURL=database.service.js.map

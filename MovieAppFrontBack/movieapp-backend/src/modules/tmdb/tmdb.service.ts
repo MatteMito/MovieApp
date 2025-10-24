@@ -1,5 +1,5 @@
 // File: src/modules/tmdb/tmdb.service.ts
-// AGGIORNATO: rimossi riferimenti a campi utente
+// ✅ OTTIMIZZATO: cache basata SOLO su tabella movies (no tmdb_cache)
 
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
@@ -37,40 +37,31 @@ export class TmdbService {
       throw new Error('TMDB_API_KEY non trovata nelle variabili ambiente');
     }
 
-    this.logger.log('✅ tmdb service inizializzato');
+    this.logger.log('✅ tmdb service inizializzato (cache = movies table)');
   }
 
   /**
-   * Arricchisce singolo film con dati TMDB
-   * IMPORTANTE: Non gestisce più campi utente (user_rating, is_watched, etc.)
+   * ✅ Arricchisce singolo film
+   * Cache intelligente: controlla prima la tabella movies (per tmdb_id)
    */
   async enrichMovie(movie: Movie): Promise<Movie> {
-    const cacheKey = this.generateTmdbCacheKey(movie);
-
     try {
-      // STEP 1: Controlla se film già arricchito in database
+      // STEP 1: Controlla se film già arricchito in database movies
       const existingMovie = await this.databaseService.findMovieByTitleYear(
         movie.title, 
         movie.year
       );
 
       if (existingMovie && existingMovie.tmdb_id) {
-        this.logger.log(`✅ film già arricchito in db: ${movie.title} (skip tmdb api)`);
-        // ⚠️ RIMOSSO: merge con dati utente (ora gestiti separatamente)
+        this.logger.log(`✅ CACHE HIT (movies table): ${movie.title}`);
         return {
           ...existingMovie,
-          id: movie.id, // Mantieni l'ID originale
-          source: movie.source, // Mantieni la source originale
+          id: movie.id,
+          source: movie.source,
         };
       }
 
-      // STEP 2: Controlla cache TMDB
-      const cachedTmdbData = await this.databaseService.getTmdbCache(cacheKey);
-      if (cachedTmdbData) {
-        this.logger.log(`✅ cache tmdb hit: ${movie.title} (${movie.year})`);
-        return this.mapTmdbToMovie(movie, cachedTmdbData);
-      }
-
+      // STEP 2: Film non in cache, cerca su TMDB
       this.logger.log(`🔍 ricerca tmdb: ${movie.title} (${movie.year})`);
 
       await this.enforceRateLimit();
@@ -78,7 +69,7 @@ export class TmdbService {
 
       // Strategia 1: Ricerca per IMDB ID se disponibile
       if (movie.id.startsWith('tt')) {
-        tmdbMovie = await this.findByImdbIdWithCache(movie.id, cacheKey);
+        tmdbMovie = await this.findByImdbId(movie.id);
         if (tmdbMovie) {
           this.logger.log(`✅ trovato via imdb id: ${tmdbMovie.id} per ${movie.title}`);
         }
@@ -86,7 +77,7 @@ export class TmdbService {
 
       // Strategia 2: Fallback ricerca per titolo e anno
       if (!tmdbMovie) {
-        tmdbMovie = await this.searchByTitleWithCache(movie.title, movie.year, cacheKey);
+        tmdbMovie = await this.searchByTitle(movie.title, movie.year);
         if (tmdbMovie) {
           this.logger.log(`✅ trovato via titolo: ${tmdbMovie.id} per ${movie.title}`);
         }
@@ -97,11 +88,13 @@ export class TmdbService {
         return movie;
       }
 
-      // Salva in cache
-      await this.databaseService.saveTmdbCache(cacheKey, tmdbMovie);
-
+      // STEP 3: Crea film arricchito
       const enrichedMovie = this.mapTmdbToMovie(movie, tmdbMovie);
-      this.logger.log(`✅ film arricchito: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
+      
+      // STEP 4: Salva in database movies (così diventa cache per il futuro!)
+      await this.databaseService.saveMovie(enrichedMovie);
+      
+      this.logger.log(`✅ film arricchito e salvato: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
 
       return enrichedMovie;
     } catch (error) {
@@ -111,7 +104,7 @@ export class TmdbService {
   }
 
   /**
-   * Enrichment batch con gestione cache intelligente
+   * ✅ Enrichment batch con cache intelligente
    */
   async enrichMovies(
     movies: Movie[],
@@ -135,7 +128,7 @@ export class TmdbService {
 
     const moviesToEnrich: Movie[] = [];
     
-    // STEP 1: Separa film già arricchiti da quelli da processare
+    // STEP 1: Separa film già arricchiti (cache hit) da quelli da processare
     for (const movie of movies) {
       const existing = await this.databaseService.findMovieByTitleYear(
         movie.title,
@@ -143,15 +136,14 @@ export class TmdbService {
       );
       
       if (existing && existing.tmdb_id) {
-        // Film già arricchito
-        // ⚠️ RIMOSSO: merge con dati utente
+        // Film già arricchito in cache (movies table)
         const merged = {
           ...existing,
           id: movie.id,
           source: movie.source,
         };
         results.successfulMovies.push(merged);
-        this.logger.debug(`💰 cache hit database: ${movie.title}`);
+        this.logger.debug(`💰 CACHE HIT: ${movie.title}`);
       } else {
         moviesToEnrich.push(movie);
       }
@@ -169,6 +161,10 @@ export class TmdbService {
         
         if (enriched.tmdb_id) {
           results.successfulMovies.push(enriched);
+          
+          // ✅ FIX CRITICO: SALVA IL FILM ARRICCHITO NEL DATABASE!
+          await this.databaseService.saveMovie(enriched);
+          this.logger.debug(`✅ Film arricchito e salvato: ${enriched.title}`);
         } else {
           results.failedMovies.push({
             movie,
@@ -205,11 +201,8 @@ export class TmdbService {
     return results;
   }
 
-  // ===== METODI PRIVATI =====
 
-  private generateTmdbCacheKey(movie: Movie): string {
-    return `${movie.title.toLowerCase()}_${movie.year || 'unknown'}`;
-  }
+  // ===== METODI PRIVATI =====
 
   private async enforceRateLimit(): Promise<void> {
     const now = Date.now();
@@ -230,10 +223,7 @@ export class TmdbService {
     this.requestHistory.push(now);
   }
 
-  private async findByImdbIdWithCache(
-    imdbId: string,
-    cacheKey: string,
-  ): Promise<TmdbMovieDetails | null> {
+  private async findByImdbId(imdbId: string): Promise<TmdbMovieDetails | null> {
     try {
       const url = `${this.baseUrl}/find/${imdbId}`;
       const response = await firstValueFrom(
@@ -256,10 +246,9 @@ export class TmdbService {
     }
   }
 
-  private async searchByTitleWithCache(
+  private async searchByTitle(
     title: string,
     year: number | undefined,
-    cacheKey: string,
   ): Promise<TmdbMovieDetails | null> {
     try {
       const url = `${this.baseUrl}/search/movie`;
@@ -308,79 +297,59 @@ export class TmdbService {
     originalTitle: string,
     originalYear?: number,
   ): TmdbMovie | null {
-    if (!movies || movies.length === 0) return null;
+    if (movies.length === 0) return null;
 
-    return movies.reduce((best, current) => {
-      let currentScore = 0;
-      let bestScore = 0;
+    const normalizeTitle = (title: string) =>
+      title.toLowerCase().replace(/[^\w\s]/g, '').trim();
 
-      const currentTitleLower = current.title.toLowerCase();
-      const originalTitleLower = originalTitle.toLowerCase();
+    const normalizedOriginal = normalizeTitle(originalTitle);
 
-      // Scoring titolo
-      if (currentTitleLower === originalTitleLower) {
-        currentScore += 20;
-      } else if (
-        currentTitleLower.includes(originalTitleLower) ||
-        originalTitleLower.includes(currentTitleLower)
-      ) {
-        currentScore += 10;
+    let bestMatch = movies[0];
+    let bestScore = 0;
+
+    for (const movie of movies) {
+      const normalizedTitle = normalizeTitle(movie.title);
+      let score = 0;
+
+      if (normalizedTitle === normalizedOriginal) {
+        score += 100;
+      } else if (normalizedTitle.includes(normalizedOriginal)) {
+        score += 50;
+      } else if (normalizedOriginal.includes(normalizedTitle)) {
+        score += 40;
       }
 
-      if (best) {
-        const bestTitleLower = best.title.toLowerCase();
-        if (bestTitleLower === originalTitleLower) {
-          bestScore += 20;
-        } else if (
-          bestTitleLower.includes(originalTitleLower) ||
-          originalTitleLower.includes(bestTitleLower)
-        ) {
-          bestScore += 10;
+      if (originalYear && movie.release_date) {
+        const movieYear = parseInt(movie.release_date.substring(0, 4));
+        if (movieYear === originalYear) {
+          score += 50;
+        } else if (Math.abs(movieYear - originalYear) <= 1) {
+          score += 20;
         }
       }
 
-      // Scoring anno
-      if (originalYear && current.release_date) {
-        const currentYear = new Date(current.release_date).getFullYear();
-        if (currentYear === originalYear) {
-          currentScore += 15;
-        } else {
-          const yearDiff = Math.abs(currentYear - originalYear);
-          currentScore -= yearDiff;
-        }
+      if (movie.popularity) {
+        score += Math.min(movie.popularity / 10, 10);
       }
 
-      if (originalYear && best && best.release_date) {
-        const bestYear = new Date(best.release_date).getFullYear();
-        if (bestYear === originalYear) {
-          bestScore += 15;
-        } else {
-          const yearDiff = Math.abs(bestYear - originalYear);
-          bestScore -= yearDiff;
-        }
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = movie;
       }
+    }
 
-      // Tiebreaker: popolarità
-      if (Math.abs(currentScore - bestScore) <= 2) {
-        currentScore += (current.popularity || 0) * 0.1;
-        if (best) bestScore += (best.popularity || 0) * 0.1;
-      }
-
-      return currentScore > bestScore ? current : best;
-    });
+    return bestMatch;
   }
 
-  /**
-   * Mappa dati TMDB in Movie model
-   * ⚠️ NON include più campi utente
-   */
-  private mapTmdbToMovie(original: Movie, tmdb: TmdbMovieDetails): Movie {
+  private mapTmdbToMovie(movie: Movie, tmdb: TmdbMovieDetails): Movie {
     return {
-      ...original,
+      ...movie,
       tmdb_id: tmdb.id,
+      title: tmdb.title || movie.title,
+      year: tmdb.release_date ? parseInt(tmdb.release_date.substring(0, 4)) : movie.year,
       genres: tmdb.genres?.map((g) => g.name) || [],
       director: tmdb.credits?.crew?.find((c) => c.job === 'Director')?.name,
-      actors: tmdb.credits?.cast?.slice(0, 10).map((c) => c.name) || [],
+      actors: tmdb.credits?.cast?.slice(0, 5).map((a) => a.name) || [],
       overview: tmdb.overview,
       tagline: tmdb.tagline,
       poster_url: tmdb.poster_path

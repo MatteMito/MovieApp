@@ -56,7 +56,7 @@ __decorate([
     __metadata("design:type", Number)
 ], UserMovieEntity.prototype, "userRating", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'watched_date', type: 'timestamp', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'watched_date', type: 'date', nullable: true }),
     __metadata("design:type", Date)
 ], UserMovieEntity.prototype, "watchedDate", void 0);
 __decorate([
@@ -64,9 +64,9 @@ __decorate([
     __metadata("design:type", String)
 ], UserMovieEntity.prototype, "userReview", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 50, default: 'UNKNOWN' }),
-    __metadata("design:type", String)
-], UserMovieEntity.prototype, "source", void 0);
+    (0, typeorm_1.Column)({ name: 'is_favorite', type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
+], UserMovieEntity.prototype, "isFavorite", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)

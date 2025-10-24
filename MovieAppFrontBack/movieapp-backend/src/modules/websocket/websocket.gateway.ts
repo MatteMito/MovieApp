@@ -81,6 +81,28 @@ export class WebsocketGateway
 
   //NOTIFICHE ENRICHMENT
 
+  /**
+   * Notifica inizio enrichment
+   */
+  async notifyEnrichmentStarted(sessionId: string, total: number): Promise<void> {
+    try {
+      const message: EnrichmentProgressMessage = {
+        sessionId,
+        type: 'started',
+        total,
+        processed: 0,
+        message: `🎬 Avvio enrichment per ${total} film...`,
+        percentage: 0,
+      };
+
+      this.server.emit('enrichment:started', message);
+      
+      this.logger.log(`🎬 Enrichment avviato: sessione ${sessionId}, ${total} film`);
+    } catch (error) {
+      this.logger.error(`errore notifica started: ${error.message}`);
+    }
+  }
+
   async notifyEnrichmentProgress(
     sessionId: string,
     processed: number,

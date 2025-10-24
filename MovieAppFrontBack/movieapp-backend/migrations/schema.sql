@@ -1,40 +1,24 @@
 -- ============================================
--- STEP 1: Eliminazione COMPLETA di tutte le tabelle
+-- SCHEMA DATABASE MOVIEAPP v2.1
+-- Ottimizzato: rimossa tabella tmdb_cache ridondante
 -- ============================================
 
--- Disabilita temporaneamente i vincoli di foreign key
+-- STEP 1: Eliminazione COMPLETA di tutte le tabelle
 SET session_replication_role = 'replica';
 
--- Elimina trigger esistenti
 DROP TRIGGER IF EXISTS update_users_updated_at ON users CASCADE;
 DROP TRIGGER IF EXISTS update_movies_updated_at ON movies CASCADE;
-DROP TRIGGER IF EXISTS update_movie_updated_at ON movie CASCADE;
-DROP TRIGGER IF EXISTS update_tmdb_cache_updated_at ON tmdb_cache CASCADE;
 DROP TRIGGER IF EXISTS update_movie_lists_updated_at ON movie_lists CASCADE;
 DROP TRIGGER IF EXISTS update_user_movies_updated_at ON user_movies CASCADE;
 
--- Elimina funzione trigger
 DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
 
--- Elimina TUTTE le tabelle (vecchie e nuove)
 DROP TABLE IF EXISTS user_movies CASCADE;
-DROP TABLE IF EXISTS movie_list_items CASCADE;
-DROP TABLE IF EXISTS list_followers CASCADE;
 DROP TABLE IF EXISTS movie_lists CASCADE;
-DROP TABLE IF EXISTS tmdb_cache CASCADE;
-DROP TABLE IF EXISTS cache_entries CASCADE;
 DROP TABLE IF EXISTS movies CASCADE;
-DROP TABLE IF EXISTS movie CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
--- Riabilita i vincoli di foreign key
 SET session_replication_role = 'origin';
-
--- Verifica che tutte le tabelle siano state eliminate
-SELECT table_name 
-FROM information_schema.tables 
-WHERE table_schema = 'public'
-ORDER BY table_name;
 
 -- ============================================
 -- STEP 2: Creazione estensioni necessarie
@@ -91,20 +75,35 @@ CREATE TABLE movies (
     year INTEGER,
     source VARCHAR(50) DEFAULT 'UNKNOWN',
     
-    -- dati tmdb arricchiti
+    -- dati tmdb arricchiti (questa tabella FA GIÀ da cache!)
     tmdb_id INTEGER,
-    genres TEXT[],
+    is_enriched BOOLEAN DEFAULT false,
+    genres TEXT[] DEFAULT '{}',
     director VARCHAR(255),
     actors TEXT[],
     overview TEXT,
+    tagline VARCHAR(500),
     poster_url TEXT,
     backdrop_url TEXT,
     tmdb_rating DECIMAL(3,1),
     vote_count INTEGER,
     runtime INTEGER,
+    budget BIGINT,
+    revenue BIGINT,
+    status VARCHAR(100),
     release_date DATE,
     original_language VARCHAR(10),
-    production_countries TEXT[],
+    original_title VARCHAR(500),
+    popularity DECIMAL(10,3),
+    adult BOOLEAN DEFAULT false,
+    homepage VARCHAR(500),
+    imdb_id VARCHAR(20),
+    production_companies TEXT[] DEFAULT '{}',
+    production_countries TEXT[] DEFAULT '{}',
+    spoken_languages TEXT[] DEFAULT '{}',
+    keywords TEXT[] DEFAULT '{}',
+    certification VARCHAR(20),
+    trailer_url VARCHAR(500),
     
     -- timestamp
     created_at TIMESTAMP DEFAULT NOW(),
@@ -116,13 +115,14 @@ CREATE INDEX idx_movies_year ON movies(year);
 CREATE INDEX idx_movies_tmdb_id ON movies(tmdb_id);
 CREATE INDEX idx_movies_director ON movies(director);
 CREATE INDEX idx_movies_source ON movies(source);
+CREATE INDEX idx_movies_is_enriched ON movies(is_enriched);
 
 CREATE TRIGGER update_movies_updated_at
     BEFORE UPDATE ON movies
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-COMMENT ON TABLE movies IS 'Tabella film globale (condivisa tra tutti gli utenti)';
+COMMENT ON TABLE movies IS 'Catalogo globale film con dati TMDB arricchiti (fa da cache!)';
 
 -- ============================================
 -- STEP 6: Creazione tabella user_movies
@@ -168,66 +168,19 @@ CREATE TRIGGER update_user_movies_updated_at
 COMMENT ON TABLE user_movies IS 'Relazione many-to-many tra users e movies con dati personalizzati';
 
 -- ============================================
--- STEP 7: Creazione tabella tmdb_cache
--- ============================================
-
-CREATE TABLE tmdb_cache (
-    id SERIAL PRIMARY KEY,
-    tmdb_id INTEGER UNIQUE NOT NULL,
-    title VARCHAR(500) NOT NULL,
-    year INTEGER,
-    
-    -- dati completi da TMDB
-    genres TEXT[],
-    director VARCHAR(255),
-    actors TEXT[],
-    overview TEXT,
-    poster_url TEXT,
-    backdrop_url TEXT,
-    tmdb_rating DECIMAL(3,1),
-    vote_count INTEGER,
-    runtime INTEGER,
-    release_date DATE,
-    original_language VARCHAR(10),
-    production_countries TEXT[],
-    
-    -- metadati cache
-    cache_hit_count INTEGER DEFAULT 0,
-    last_accessed TIMESTAMP DEFAULT NOW(),
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX idx_tmdb_cache_tmdb_id ON tmdb_cache(tmdb_id);
-CREATE INDEX idx_tmdb_cache_title ON tmdb_cache(title);
-CREATE INDEX idx_tmdb_cache_last_accessed ON tmdb_cache(last_accessed);
-
-CREATE TRIGGER update_tmdb_cache_updated_at
-    BEFORE UPDATE ON tmdb_cache
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-COMMENT ON TABLE tmdb_cache IS 'Cache permanente dei dati TMDB per evitare chiamate API ripetute';
-
--- ============================================
--- STEP 8: Creazione tabella movie_lists
+-- STEP 7: Creazione tabella movie_lists
 -- ============================================
 
 CREATE TABLE movie_lists (
-    -- ID univoco lista
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    
-    -- Proprietario lista (FK a users)
     user_id UUID NOT NULL,
     
     -- Dati lista
     name VARCHAR(200) NOT NULL,
     description TEXT,
-    
-    -- Array di ID film nella lista
     movie_ids TEXT[] DEFAULT '{}',
     
-    -- Pianificazione (opzionale)
+    -- Pianificazione
     target_date TIMESTAMP,
     frequency VARCHAR(50),
     
@@ -236,39 +189,30 @@ CREATE TABLE movie_lists (
     followers_count INTEGER DEFAULT 0,
     follower_ids TEXT[] DEFAULT '{}',
     
-    -- Timestamp automatici
+    -- Timestamp
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     
-    -- Foreign key constraint
     CONSTRAINT fk_movie_lists_user FOREIGN KEY (user_id) 
         REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Indici per performance
 CREATE INDEX idx_movie_lists_user_id ON movie_lists(user_id);
 CREATE INDEX idx_movie_lists_is_public ON movie_lists(is_public);
 CREATE INDEX idx_movie_lists_target_date ON movie_lists(target_date);
 CREATE INDEX idx_movie_lists_created_at ON movie_lists(created_at);
 
--- Trigger per aggiornare updated_at automaticamente
 CREATE TRIGGER update_movie_lists_updated_at
     BEFORE UPDATE ON movie_lists
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 COMMENT ON TABLE movie_lists IS 'Liste personalizzate di film create dagli utenti';
-COMMENT ON COLUMN movie_lists.user_id IS 'Proprietario della lista';
-COMMENT ON COLUMN movie_lists.movie_ids IS 'Array di ID film nella lista';
-COMMENT ON COLUMN movie_lists.is_public IS 'Lista visibile pubblicamente';
-COMMENT ON COLUMN movie_lists.followers_count IS 'Numero di followers';
-COMMENT ON COLUMN movie_lists.follower_ids IS 'Array di ID utenti followers';
 
 -- ============================================
--- STEP 9: Verifica finale
+-- STEP 8: Verifica finale
 -- ============================================
 
--- Lista tutte le tabelle create
 SELECT 
     table_name,
     (SELECT COUNT(*) 

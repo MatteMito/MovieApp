@@ -25,14 +25,6 @@ export class MoviesService {
     private readonly userMoviesService: UserMoviesService,
   ) {}
 
-  /**
-   * 🆕 BATCH UPLOAD con associazione utente-film
-   * Gestisce:
-   * 1. Salvataggio film in tabella movies
-   * 2. Enrichment TMDB
-   * 3. Associazione user_movies
-   * 4. Contatori precisi dal file e totali
-   */
   async batchUploadWithUserAssociation(
     userId: string,
     watchlist: Movie[],
@@ -53,65 +45,74 @@ export class MoviesService {
       await this.databaseService.saveMovies(allMovies);
       this.logger.log(`✅ salvati ${allMovies.length} film in tabella movies`);
 
-      // STEP 2: Enrichment watchlist
+      // ✅ Notifica inizio enrichment
+      await this.websocketGateway.notifyEnrichmentStarted(sessionId, allMovies.length);
+
+      // STEP 2: Enrichment watchlist CON PROGRESS
       this.logger.log(`🎬 enrichment watchlist...`);
-      const watchlistEnrichment = await this.tmdbService.enrichMovies(watchlist);
+      const watchlistEnrichment = await this.tmdbService.enrichMovies(watchlist, {
+        onProgress: async (processed, total, currentMovie) => {
+          // ✅ Invia progress via WebSocket
+          await this.websocketGateway.notifyEnrichmentProgress(
+            sessionId,
+            processed,
+            total,
+            currentMovie
+          );
+        }
+      });
+      
       const watchlistResult: EnrichmentResult = {
         sessionId: uuidv4(),
         successfulMovies: watchlistEnrichment.successfulMovies,
         failedMovies: watchlistEnrichment.failedMovies,
         totalProcessed: watchlistEnrichment.totalProcessed,
         successRate: watchlistEnrichment.successRate,
-        cacheHits: 0, // TmdbService non ritorna cacheHits
+        cacheHits: 0,
       };
 
-      // STEP 3: Enrichment watched
+      // STEP 3: Enrichment watched CON PROGRESS
       this.logger.log(`🎬 enrichment watched...`);
-      const watchedEnrichment = await this.tmdbService.enrichMovies(watched);
+      const watchedEnrichment = await this.tmdbService.enrichMovies(watched, {
+        onProgress: async (processed, total, currentMovie) => {
+          // ✅ Invia progress via WebSocket (offset per watchlist)
+          await this.websocketGateway.notifyEnrichmentProgress(
+            sessionId,
+            watchlist.length + processed,
+            allMovies.length,
+            currentMovie
+          );
+        }
+      });
+      
       const watchedResult: EnrichmentResult = {
         sessionId: uuidv4(),
         successfulMovies: watchedEnrichment.successfulMovies,
         failedMovies: watchedEnrichment.failedMovies,
         totalProcessed: watchedEnrichment.totalProcessed,
         successRate: watchedEnrichment.successRate,
-        cacheHits: 0, // TmdbService non ritorna cacheHits
+        cacheHits: 0,
       };
 
-      // STEP 4: Associa i film all'utente nella tabella user_movies
-      this.logger.log(`🔗 associazione film all'utente...`);
-
-      // Prepara dati watchlist
-      const watchlistAssociations = watchlistResult.successfulMovies.map((movie) => ({
-        movieId: movie.id,
+      // STEP 4: Associazioni user_movies
+      this.logger.log(`🔗 creazione associazioni user_movies...`);
+      
+      const watchlistAssociations = watchlistResult.successfulMovies.map(m => ({
+        movieId: m.id,
         status: MovieStatus.WATCHLIST,
-        source: movie.source || 'UNKNOWN',
-        userRating: undefined,
-        watchedDate: undefined,
-        userReview: undefined,
       }));
 
-      // Prepara dati watched
-      const watchedAssociations = watchedResult.successfulMovies.map((movie) => ({
-        movieId: movie.id,
+      const watchedAssociations = watchedResult.successfulMovies.map(m => ({
+        movieId: m.id,
         status: MovieStatus.WATCHED,
-        source: movie.source || 'UNKNOWN',
-        userRating: undefined,
-        watchedDate: undefined,
-        userReview: undefined,
       }));
 
-      // Salva associazioni in batch
-      const watchlistBatch = await this.userMoviesService.batchAssociateMoviesToUser(
+      await this.userMoviesService.batchAssociateMoviesToUser(
         userId,
-        watchlistAssociations,
+        [...watchlistAssociations, ...watchedAssociations]
       );
 
-      const watchedBatch = await this.userMoviesService.batchAssociateMoviesToUser(
-        userId,
-        watchedAssociations,
-      );
-
-      this.logger.log(`✅ associazioni completate`);
+      this.logger.log(`✅ associazioni create per ${watchlistAssociations.length + watchedAssociations.length} film`);
 
       // STEP 5: Recupera contatori aggiornati
       const userStats = await this.userMoviesService.getUserMovieStats(userId);
@@ -129,6 +130,14 @@ export class MoviesService {
         watchlistResult.successfulMovies.filter((m) => m.tmdb_id).length +
         watchedResult.successfulMovies.filter((m) => m.tmdb_id).length;
       const totalCacheHits = watchlistResult.cacheHits + watchedResult.cacheHits;
+
+      // ✅ Notifica completamento
+      await this.websocketGateway.notifyEnrichmentCompleted(
+        sessionId,
+        totalMovies,
+        totalEnriched,
+        totalCacheHits
+      );
 
       const duration = Date.now() - startTime;
 
@@ -152,6 +161,10 @@ export class MoviesService {
       };
     } catch (error) {
       this.logger.error(`❌ errore batch upload: ${error.message}`);
+      
+      // ✅ Notifica errore
+      await this.websocketGateway.notifyEnrichmentError(sessionId, error.message);
+      
       throw error;
     }
   }
@@ -434,18 +447,6 @@ export class MoviesService {
     } catch (error) {
       this.logger.error(`errore getMovieById: ${error.message}`);
       return null;
-    }
-  }
-
-  /**
-   * Get unenriched movies
-   */
-  async getUnenrichedMovies(): Promise<Movie[]> {
-    try {
-      return await this.databaseService.getUnenrichedMovies();
-    } catch (error) {
-      this.logger.error(`errore getUnenrichedMovies: ${error.message}`);
-      return [];
     }
   }
 
