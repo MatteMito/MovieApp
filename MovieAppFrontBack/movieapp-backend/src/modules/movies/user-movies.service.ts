@@ -1,19 +1,21 @@
 // File: src/modules/movies/user-movies.service.ts
-// Servizio per gestire le relazioni utente-film
+// Service per gestione relazioni user-movie
 
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserMovieEntity, MovieStatus } from '../../database/entities/user-movie.entity';
-import { MovieEntity } from '../../database/entities/movie.entity';
+import {
+  UserMovieEntity,
+  MovieStatus,
+} from '../../database/entities/user-movie.entity';
 import { Movie } from '../../common/interfaces/movie.interface';
 
 export interface UserMovieStats {
+  userId: string;
   totalMovies: number;
   watchedCount: number;
   watchlistCount: number;
-  averageRating?: number;
-  lastImportDate?: Date;
+  averageRating: number;
 }
 
 export interface ImportCounters {
@@ -29,61 +31,13 @@ export class UserMoviesService {
 
   constructor(
     @InjectRepository(UserMovieEntity)
-    private userMovieRepository: Repository<UserMovieEntity>,
-    
-    @InjectRepository(MovieEntity)
-    private movieRepository: Repository<MovieEntity>,
+    private readonly userMovieRepository: Repository<UserMovieEntity>,
   ) {}
 
   /**
-   * ✅ CORRETTO: Associa un singolo film ad un utente (senza source)
+   * Associa film multipli ad un utente in batch
    */
-  async associateMovieToUser(
-    userId: string,
-    movieId: string,
-    status: MovieStatus,
-    userRating?: number,
-    watchedDate?: Date,
-    userReview?: string,
-  ): Promise<UserMovieEntity> {
-    try {
-      let userMovie = await this.userMovieRepository.findOne({
-        where: { userId, movieId },
-      });
-
-      if (userMovie) {
-        // Aggiorna esistente
-        userMovie.status = status;
-        userMovie.userRating = userRating;
-        userMovie.watchedDate = watchedDate;
-        userMovie.userReview = userReview;
-        
-        this.logger.debug(`🔄 Aggiornato: user ${userId} - movie ${movieId}`);
-      } else {
-        // Crea nuovo
-        userMovie = this.userMovieRepository.create({
-          userId,
-          movieId,
-          status,
-          userRating,
-          watchedDate,
-          userReview,
-        });
-        
-        this.logger.debug(`➕ Creato: user ${userId} - movie ${movieId} [${status}]`);
-      }
-
-      return await this.userMovieRepository.save(userMovie);
-    } catch (error) {
-      this.logger.error(`Errore associazione: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * ✅ CORRETTO: Associa batch di film a un utente (senza source)
-   */
-  async batchAssociateMoviesToUser(
+  async batchAssociateMovies(
     userId: string,
     movies: Array<{
       movieId: string;
@@ -156,8 +110,8 @@ export class UserMoviesService {
   }
 
   /**
- * Recupera tutti i film di un utente
- */
+   * ✅ FIX PRINCIPALE: Recupera film con isWatched corretto
+   */
   async getUserMovies(
     userId: string,
     status?: MovieStatus,
@@ -174,7 +128,7 @@ export class UserMoviesService {
 
       const userMovies = await query.getMany();
 
-      // ✅ CRITICO: Converti in Movie[] con isWatched CORRETTO
+      // ✅ CONVERSIONE CON is_watched CORRETTO
       const movies: Movie[] = userMovies.map(um => ({
         id: um.movie.id,
         title: um.movie.title,
@@ -207,10 +161,10 @@ export class UserMoviesService {
         certification: um.movie.certification,
         trailer_url: um.movie.trailer_url,
         
-        // ✅ AGGIUNGI QUESTI CAMPI UTENTE MANCANTI!
+        // ✅ FIX: Campi utente con is_watched CORRETTO
         user_rating: um.userRating,
         watched_date: um.watchedDate?.toISOString(),
-        is_watched: um.status === MovieStatus.WATCHED,  // ✅ QUESTO È IL FIX PRINCIPALE!
+        is_watched: um.status === MovieStatus.WATCHED,  // ✅ QUESTO È IL FIX!
       }));
 
       this.logger.debug(`📚 Recuperati ${movies.length} film per utente ${userId}`);
@@ -223,7 +177,7 @@ export class UserMoviesService {
   }
 
   /**
-   * Statistiche utente
+   * ✅ OTTIMIZZATO: Statistiche con query leggere
    */
   async getUserMovieStats(userId: string): Promise<UserMovieStats> {
     try {
@@ -245,65 +199,55 @@ export class UserMoviesService {
         .filter((r): r is number => r !== null && r !== undefined);
 
       const averageRating = ratingsWithValues.length > 0
-        ? ratingsWithValues.reduce((a, b) => a + b, 0) / ratingsWithValues.length
-        : undefined;
+        ? ratingsWithValues.reduce((sum, r) => sum + r, 0) / ratingsWithValues.length
+        : 0;
 
-      // Trova ultima data import
-      const lastImportDate = allUserMovies.length > 0
-        ? allUserMovies.reduce((latest, current) => 
-            current.createdAt > latest ? current.createdAt : latest,
-            allUserMovies[0].createdAt
-          )
-        : undefined;
+      const totalMovies = watched + watchlist;
+
+      this.logger.debug(
+        `📊 Stats utente ${userId}: ${totalMovies} film (${watched} visti, ${watchlist} da vedere)`,
+      );
 
       return {
-        totalMovies: watched + watchlist,
+        userId,
+        totalMovies,
         watchedCount: watched,
         watchlistCount: watchlist,
-        averageRating,
-        lastImportDate,
+        averageRating: parseFloat(averageRating.toFixed(2)),
       };
     } catch (error) {
       this.logger.error(`Errore getUserMovieStats: ${error.message}`);
-      throw error;
+      return {
+        userId,
+        totalMovies: 0,
+        watchedCount: 0,
+        watchlistCount: 0,
+        averageRating: 0,
+      };
     }
   }
 
   /**
-   * Elimina associazione utente-film
+   * Conteggi per import
    */
-  async removeUserMovie(userId: string, movieId: string): Promise<void> {
+  async getImportCounters(userId: string): Promise<ImportCounters> {
     try {
-      await this.userMovieRepository.delete({ userId, movieId });
-      this.logger.debug(`🗑️ Rimosso: user ${userId} - movie ${movieId}`);
+      const stats = await this.getUserMovieStats(userId);
+
+      return {
+        watchedFromFile: 0,
+        watchlistFromFile: 0,
+        totalWatched: stats.watchedCount,
+        totalWatchlist: stats.watchlistCount,
+      };
     } catch (error) {
-      this.logger.error(`Errore removeUserMovie: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Aggiorna rating utente per un film
-   */
-  async updateUserRating(
-    userId: string,
-    movieId: string,
-    rating: number,
-  ): Promise<UserMovieEntity> {
-    try {
-      const userMovie = await this.userMovieRepository.findOne({
-        where: { userId, movieId },
-      });
-
-      if (!userMovie) {
-        throw new Error('User movie not found');
-      }
-
-      userMovie.userRating = rating;
-      return await this.userMovieRepository.save(userMovie);
-    } catch (error) {
-      this.logger.error(`Errore updateUserRating: ${error.message}`);
-      throw error;
+      this.logger.error(`Errore getImportCounters: ${error.message}`);
+      return {
+        watchedFromFile: 0,
+        watchlistFromFile: 0,
+        totalWatched: 0,
+        totalWatchlist: 0,
+      };
     }
   }
 }

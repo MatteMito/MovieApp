@@ -18,44 +18,12 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const user_movie_entity_1 = require("../../database/entities/user-movie.entity");
-const movie_entity_1 = require("../../database/entities/movie.entity");
 let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
-    constructor(userMovieRepository, movieRepository) {
+    constructor(userMovieRepository) {
         this.userMovieRepository = userMovieRepository;
-        this.movieRepository = movieRepository;
         this.logger = new common_1.Logger(UserMoviesService_1.name);
     }
-    async associateMovieToUser(userId, movieId, status, userRating, watchedDate, userReview) {
-        try {
-            let userMovie = await this.userMovieRepository.findOne({
-                where: { userId, movieId },
-            });
-            if (userMovie) {
-                userMovie.status = status;
-                userMovie.userRating = userRating;
-                userMovie.watchedDate = watchedDate;
-                userMovie.userReview = userReview;
-                this.logger.debug(`🔄 Aggiornato: user ${userId} - movie ${movieId}`);
-            }
-            else {
-                userMovie = this.userMovieRepository.create({
-                    userId,
-                    movieId,
-                    status,
-                    userRating,
-                    watchedDate,
-                    userReview,
-                });
-                this.logger.debug(`➕ Creato: user ${userId} - movie ${movieId} [${status}]`);
-            }
-            return await this.userMovieRepository.save(userMovie);
-        }
-        catch (error) {
-            this.logger.error(`Errore associazione: ${error.message}`);
-            throw error;
-        }
-    }
-    async batchAssociateMoviesToUser(userId, movies) {
+    async batchAssociateMovies(userId, movies) {
         try {
             this.logger.log(`📦 Batch: ${movies.length} film per utente ${userId}`);
             let created = 0;
@@ -174,48 +142,47 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
                 .map(um => um.userRating)
                 .filter((r) => r !== null && r !== undefined);
             const averageRating = ratingsWithValues.length > 0
-                ? ratingsWithValues.reduce((a, b) => a + b, 0) / ratingsWithValues.length
-                : undefined;
-            const lastImportDate = allUserMovies.length > 0
-                ? allUserMovies.reduce((latest, current) => current.createdAt > latest ? current.createdAt : latest, allUserMovies[0].createdAt)
-                : undefined;
+                ? ratingsWithValues.reduce((sum, r) => sum + r, 0) / ratingsWithValues.length
+                : 0;
+            const totalMovies = watched + watchlist;
+            this.logger.debug(`📊 Stats utente ${userId}: ${totalMovies} film (${watched} visti, ${watchlist} da vedere)`);
             return {
-                totalMovies: watched + watchlist,
+                userId,
+                totalMovies,
                 watchedCount: watched,
                 watchlistCount: watchlist,
-                averageRating,
-                lastImportDate,
+                averageRating: parseFloat(averageRating.toFixed(2)),
             };
         }
         catch (error) {
             this.logger.error(`Errore getUserMovieStats: ${error.message}`);
-            throw error;
+            return {
+                userId,
+                totalMovies: 0,
+                watchedCount: 0,
+                watchlistCount: 0,
+                averageRating: 0,
+            };
         }
     }
-    async removeUserMovie(userId, movieId) {
+    async getImportCounters(userId) {
         try {
-            await this.userMovieRepository.delete({ userId, movieId });
-            this.logger.debug(`🗑️ Rimosso: user ${userId} - movie ${movieId}`);
+            const stats = await this.getUserMovieStats(userId);
+            return {
+                watchedFromFile: 0,
+                watchlistFromFile: 0,
+                totalWatched: stats.watchedCount,
+                totalWatchlist: stats.watchlistCount,
+            };
         }
         catch (error) {
-            this.logger.error(`Errore removeUserMovie: ${error.message}`);
-            throw error;
-        }
-    }
-    async updateUserRating(userId, movieId, rating) {
-        try {
-            const userMovie = await this.userMovieRepository.findOne({
-                where: { userId, movieId },
-            });
-            if (!userMovie) {
-                throw new Error('User movie not found');
-            }
-            userMovie.userRating = rating;
-            return await this.userMovieRepository.save(userMovie);
-        }
-        catch (error) {
-            this.logger.error(`Errore updateUserRating: ${error.message}`);
-            throw error;
+            this.logger.error(`Errore getImportCounters: ${error.message}`);
+            return {
+                watchedFromFile: 0,
+                watchlistFromFile: 0,
+                totalWatched: 0,
+                totalWatchlist: 0,
+            };
         }
     }
 };
@@ -223,8 +190,6 @@ exports.UserMoviesService = UserMoviesService;
 exports.UserMoviesService = UserMoviesService = UserMoviesService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_movie_entity_1.UserMovieEntity)),
-    __param(1, (0, typeorm_1.InjectRepository)(movie_entity_1.MovieEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository])
+    __metadata("design:paramtypes", [typeorm_2.Repository])
 ], UserMoviesService);
 //# sourceMappingURL=user-movies.service.js.map

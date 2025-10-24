@@ -285,21 +285,29 @@ class HomeFragment : Fragment() {
     }
 
     /**
-     * ✅ Aggiorna card statistiche permanente
-     * Chiamato SEMPRE dopo ogni modifica ai film
+     * ✅ FIX: Aggiorna card statistiche usando contatori dal backend (già filtrati per userId)
      */
     private fun updatePermanentStatsCard() {
-        val movies = homeViewModel.movies.value ?: emptyList()  // ✅ CORRETTO
+        // ✅ Usa i contatori totali che vengono dal backend (già filtrati per userId)
+        val counters = homeViewModel.totalCounters.value
 
-        val total = movies.size
-        val watched = movies.count { it.isWatched }  // ✅ CORRETTO
-        val watchlist = movies.count { !it.isWatched }  // ✅ CORRETTO
+        if (counters != null) {
+            val (watched, watchlist) = counters
+            val total = watched + watchlist
 
-        binding.textTotalMovies.text = total.toString()
-        binding.textWatchedMovies.text = watched.toString()
-        binding.textWatchlistMovies.text = watchlist.toString()
+            binding.textTotalMovies.text = total.toString()
+            binding.textWatchedMovies.text = watched.toString()
+            binding.textWatchlistMovies.text = watchlist.toString()
 
-        Log.d(TAG, "📊 Stats aggiornate: $total totali ($watched visti, $watchlist da vedere)")
+            Log.d(TAG, "📊 Stats aggiornate dal backend: $total totali ($watched visti, $watchlist da vedere)")
+        } else {
+            // Fallback: se i contatori non sono disponibili, mostra 0
+            binding.textTotalMovies.text = "0"
+            binding.textWatchedMovies.text = "0"
+            binding.textWatchlistMovies.text = "0"
+
+            Log.d(TAG, "⚠️ Contatori non disponibili - mostrando 0")
+        }
     }
 
     //DIALOG HELPERS

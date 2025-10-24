@@ -76,7 +76,7 @@ let MoviesService = MoviesService_1 = class MoviesService {
                 movieId: m.id,
                 status: user_movie_entity_1.MovieStatus.WATCHED,
             }));
-            await this.userMoviesService.batchAssociateMoviesToUser(userId, [...watchlistAssociations, ...watchedAssociations]);
+            await this.userMoviesService.batchAssociateMovies(userId, [...watchlistAssociations, ...watchedAssociations]);
             this.logger.log(`✅ associazioni create per ${watchlistAssociations.length + watchedAssociations.length} film`);
             const userStats = await this.userMoviesService.getUserMovieStats(userId);
             const importCounters = {
@@ -163,7 +163,6 @@ let MoviesService = MoviesService_1 = class MoviesService {
                 watched_count: userStats.watchedCount,
                 watchlist_count: userStats.watchlistCount,
                 average_rating: userStats.averageRating,
-                last_import: userStats.lastImportDate,
             };
         }
         catch (error) {

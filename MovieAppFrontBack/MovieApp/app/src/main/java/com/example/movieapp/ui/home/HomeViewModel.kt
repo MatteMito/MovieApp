@@ -53,78 +53,28 @@ class HomeViewModel : ViewModel() {
     init {
         _isLoading.value = false
         _importStatus.value = ImportStatus.IDLE
-        _fileCounters.value = 0 to 0
-        _totalCounters.value = 0 to 0
-
-        viewModelScope.launch {
-            webSocketService.enrichmentUpdates.collect { update ->
-                update?.let {
-                    Log.d(TAG, "📩 WebSocket update: ${it.type} - ${it.processed}/${it.total}")
-
-                    when (it.type) {
-                        "progress" -> {
-                            _enrichmentProgress.postValue(it.processed to it.total)
-                            _importStatus.postValue(ImportStatus.ENRICHING(it.processed, it.total, it.currentMovie))
-                            Log.d(TAG, "📊 Progress aggiornato: ${it.processed}/${it.total} (${it.percentage}%)")
-                        }
-                        "completed" -> {
-                            _enrichmentProgress.postValue(it.total to it.total)
-                            _importStatus.postValue(ImportStatus.COMPLETED(it.total))
-                            Log.d(TAG, "✅ Enrichment completato: ${it.total} film")
-
-                            viewModelScope.launch {
-                                delay(3000)
-                                _importStatus.postValue(ImportStatus.IDLE)
-                                _enrichmentProgress.postValue(0 to 0)
-                            }
-                        }
-                        "error" -> {
-                            Log.e(TAG, "❌ Errore enrichment: ${it.message}")
-                            _enrichmentProgress.postValue(0 to 0)
-                            _importStatus.postValue(ImportStatus.ERROR(it.message))
-                        }
-                    }
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            webSocketService.connectionStatus.collect { status ->
-                Log.d(TAG, "🔌 WebSocket status: $status")
-            }
-        }
-
-        Log.d(TAG, "✅ HomeViewModel inizializzato con WebSocket support")
+        _enrichmentProgress.value = 0 to 0
+        Log.d(TAG, "HomeViewModel inizializzato")
     }
 
     fun initialize(context: Context) {
         applicationContext = context.applicationContext
-        movieRepository = MovieRepository.getInstance(applicationContext)
-
-        ApiService.initialize(applicationContext!!)
+        movieRepository = MovieRepository.getInstance(context)
 
         movieRepository?.movies?.observeForever { movies ->
-            _movies.value = movies ?: emptyList()
-            Log.d(TAG, "📊 Film dal database: ${movies?.size ?: 0}")
+            _movies.postValue(movies ?: emptyList())
         }
 
         loadSavedMovies()
         testBackendConnectivity()
-        connectWebSocket()
 
-        Log.d(TAG, "✅ ViewModel inizializzato")
-    }
-
-    private fun connectWebSocket() {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "🔌 Tentativo connessione WebSocket...")
                 webSocketService.connect()
-
                 delay(2000)
 
                 if (webSocketService.isConnected()) {
-                    Log.d(TAG, "✅ WebSocket CONNESSO con successo!")
+                    Log.d(TAG, "✅ WebSocket connesso")
                 } else {
                     Log.w(TAG, "⚠️ WebSocket non connesso dopo 2s")
                 }
@@ -192,33 +142,99 @@ class HomeViewModel : ViewModel() {
         _isLoading.postValue(loading)
     }
 
+    /**
+     * ✅ FIX: Refresh ottimizzato usando endpoint /stats
+     */
     fun refreshFromBackend() {
         viewModelScope.launch {
             try {
+                setLoading(true)
                 Log.d(TAG, "🔄 Refresh da backend...")
-                val result = ApiService.getUserStoredMovies()
 
-                val backendMovies = result.getOrNull() ?: emptyList()
+                val statsResult = ApiService.getUserStats()
 
-                if (backendMovies.isNotEmpty()) {
-                    movieRepository?.replaceAll(backendMovies)
-                    Log.d(TAG, "✅ Sincronizzati ${backendMovies.size} film dal backend")
+                if (statsResult.isSuccess) {
+                    val stats = statsResult.getOrNull()
 
-                    val watched = backendMovies.count { it.isWatched }
-                    val watchlist = backendMovies.count { !it.isWatched }
+                    if (stats != null) {
+                        val watched = stats.watched_count
+                        val watchlist = stats.watchlist_count
+                        val total = stats.total_movies
 
-                    withContext(Dispatchers.Main) {
-                        _totalCounters.value = watched to watchlist
-                        _movies.value = backendMovies  // ✅ AGGIORNAMENTO CRITICO
+                        withContext(Dispatchers.Main) {
+                            _totalCounters.value = watched to watchlist
+                            _message.value = "✅ Aggiornato: $total film ($watched visti, $watchlist da vedere)"
+                        }
+
+                        Log.d(TAG, "✅ Stats aggiornate dal backend:")
+                        Log.d(TAG, "   Totali: $total")
+                        Log.d(TAG, "   Visti: $watched")
+                        Log.d(TAG, "   Da vedere: $watchlist")
+
+                        launch {
+                            try {
+                                val moviesResult = ApiService.getUserStoredMovies()
+                                val backendMovies = moviesResult.getOrNull() ?: emptyList()
+
+                                if (backendMovies.isNotEmpty()) {
+                                    movieRepository?.replaceAll(backendMovies)
+                                    withContext(Dispatchers.Main) {
+                                        _movies.value = backendMovies
+                                    }
+                                    Log.d(TAG, "✅ Sincronizzati ${backendMovies.size} film dal backend")
+                                }
+                            } catch (e: Exception) {
+                                Log.w(TAG, "⚠️ Sync film fallito (contatori OK): ${e.message}")
+                            }
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            _message.value = "❌ Nessun dato ricevuto"
+                        }
                     }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        _message.value = "❌ Errore connessione backend"
+                    }
+                    Log.w(TAG, "❌ Refresh fallito: ${statsResult.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "⚠️ Sync parzialmente fallito: ${e.message}")
+                Log.e(TAG, "Errore refresh", e)
+                withContext(Dispatchers.Main) {
+                    _message.value = "❌ Errore: ${e.message}"
+                }
+            } finally {
+                setLoading(false)
             }
         }
     }
 
-    // ✅ METODI IMDB
+    /**
+     * ✅ Aggiorna contatori dal backend dopo import
+     */
+    private suspend fun updateCountersFromBackend() {
+        try {
+            val statsResult = ApiService.getUserStats()
+
+            if (statsResult.isSuccess) {
+                val stats = statsResult.getOrNull()
+
+                if (stats != null) {
+                    withContext(Dispatchers.Main) {
+                        _totalCounters.value = stats.watched_count to stats.watchlist_count
+                    }
+
+                    Log.d(TAG, "📊 Contatori totali aggiornati:")
+                    Log.d(TAG, "   Totali: ${stats.total_movies}")
+                    Log.d(TAG, "   Visti: ${stats.watched_count}")
+                    Log.d(TAG, "   Da vedere: ${stats.watchlist_count}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "⚠️ Impossibile aggiornare contatori: ${e.message}")
+        }
+    }
+
     fun processImdbWatchedCsv(stream: InputStream) {
         viewModelScope.launch {
             processAndUploadMovies(null, stream)
@@ -231,7 +247,6 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    // ✅ METODI LETTERBOXD
     fun processLetterboxdWatchedCsv(stream: InputStream) {
         viewModelScope.launch {
             processLetterboxdFile(stream, isWatched = true)
@@ -244,10 +259,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    /**
-     * METODO PER IMDB
-     */
-    suspend fun processAndUploadMovies(
+    private suspend fun processAndUploadMovies(
         watchlistStream: InputStream?,
         watchedStream: InputStream?
     ): Result<String> = withContext(Dispatchers.IO) {
@@ -275,14 +287,12 @@ class HomeViewModel : ViewModel() {
 
             val watchlistMovies = watchlistStream?.let { stream ->
                 Log.d(TAG, "📄 parsing watchlist csv...")
-                val result = csvProcessor.parseImdbWatchlistCsv(stream)
-                result.movies
+                csvProcessor.parseImdbWatchlistCsv(stream).movies
             } ?: emptyList()
 
             val watchedMovies = watchedStream?.let { stream ->
                 Log.d(TAG, "📄 parsing watched csv...")
-                val result = csvProcessor.parseImdbWatchedCsv(stream)
-                result.movies
+                csvProcessor.parseImdbWatchedCsv(stream).movies
             } ?: emptyList()
 
             Log.d(TAG, "✅ Parsing completato:")
@@ -310,7 +320,11 @@ class HomeViewModel : ViewModel() {
 
             Log.d(TAG, "📤 Invio batch al backend...")
 
-            val batchResult = ApiService.batchUpload(watchlistMovies, watchedMovies)
+            // ✅ FIX: chiama batchUpload (non batchUploadMovies)
+            val batchResult = ApiService.batchUpload(
+                watchlist = watchlistMovies,
+                watched = watchedMovies
+            )
 
             if (batchResult.isFailure) {
                 val errorMessage = batchResult.exceptionOrNull()?.message ?: "errore sconosciuto"
@@ -329,7 +343,6 @@ class HomeViewModel : ViewModel() {
             val batchResponse = batchResult.getOrNull()!!
             Log.d(TAG, "✅ Batch upload completato!")
 
-            // ✅ SYNC CON AGGIORNAMENTO FORZATO
             try {
                 val result = ApiService.getUserStoredMovies()
                 val backendMovies = result.getOrNull() ?: emptyList()
@@ -338,12 +351,8 @@ class HomeViewModel : ViewModel() {
                     movieRepository?.replaceAll(backendMovies)
                     Log.d(TAG, "✅ Sincronizzati ${backendMovies.size} film dal backend")
 
-                    val watched = backendMovies.count { it.isWatched }
-                    val watchlist = backendMovies.count { !it.isWatched }
-
                     withContext(Dispatchers.Main) {
-                        _totalCounters.value = watched to watchlist
-                        _movies.value = backendMovies  // ✅ AGGIORNAMENTO CRITICO
+                        _movies.value = backendMovies
                     }
                 }
             } catch (e: Exception) {
@@ -363,9 +372,8 @@ class HomeViewModel : ViewModel() {
                     appendLine("   • ${batchResponse.counters.afterRefresh.watchlist} da vedere")
                     appendLine()
 
-                    val totalEnriched = batchResponse.summary.totalEnriched
-                    if (totalEnriched > 0) {
-                        appendLine("✨ $totalEnriched con dettagli completi")
+                    if (batchResponse.summary.totalEnriched > 0) {
+                        appendLine("✨ ${batchResponse.summary.totalEnriched} con dettagli completi")
                     }
                     if (batchResponse.summary.cacheHitsTotal > 0) {
                         appendLine("⚡ ${batchResponse.summary.cacheHitsTotal} già in database")
@@ -375,11 +383,16 @@ class HomeViewModel : ViewModel() {
                 }
 
                 _message.value = summary
-                _importStatus.postValue(
-                    ImportStatus.COMPLETED(batchResponse.summary.totalMovies)
+                _importStatus.postValue(ImportStatus.COMPLETED(batchResponse.summary.totalMovies))
+                _enrichmentProgress.postValue(
+                    batchResponse.summary.totalMovies to batchResponse.summary.totalMovies
                 )
+
+                _totalCounters.value = batchResponse.counters.afterRefresh.watched to
+                        batchResponse.counters.afterRefresh.watchlist
             }
 
+            updateCountersFromBackend()
             setLoading(false)
 
             delay(5000)
@@ -394,7 +407,6 @@ class HomeViewModel : ViewModel() {
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ ERRORE UPLOAD", e)
-            e.printStackTrace()
 
             withContext(Dispatchers.Main) {
                 _message.value = buildString {
@@ -402,7 +414,6 @@ class HomeViewModel : ViewModel() {
                     appendLine()
                     appendLine("${e.message}")
                 }
-
                 setLoading(false)
                 _enrichmentProgress.value = 0 to 0
                 _importStatus.postValue(ImportStatus.ERROR(e.message ?: "unknown"))
@@ -412,9 +423,6 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    /**
-     * METODO PER LETTERBOXD
-     */
     private suspend fun processLetterboxdFile(
         stream: InputStream,
         isWatched: Boolean
@@ -441,8 +449,6 @@ class HomeViewModel : ViewModel() {
                 _importStatus.postValue(ImportStatus.PARSING)
             }
 
-            Log.d(TAG, "📄 parsing Letterboxd ${if (isWatched) "watched" else "watchlist"} csv...")
-
             val result = if (isWatched) {
                 csvProcessor.parseLetterboxdWatchedCsv(stream)
             } else {
@@ -450,7 +456,6 @@ class HomeViewModel : ViewModel() {
             }
 
             val movies = result.movies
-
             Log.d(TAG, "✅ Parsing Letterboxd completato: ${movies.size} film")
 
             if (movies.isEmpty()) {
@@ -467,14 +472,16 @@ class HomeViewModel : ViewModel() {
 
             withContext(Dispatchers.Main) {
                 _fileCounters.value = watchedMovies.size to watchlistMovies.size
-                _importStatus.postValue(
-                    ImportStatus.SENDING_TO_BACKEND(movies.size)
-                )
+                _importStatus.postValue(ImportStatus.SENDING_TO_BACKEND(movies.size))
             }
 
             Log.d(TAG, "📤 Invio batch al backend...")
 
-            val batchResult = ApiService.batchUpload(watchlistMovies, watchedMovies)
+            // ✅ FIX: chiama batchUpload (non batchUploadMovies)
+            val batchResult = ApiService.batchUpload(
+                watchlist = watchlistMovies,
+                watched = watchedMovies
+            )
 
             if (batchResult.isFailure) {
                 val errorMessage = batchResult.exceptionOrNull()?.message ?: "errore sconosciuto"
@@ -493,7 +500,6 @@ class HomeViewModel : ViewModel() {
             val batchResponse = batchResult.getOrNull()!!
             Log.d(TAG, "✅ Batch Letterboxd upload completato!")
 
-            // ✅ SYNC CON AGGIORNAMENTO FORZATO
             try {
                 val result = ApiService.getUserStoredMovies()
                 val backendMovies = result.getOrNull() ?: emptyList()
@@ -502,12 +508,8 @@ class HomeViewModel : ViewModel() {
                     movieRepository?.replaceAll(backendMovies)
                     Log.d(TAG, "✅ Sincronizzati ${backendMovies.size} film dal backend")
 
-                    val watched = backendMovies.count { it.isWatched }
-                    val watchlist = backendMovies.count { !it.isWatched }
-
                     withContext(Dispatchers.Main) {
-                        _totalCounters.value = watched to watchlist
-                        _movies.value = backendMovies  // ✅ AGGIORNAMENTO CRITICO
+                        _movies.value = backendMovies
                     }
                 }
             } catch (e: Exception) {
@@ -527,9 +529,8 @@ class HomeViewModel : ViewModel() {
                     appendLine("   • ${batchResponse.counters.afterRefresh.watchlist} da vedere")
                     appendLine()
 
-                    val totalEnriched = batchResponse.summary.totalEnriched
-                    if (totalEnriched > 0) {
-                        appendLine("✨ $totalEnriched con dettagli completi")
+                    if (batchResponse.summary.totalEnriched > 0) {
+                        appendLine("✨ ${batchResponse.summary.totalEnriched} con dettagli completi")
                     }
                     if (batchResponse.summary.cacheHitsTotal > 0) {
                         appendLine("⚡ ${batchResponse.summary.cacheHitsTotal} già in database")
@@ -539,11 +540,16 @@ class HomeViewModel : ViewModel() {
                 }
 
                 _message.value = summary
-                _importStatus.postValue(
-                    ImportStatus.COMPLETED(batchResponse.summary.totalMovies)
+                _importStatus.postValue(ImportStatus.COMPLETED(batchResponse.summary.totalMovies))
+                _enrichmentProgress.postValue(
+                    batchResponse.summary.totalMovies to batchResponse.summary.totalMovies
                 )
+
+                _totalCounters.value = batchResponse.counters.afterRefresh.watched to
+                        batchResponse.counters.afterRefresh.watchlist
             }
 
+            updateCountersFromBackend()
             setLoading(false)
 
             delay(5000)
@@ -558,7 +564,6 @@ class HomeViewModel : ViewModel() {
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ ERRORE UPLOAD LETTERBOXD", e)
-            e.printStackTrace()
 
             withContext(Dispatchers.Main) {
                 _message.value = buildString {
@@ -566,7 +571,6 @@ class HomeViewModel : ViewModel() {
                     appendLine()
                     appendLine("${e.message}")
                 }
-
                 setLoading(false)
                 _enrichmentProgress.value = 0 to 0
                 _importStatus.postValue(ImportStatus.ERROR(e.message ?: "unknown"))

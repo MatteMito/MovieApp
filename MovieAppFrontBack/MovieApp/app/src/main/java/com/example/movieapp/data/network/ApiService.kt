@@ -1,6 +1,3 @@
-// FILE: app/src/main/java/com/example/movieapp/data/network/ApiService.kt
-// Service completo per comunicazione con backend - VERSIONE PULITA
-
 package com.example.movieapp.data.network
 
 import android.content.Context
@@ -155,8 +152,14 @@ data class UserStatsResponse(
     val total_movies: Int,
     val watched_count: Int,
     val watchlist_count: Int,
-    val average_rating: Double?
-)
+    val average_rating: Double
+) {
+    // Alias per compatibilità
+    val totalMovies: Int get() = total_movies
+    val watchedCount: Int get() = watched_count
+    val watchlistCount: Int get() = watchlist_count
+    val averageRating: Double get() = average_rating
+}
 
 // ============================================
 // RETROFIT INTERFACE
@@ -181,7 +184,6 @@ interface ApiInterface {
     @POST("movies/batch")
     suspend fun batchUpload(@Body request: BatchUploadRequest): Response<ApiResponse<BatchResponse>>
 
-    // ✅ NUOVO: endpoint per utente specifico
     @GET("movies/user/{userId}")
     suspend fun getUserMovies(
         @Path("userId") userId: String,
@@ -835,34 +837,45 @@ object ApiService {
         }
     }
 
-    suspend fun getUserStats(): Result<UserStatsResponse> = withContext(Dispatchers.IO) {
-        try {
+    /**
+     * Ottieni statistiche utente (veloce - solo contatori)
+     */
+    suspend fun getUserStats(): Result<UserStatsResponse> {
+        return try {
             val userId = getCurrentUserId()
+
             if (userId == null) {
-                Log.e(TAG, "❌ userId non disponibile")
-                return@withContext Result.failure(Exception("Utente non autenticato"))
+                Log.e(TAG, "❌ userId mancante per getUserStats")
+                return Result.failure(Exception("userId mancante"))
             }
 
-            Log.d(TAG, "📊 richiesta statistiche per utente $userId")
+            Log.d(TAG, "📊 Richiesta stats per utente: $userId")
 
             val response = apiInterface.getUserStats(userId)
 
-            if (response.isSuccessful && response.body()?.success == true) {
-                val stats = response.body()?.data!!
+            if (response.isSuccessful) {
+                val body = response.body()
 
-                Log.d(TAG, "✅ statistiche recuperate:")
-                Log.d(TAG, "   Totale: ${stats.total_movies}")
-                Log.d(TAG, "   Watched: ${stats.watched_count}")
-                Log.d(TAG, "   Watchlist: ${stats.watchlist_count}")
+                if (body?.success == true && body.data != null) {
+                    Log.d(TAG, "✅ Stats ricevute:")
+                    Log.d(TAG, "   Totali: ${body.data.totalMovies}")
+                    Log.d(TAG, "   Visti: ${body.data.watchedCount}")
+                    Log.d(TAG, "   Da vedere: ${body.data.watchlistCount}")
+                    Log.d(TAG, "   Rating medio: ${body.data.averageRating}")
 
-                Result.success(stats)
+                    Result.success(body.data)
+                } else {
+                    val errorMsg = body?.message ?: "Risposta vuota"
+                    Log.e(TAG, "❌ Errore stats: $errorMsg")
+                    Result.failure(Exception(errorMsg))
+                }
             } else {
-                val errorMsg = response.body()?.message ?: "errore recupero statistiche"
-                Log.e(TAG, "❌ errore: $errorMsg")
+                val errorMsg = "HTTP ${response.code()}: ${response.message()}"
+                Log.e(TAG, "❌ Errore HTTP stats: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ errore recupero statistiche: ${e.message}")
+            Log.e(TAG, "❌ Eccezione getUserStats", e)
             Result.failure(e)
         }
     }

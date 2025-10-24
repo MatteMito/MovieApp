@@ -705,6 +705,12 @@ class NotificationsFragment : Fragment() {
             .show()
     }
 
+    override fun onResume() {
+        super.onResume()
+        notificationsViewModel.refreshData()
+        Log.d(TAG, "Fragment resumed - dati statistiche ricaricati")
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

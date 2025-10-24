@@ -107,7 +107,7 @@ export class MoviesService {
         status: MovieStatus.WATCHED,
       }));
 
-      await this.userMoviesService.batchAssociateMoviesToUser(
+      await this.userMoviesService.batchAssociateMovies(
         userId,
         [...watchlistAssociations, ...watchedAssociations]
       );
@@ -265,7 +265,6 @@ export class MoviesService {
         watched_count: userStats.watchedCount,
         watchlist_count: userStats.watchlistCount,
         average_rating: userStats.averageRating,
-        last_import: userStats.lastImportDate,
       };
     } catch (error) {
       this.logger.error(`errore getUserStats: ${error.message}`);
