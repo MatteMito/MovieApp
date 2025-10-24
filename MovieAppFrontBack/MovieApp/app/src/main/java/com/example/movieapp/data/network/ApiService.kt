@@ -242,6 +242,9 @@ interface ApiInterface {
         @Path("movieId") movieId: String
     ): Response<ApiResponse<MovieList>>
 
+    @DELETE("movies/user/{userId}/all")
+    suspend fun deleteAllUserMovies(@Path("userId") userId: String): Response<ApiResponse<Unit>>
+
     @POST("lists/{id}/follow")
     suspend fun followList(
         @Path("id") listId: String,
@@ -418,6 +421,26 @@ object ApiService {
     // LISTE METHODS
     // ============================================
 
+    suspend fun deleteAllUserMovies(userId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "🗑️ Eliminazione tutti i film per utente: $userId")
+
+            val response = apiInterface.deleteAllUserMovies(userId)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Log.d(TAG, "✅ Film eliminati dal backend")
+                Result.success(Unit)
+            } else {
+                val error = response.body()?.message ?: "Errore eliminazione"
+                Log.w(TAG, "⚠️ $error")
+                Result.failure(Exception(error))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Errore deleteAllUserMovies", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun getUserLists(): Result<List<MovieList>> = withContext(Dispatchers.IO) {
         try {
             val userId = getCurrentUserId()
@@ -493,10 +516,48 @@ object ApiService {
         movieIds: List<String> = emptyList()
     ): Result<MovieList> = withContext(Dispatchers.IO) {
         try {
-            val userId = getCurrentUserId()
-                ?: return@withContext Result.failure(Exception("Utente non autenticato"))
+            // 🔍 LOGGING DETTAGLIATO
+            Log.d(TAG, "========================================")
+            Log.d(TAG, "📝 CREAZIONE LISTA - INIZIO")
+            Log.d(TAG, "   Nome: $name")
+            Log.d(TAG, "   Pubblica: $isPublic")
+            Log.d(TAG, "   Descrizione: ${description ?: "nessuna"}")
+            Log.d(TAG, "========================================")
 
-            Log.d(TAG, "📝 Creazione lista: $name (pubblica: $isPublic)")
+            // 🔍 Verifica stato autenticazione
+            Log.d(TAG, "🔐 Verifica autenticazione:")
+            Log.d(TAG, "   currentToken: ${if (currentToken != null) "PRESENTE" else "NULL"}")
+            Log.d(TAG, "   currentUser: ${if (currentUser != null) "PRESENTE" else "NULL"}")
+            Log.d(TAG, "   currentUser.id: ${currentUser?.id ?: "NULL"}")
+            Log.d(TAG, "   currentUser.email: ${currentUser?.email ?: "NULL"}")
+            Log.d(TAG, "   isAuthenticated(): ${isAuthenticated()}")
+            Log.d(TAG, "   hasUserId(): ${hasUserId()}")
+
+            val userId = getCurrentUserId()
+
+            if (userId == null) {
+                Log.e(TAG, "❌ ERRORE: userId è NULL!")
+                Log.e(TAG, "   Possibili cause:")
+                Log.e(TAG, "   1. Login non completato correttamente")
+                Log.e(TAG, "   2. Dati utente non salvati in SharedPreferences")
+                Log.e(TAG, "   3. ApiService.initialize() non chiamato dopo login")
+
+                // 🔍 Verifica SharedPreferences
+                val savedToken = prefs.getString("access_token", null)
+                val savedUserJson = prefs.getString("user_info", null)
+                Log.d(TAG, "📦 Contenuto SharedPreferences:")
+                Log.d(TAG, "   access_token: ${if (savedToken != null) "PRESENTE" else "NULL"}")
+                Log.d(TAG, "   user_info: ${if (savedUserJson != null) "PRESENTE" else "NULL"}")
+                if (savedUserJson != null) {
+                    Log.d(TAG, "   user_info JSON: $savedUserJson")
+                }
+
+                return@withContext Result.failure(Exception("❌ Utente non autenticato. Effettua nuovamente il login."))
+            }
+
+            Log.d(TAG, "✅ UserId trovato: $userId")
+            Log.d(TAG, "🌐 Invio richiesta al backend...")
+            Log.d(TAG, "   URL: ${AppConfig.BASE_URL}lists")
 
             val request = CreateListRequest(
                 userId = userId,
@@ -506,21 +567,49 @@ object ApiService {
                 movieIds = movieIds
             )
 
+            Log.d(TAG, "📤 Request body:")
+            Log.d(TAG, "   userId: ${request.userId}")
+            Log.d(TAG, "   name: ${request.name}")
+            Log.d(TAG, "   description: ${request.description}")
+            Log.d(TAG, "   isPublic: ${request.isPublic}")
+            Log.d(TAG, "   movieIds: ${request.movieIds}")
+
             val response = apiInterface.createList(request)
+
+            Log.d(TAG, "📥 Risposta ricevuta:")
+            Log.d(TAG, "   isSuccessful: ${response.isSuccessful}")
+            Log.d(TAG, "   code: ${response.code()}")
+            Log.d(TAG, "   message: ${response.message()}")
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val list = response.body()?.data
-                    ?: return@withContext Result.failure(Exception("Errore creazione lista"))
+                    ?: return@withContext Result.failure(Exception("Dati lista non presenti nella risposta"))
 
-                Log.d(TAG, "✅ Lista creata: ${list.id}")
+                Log.d(TAG, "✅ LISTA CREATA CON SUCCESSO!")
+                Log.d(TAG, "   ID: ${list.id}")
+                Log.d(TAG, "   Nome: ${list.name}")
+                Log.d(TAG, "========================================")
                 Result.success(list)
             } else {
-                val error = response.body()?.message ?: "Errore creazione lista"
-                Log.w(TAG, "⚠️ $error")
+                val error = response.body()?.message ?: response.message() ?: "Errore creazione lista"
+                val errorBody = response.errorBody()?.string()
+
+                Log.e(TAG, "❌ ERRORE CREAZIONE LISTA")
+                Log.e(TAG, "   Messaggio: $error")
+                if (errorBody != null) {
+                    Log.e(TAG, "   Error Body: $errorBody")
+                }
+                Log.e(TAG, "========================================")
+
                 Result.failure(Exception(error))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore createList", e)
+            Log.e(TAG, "❌ ECCEZIONE durante createList:", e)
+            Log.e(TAG, "   Tipo: ${e.javaClass.simpleName}")
+            Log.e(TAG, "   Messaggio: ${e.message}")
+            Log.e(TAG, "   Stack trace:")
+            e.printStackTrace()
+            Log.e(TAG, "========================================")
             Result.failure(e)
         }
     }

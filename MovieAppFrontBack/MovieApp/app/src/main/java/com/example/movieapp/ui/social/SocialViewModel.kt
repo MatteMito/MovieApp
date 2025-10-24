@@ -128,7 +128,27 @@ class SocialViewModel : ViewModel() {
                 _isLoading.value = true
                 _error.value = null
 
-                Log.d(TAG, "📝 Creazione lista: $name (pubblica: $isPublic)")
+                Log.d(TAG, "📝 SocialViewModel: Richiesta creazione lista")
+                Log.d(TAG, "   Nome: $name")
+                Log.d(TAG, "   Pubblica: $isPublic")
+
+                // 🔍 Verifica autenticazione prima di chiamare API
+                if (!ApiService.isAuthenticated()) {
+                    Log.e(TAG, "❌ Utente non autenticato!")
+                    _error.value = "Effettua nuovamente il login"
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                if (!ApiService.hasUserId()) {
+                    Log.e(TAG, "❌ UserId non disponibile!")
+                    _error.value = "Errore dati utente. Rieffettua il login."
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                val userId = ApiService.getCurrentUserId()
+                Log.d(TAG, "✅ UserId disponibile: $userId")
 
                 val result = ApiService.createList(
                     name = name,
@@ -137,17 +157,18 @@ class SocialViewModel : ViewModel() {
                 )
 
                 if (result.isSuccess) {
-                    Log.d(TAG, "✅ Lista creata con successo")
+                    Log.d(TAG, "✅ Lista creata con successo!")
+                    _error.value = null
                     // Ricarica liste
                     loadMyLists()
                 } else {
                     val errorMsg = result.exceptionOrNull()?.message ?: "Errore creazione lista"
                     _error.value = errorMsg
-                    Log.e(TAG, "❌ $errorMsg")
+                    Log.e(TAG, "❌ Errore: $errorMsg")
                 }
             } catch (e: Exception) {
-                _error.value = "Errore di connessione"
-                Log.e(TAG, "❌ Errore createList", e)
+                _error.value = "Errore di connessione: ${e.message}"
+                Log.e(TAG, "❌ Eccezione createList", e)
             } finally {
                 _isLoading.value = false
             }

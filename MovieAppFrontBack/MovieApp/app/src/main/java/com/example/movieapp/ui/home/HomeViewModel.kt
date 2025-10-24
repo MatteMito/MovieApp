@@ -62,7 +62,7 @@ class HomeViewModel : ViewModel() {
         movieRepository = MovieRepository.getInstance(context)
 
         movieRepository?.movies?.observeForever { movies ->
-            _movies.postValue(movies ?: emptyList())
+            _movies.postValue(movies)
         }
 
         loadSavedMovies()
@@ -235,6 +235,123 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    private suspend fun uploadToBackend(
+        watched: List<Movie>,
+        watchlist: List<Movie>
+    ): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val total = watched.size + watchlist.size
+                Log.d(TAG, "📤 Upload $total film al backend...")
+
+                _importStatus.postValue(ImportStatus.SENDING_TO_BACKEND(total))
+
+                // ✅ Step 1: Connetti WebSocket PRIMA dell'upload
+                webSocketService.connect()
+                delay(1000) // Aspetta connessione
+
+                if (!webSocketService.isConnected()) {
+                    Log.e(TAG, "❌ WebSocket non connesso!")
+                }
+
+                // ✅ Step 2: Avvia upload asincrono (non aspettare la risposta HTTP)
+                val uploadJob = viewModelScope.launch(Dispatchers.IO) {
+                    try {
+                        Log.d(TAG, "🚀 Invio richiesta HTTP upload...")
+                        ApiService.batchUpload(watched, watchlist)
+                        Log.d(TAG, "✅ HTTP upload completato (o timeout)")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "⚠️ HTTP upload terminato: ${e.message}")
+                        // Non fallire qui - il WebSocket continuerà a monitorare
+                    }
+                }
+
+                // ✅ Step 3: Monitora SOLO il WebSocket per il progress
+                Log.d(TAG, "👀 Monitoring enrichment via WebSocket...")
+                var lastProcessed = 0
+                val startTime = System.currentTimeMillis()
+                val maxWaitTime = 10 * 60 * 1000L // 10 minuti max
+                var completed = false
+
+                while (!completed) {
+                    val update = webSocketService.enrichmentUpdates.value
+
+                    if (update != null) {
+                        // Update progress
+                        if (update.processed != lastProcessed) {
+                            lastProcessed = update.processed
+                            _enrichmentProgress.postValue(update.processed to update.total)
+                            Log.d(TAG, "📊 Progress: ${update.processed}/${update.total} (${update.percentage}%)")
+                        }
+
+                        // Check completion
+                        if (update.type == "completed") {
+                            Log.d(TAG, "✅ Enrichment completato via WebSocket!")
+                            completed = true
+                            break
+                        }
+
+                        // Check error
+                        if (update.type == "error") {
+                            Log.e(TAG, "❌ Errore enrichment: ${update.message}")
+                            _importStatus.postValue(ImportStatus.ERROR(update.message))
+                            return@withContext false
+                        }
+                    }
+
+                    // Timeout check
+                    if (System.currentTimeMillis() - startTime > maxWaitTime) {
+                        Log.e(TAG, "⏱️ Timeout enrichment (10 min)")
+                        _importStatus.postValue(ImportStatus.ERROR("Timeout: operazione troppo lunga"))
+                        return@withContext false
+                    }
+
+                    delay(500) // Check ogni 500ms
+                }
+
+                // ✅ Step 4: CRITICAL - Refresh dal backend DOPO completamento
+                Log.d(TAG, "🔄 Downloading updated data from backend...")
+
+                delay(2000) // Piccolo delay per sicurezza (backend potrebbe ancora scrivere)
+
+                val refreshSuccess = movieRepository?.refreshFromBackend() ?: false
+
+                if (refreshSuccess) {
+                    val updatedMovies = movieRepository?.movies?.value ?: emptyList()
+                    _movies.postValue(updatedMovies)
+
+                    val watchedCount = updatedMovies.count { it.isWatched }
+                    val watchlistCount = updatedMovies.count { !it.isWatched }
+                    _totalCounters.postValue(watchedCount to watchlistCount)
+
+                    Log.d(TAG, "✅ Dati aggiornati: ${updatedMovies.size} film")
+                    Log.d(TAG, "   Watched: $watchedCount, Watchlist: $watchlistCount")
+
+                    _importStatus.postValue(ImportStatus.COMPLETED(updatedMovies.size))
+                    _message.postValue("✅ Import completato: ${updatedMovies.size} film")
+                } else {
+                    Log.e(TAG, "❌ Refresh backend fallito!")
+                    _importStatus.postValue(ImportStatus.ERROR("Dati salvati ma refresh fallito"))
+                    return@withContext false
+                }
+
+                // Cleanup
+                uploadJob.cancel()
+
+                true
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Errore upload", e)
+                _importStatus.postValue(ImportStatus.ERROR(e.message ?: "Errore sconosciuto"))
+                false
+            } finally {
+                // Reset progress dopo 3 secondi
+                delay(3000)
+                _enrichmentProgress.postValue(0 to 0)
+            }
+        }
+    }
+
     fun processImdbWatchedCsv(stream: InputStream) {
         viewModelScope.launch {
             processAndUploadMovies(null, stream)
@@ -312,87 +429,110 @@ class HomeViewModel : ViewModel() {
                 return@withContext Result.failure(Exception("no movies found"))
             }
 
+            val total = watchlistMovies.size + watchedMovies.size
+
             withContext(Dispatchers.Main) {
-                _importStatus.postValue(
-                    ImportStatus.SENDING_TO_BACKEND(watchlistMovies.size + watchedMovies.size)
-                )
+                _importStatus.postValue(ImportStatus.SENDING_TO_BACKEND(total))
+            }
+
+            // ✅ Step 1: Connetti WebSocket PRIMA dell'upload
+            webSocketService.connect()
+            delay(1000)
+
+            if (!webSocketService.isConnected()) {
+                Log.e(TAG, "❌ WebSocket non connesso!")
             }
 
             Log.d(TAG, "📤 Invio batch al backend...")
 
-            // ✅ FIX: chiama batchUpload (non batchUploadMovies)
-            val batchResult = ApiService.batchUpload(
-                watchlist = watchlistMovies,
-                watched = watchedMovies
-            )
-
-            if (batchResult.isFailure) {
-                val errorMessage = batchResult.exceptionOrNull()?.message ?: "errore sconosciuto"
-                withContext(Dispatchers.Main) {
-                    _message.value = buildString {
-                        appendLine("❌ Errore upload")
-                        appendLine()
-                        appendLine(errorMessage)
-                    }
-                    setLoading(false)
-                    _importStatus.postValue(ImportStatus.ERROR(errorMessage))
+            // ✅ Step 2: Avvia upload asincrono (non aspettare)
+            val uploadJob = viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    Log.d(TAG, "🚀 Invio HTTP...")
+                    ApiService.batchUpload(
+                        watchlist = watchlistMovies,
+                        watched = watchedMovies
+                    )
+                    Log.d(TAG, "✅ HTTP completato")
+                } catch (e: Exception) {
+                    Log.w(TAG, "⚠️ HTTP terminato: ${e.message}")
                 }
-                return@withContext Result.failure(Exception(errorMessage))
             }
 
-            val batchResponse = batchResult.getOrNull()!!
-            Log.d(TAG, "✅ Batch upload completato!")
+            // ✅ Step 3: Monitora WebSocket
+            Log.d(TAG, "👀 Monitoring WebSocket...")
+            var lastProcessed = 0
+            val startTime = System.currentTimeMillis()
+            val maxWaitTime = 10 * 60 * 1000L
+            var completed = false
 
-            try {
-                val result = ApiService.getUserStoredMovies()
-                val backendMovies = result.getOrNull() ?: emptyList()
+            while (!completed) {
+                val update = webSocketService.enrichmentUpdates.value
 
-                if (backendMovies.isNotEmpty()) {
-                    movieRepository?.replaceAll(backendMovies)
-                    Log.d(TAG, "✅ Sincronizzati ${backendMovies.size} film dal backend")
+                if (update != null) {
+                    if (update.processed != lastProcessed) {
+                        lastProcessed = update.processed
+                        _enrichmentProgress.postValue(update.processed to update.total)
+                        Log.d(TAG, "📊 Progress: ${update.processed}/${update.total}")
+                    }
 
-                    withContext(Dispatchers.Main) {
-                        _movies.value = backendMovies
+                    if (update.type == "completed") {
+                        Log.d(TAG, "✅ Enrichment completato!")
+                        completed = true
+                        break
+                    }
+
+                    if (update.type == "error") {
+                        Log.e(TAG, "❌ Errore: ${update.message}")
+                        _importStatus.postValue(ImportStatus.ERROR(update.message))
+                        return@withContext Result.failure(Exception(update.message))
                     }
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "⚠️ Sync parzialmente fallito: ${e.message}")
+
+                if (System.currentTimeMillis() - startTime > maxWaitTime) {
+                    Log.e(TAG, "⏱️ Timeout")
+                    _importStatus.postValue(ImportStatus.ERROR("Timeout"))
+                    return@withContext Result.failure(Exception("Timeout"))
+                }
+
+                delay(500)
             }
 
-            withContext(Dispatchers.Main) {
+            // ✅ Step 4: Refresh dal backend
+            Log.d(TAG, "🔄 Downloading dal backend...")
+            delay(2000)
+
+            val refreshSuccess = movieRepository?.refreshFromBackend() ?: false
+
+            if (refreshSuccess) {
+                val updatedMovies = movieRepository?.movies?.value ?: emptyList()
+                _movies.postValue(updatedMovies)
+
+                val watched = updatedMovies.count { it.isWatched }
+                val watchlist = updatedMovies.count { !it.isWatched }
+                _totalCounters.postValue(watched to watchlist)
+
+                Log.d(TAG, "✅ Dati aggiornati: ${updatedMovies.size} film")
+
                 val summary = buildString {
-                    appendLine("✅ Importazione completata!")
+                    appendLine("✅ Import completato!")
                     appendLine()
-                    appendLine("📥 File importato:")
-                    appendLine("   • ${batchResponse.counters.fromFile.watched} film visti")
-                    appendLine("   • ${batchResponse.counters.fromFile.watchlist} film da vedere")
-                    appendLine()
-                    appendLine("📊 Totale nella tua collezione:")
-                    appendLine("   • ${batchResponse.counters.afterRefresh.watched} visti")
-                    appendLine("   • ${batchResponse.counters.afterRefresh.watchlist} da vedere")
-                    appendLine()
-
-                    if (batchResponse.summary.totalEnriched > 0) {
-                        appendLine("✨ ${batchResponse.summary.totalEnriched} con dettagli completi")
-                    }
-                    if (batchResponse.summary.cacheHitsTotal > 0) {
-                        appendLine("⚡ ${batchResponse.summary.cacheHitsTotal} già in database")
-                    }
-                    appendLine()
-                    appendLine("💡 Vai su 'Statistiche' per vedere i grafici aggiornati!")
+                    appendLine("📊 Totale film: ${updatedMovies.size}")
+                    appendLine("✓ Visti: $watched")
+                    appendLine("✓ Da vedere: $watchlist")
                 }
 
                 _message.value = summary
-                _importStatus.postValue(ImportStatus.COMPLETED(batchResponse.summary.totalMovies))
-                _enrichmentProgress.postValue(
-                    batchResponse.summary.totalMovies to batchResponse.summary.totalMovies
-                )
-
-                _totalCounters.value = batchResponse.counters.afterRefresh.watched to
-                        batchResponse.counters.afterRefresh.watchlist
+                _importStatus.postValue(ImportStatus.COMPLETED(updatedMovies.size))
+                _enrichmentProgress.postValue(updatedMovies.size to updatedMovies.size)
+            } else {
+                Log.e(TAG, "❌ Refresh fallito!")
+                _importStatus.postValue(ImportStatus.ERROR("Refresh fallito"))
+                return@withContext Result.failure(Exception("Refresh fallito"))
             }
 
-            updateCountersFromBackend()
+            uploadJob.cancel()
+
             setLoading(false)
 
             delay(5000)

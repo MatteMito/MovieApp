@@ -203,6 +203,42 @@ class MovieRepository private constructor(private val context: Context) {
     }
 
     /**
+     * ✅ NUOVO: Forza refresh esplicito dal backend
+     */
+    suspend fun refreshFromBackend(): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "🔄 Refresh forzato dal backend...")
+
+                val backendMovies = syncWithBackendDatabase()
+
+                if (backendMovies.isNotEmpty()) {
+                    moviesList.clear()
+                    moviesList.addAll(backendMovies)
+
+                    withContext(Dispatchers.Main) {
+                        _movies.value = moviesList.toList()
+                    }
+
+                    saveMoviesToRoomDatabase()
+
+                    val enrichedCount = backendMovies.count { it.tmdbId != null }
+                    Log.d(TAG, "✅ Refresh completato: ${backendMovies.size} film")
+                    Log.d(TAG, "   Arricchiti: $enrichedCount")
+
+                    true
+                } else {
+                    Log.w(TAG, "⚠️ Backend returned empty list")
+                    false
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Errore refresh backend", e)
+                false
+            }
+        }
+    }
+
+    /**
      * salva in room con metadata da appconfig
      */
     private fun saveMoviesToRoomDatabase() {

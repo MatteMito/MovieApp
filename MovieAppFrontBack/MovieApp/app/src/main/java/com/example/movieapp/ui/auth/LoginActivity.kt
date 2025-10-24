@@ -26,15 +26,7 @@ class LoginActivity : AppCompatActivity() {
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Inizializza ApiService
         ApiService.initialize(this)
-
-        // Controlla se già autenticato
-        if (ApiService.isAuthenticated()) {
-            Log.d(TAG, "Utente già autenticato")
-            navigateToMain()
-            return
-        }
 
         setupUI()
         Log.d(TAG, "LoginActivity creata")
@@ -53,7 +45,8 @@ class LoginActivity : AppCompatActivity() {
 
         binding.textRegister.setOnClickListener {
             Log.d(TAG, "Navigazione a RegisterActivity")
-            startActivity(Intent(this, RegisterActivity::class.java))
+            val intent = Intent(this, RegisterActivity::class.java)
+            startActivity(intent)
         }
     }
 
@@ -73,67 +66,50 @@ class LoginActivity : AppCompatActivity() {
             return false
         }
 
-        if (password.length < 6) {
-            Toast.makeText(this, "Password troppo corta (min 6 caratteri)", Toast.LENGTH_SHORT).show()
-            return false
-        }
-
         return true
     }
 
     private fun performLogin(email: String, password: String) {
         lifecycleScope.launch {
-            try {
-                Log.d(TAG, "Tentativo login: $email")
-                setLoading(true)
+            binding.progressBar.visibility = View.VISIBLE
+            binding.buttonLogin.isEnabled = false
 
-                val result = ApiService.login(email, password)
+            val result = ApiService.login(email, password)
 
-                if (result.isSuccess) {
-                    val authResponse = result.getOrNull()!!
-                    Log.d(TAG, "✅ Login riuscito")
+            binding.progressBar.visibility = View.GONE
+            binding.buttonLogin.isEnabled = true
 
-                    val welcomeName = authResponse.user.username ?: authResponse.user.email.substringBefore("@")
+            if (result.isSuccess) {
+                Log.d(TAG, "✅ Login completato con successo")
+
+                // 🆕 IMPORTANTE: Reinizializza ApiService per caricare i dati utente
+                ApiService.initialize(applicationContext)
+
+                // 🔍 Verifica che l'utente sia stato caricato
+                val userId = ApiService.getCurrentUserId()
+                Log.d(TAG, "🔍 Dopo re-init: userId = $userId")
+
+                if (userId != null) {
+                    Toast.makeText(this@LoginActivity, "Benvenuto!", Toast.LENGTH_SHORT).show()
+
+                    // Naviga alla MainActivity
+                    val intent = Intent(this@LoginActivity, MainActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
+                } else {
+                    Log.e(TAG, "❌ UserId ancora NULL dopo re-init!")
                     Toast.makeText(
                         this@LoginActivity,
-                        "Benvenuto $welcomeName!",
-                        Toast.LENGTH_SHORT
+                        "Errore caricamento dati utente",
+                        Toast.LENGTH_LONG
                     ).show()
-
-                    navigateToMain()
-                } else {
-                    val error = result.exceptionOrNull()?.message ?: "Accesso non riuscito"
-                    Log.e(TAG, "❌ Login fallito: $error")
-                    Toast.makeText(this@LoginActivity, error, Toast.LENGTH_LONG).show()
-                    setLoading(false)
                 }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Eccezione login", e)
-                Toast.makeText(
-                    this@LoginActivity,
-                    "Impossibile accedere. Riprova.",
-                    Toast.LENGTH_SHORT
-                ).show()
-                setLoading(false)
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Errore login"
+                Toast.makeText(this@LoginActivity, error, Toast.LENGTH_LONG).show()
+                Log.e(TAG, "❌ Login fallito: $error")
             }
         }
-    }
-
-    private fun setLoading(loading: Boolean) {
-        binding.apply {
-            progressBar.visibility = if (loading) View.VISIBLE else View.GONE
-            buttonLogin.isEnabled = !loading
-            editEmail.isEnabled = !loading
-            editPassword.isEnabled = !loading
-            textRegister.isEnabled = !loading
-        }
-    }
-
-    private fun navigateToMain() {
-        val intent = Intent(this, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
-        finish()
     }
 }

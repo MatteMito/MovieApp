@@ -82,59 +82,45 @@ class RegisterActivity : AppCompatActivity() {
 
     private fun performRegister(email: String, password: String, username: String?) {
         lifecycleScope.launch {
-            try {
-                Log.d(TAG, "Tentativo registrazione: $email")
-                setLoading(true)
+            binding.progressBar.visibility = View.VISIBLE
+            binding.buttonRegister.isEnabled = false
 
-                val result = ApiService.register(email, password, username)
+            val result = ApiService.register(email, password, username)
 
-                if (result.isSuccess) {
-                    val authResponse = result.getOrNull()!!
-                    Log.d(TAG, "✅ Registrazione riuscita")
+            binding.progressBar.visibility = View.GONE
+            binding.buttonRegister.isEnabled = true
 
-                    val welcomeName = authResponse.user.username ?: authResponse.user.email.substringBefore("@")
+            if (result.isSuccess) {
+                Log.d(TAG, "✅ Registrazione completata con successo")
+
+                // 🆕 IMPORTANTE: Reinizializza ApiService per caricare i dati utente
+                ApiService.initialize(applicationContext)
+
+                // 🔍 Verifica che l'utente sia stato caricato
+                val userId = ApiService.getCurrentUserId()
+                Log.d(TAG, "🔍 Dopo re-init: userId = $userId")
+
+                if (userId != null) {
+                    Toast.makeText(this@RegisterActivity, "Account creato!", Toast.LENGTH_SHORT).show()
+
+                    // Naviga alla MainActivity
+                    val intent = Intent(this@RegisterActivity, MainActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
+                } else {
+                    Log.e(TAG, "❌ UserId ancora NULL dopo re-init!")
                     Toast.makeText(
                         this@RegisterActivity,
-                        "Account creato! Benvenuto $welcomeName!",
-                        Toast.LENGTH_SHORT
+                        "Errore caricamento dati utente",
+                        Toast.LENGTH_LONG
                     ).show()
-
-                    navigateToMain()
-                } else {
-                    val error = result.exceptionOrNull()?.message ?: "Registrazione non riuscita"
-                    Log.e(TAG, "❌ Registrazione fallita: $error")
-                    Toast.makeText(this@RegisterActivity, error, Toast.LENGTH_LONG).show()
-                    setLoading(false)
                 }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Eccezione registrazione", e)
-                Toast.makeText(
-                    this@RegisterActivity,
-                    "Impossibile completare la registrazione",
-                    Toast.LENGTH_SHORT
-                ).show()
-                setLoading(false)
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Errore registrazione"
+                Toast.makeText(this@RegisterActivity, error, Toast.LENGTH_LONG).show()
+                Log.e(TAG, "❌ Registrazione fallita: $error")
             }
         }
-    }
-
-    private fun setLoading(loading: Boolean) {
-        binding.apply {
-            progressBar.visibility = if (loading) View.VISIBLE else View.GONE
-            buttonRegister.isEnabled = !loading
-            editEmail.isEnabled = !loading
-            editUsername.isEnabled = !loading
-            editPassword.isEnabled = !loading
-            editConfirmPassword.isEnabled = !loading
-            textLogin.isEnabled = !loading
-        }
-    }
-
-    private fun navigateToMain() {
-        val intent = Intent(this, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
-        finish()
     }
 }
