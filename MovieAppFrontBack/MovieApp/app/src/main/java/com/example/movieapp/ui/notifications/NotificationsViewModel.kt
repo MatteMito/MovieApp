@@ -26,9 +26,6 @@ class NotificationsViewModel : ViewModel() {
     private val _chartsReady = MutableLiveData<Boolean>()
     val chartsReady: LiveData<Boolean> = _chartsReady
 
-    private val _analyticsText = MutableLiveData<String>()
-    val analyticsText: LiveData<String> = _analyticsText
-
     //dati per grafici
     private val _genresData = MutableLiveData<Map<String, Int>>()
     val genresData: LiveData<Map<String, Int>> = _genresData
@@ -45,7 +42,6 @@ class NotificationsViewModel : ViewModel() {
     private val _countriesData = MutableLiveData<Map<String, Int>>()
     val countriesData: LiveData<Map<String, Int>> = _countriesData
 
-    //nuovi grafici
     private val _decadesData = MutableLiveData<Map<String, Int>>()
     val decadesData: LiveData<Map<String, Int>> = _decadesData
 
@@ -54,6 +50,31 @@ class NotificationsViewModel : ViewModel() {
 
     private val _watchedByMonthData = MutableLiveData<Map<String, Int>>()
     val watchedByMonthData: LiveData<Map<String, Int>> = _watchedByMonthData
+
+    // Statistiche top per ogni grafico
+    private val _topGenre = MutableLiveData<Pair<String, Int>>()
+    val topGenre: LiveData<Pair<String, Int>> = _topGenre
+
+    private val _topYear = MutableLiveData<Pair<Int, Int>>()
+    val topYear: LiveData<Pair<Int, Int>> = _topYear
+
+    private val _topDirector = MutableLiveData<Pair<String, Int>>()
+    val topDirector: LiveData<Pair<String, Int>> = _topDirector
+
+    private val _topCountry = MutableLiveData<Pair<String, Int>>()
+    val topCountry: LiveData<Pair<String, Int>> = _topCountry
+
+    private val _topDecade = MutableLiveData<Pair<String, Int>>()
+    val topDecade: LiveData<Pair<String, Int>> = _topDecade
+
+    // Map per tenere traccia dei film per categoria (per i click)
+    private val genreMoviesMap = mutableMapOf<String, List<Movie>>()
+    private val yearMoviesMap = mutableMapOf<Int, List<Movie>>()
+    private val directorMoviesMap = mutableMapOf<String, List<Movie>>()
+    private val ratingMoviesMap = mutableMapOf<Int, List<Movie>>()
+    private val countryMoviesMap = mutableMapOf<String, List<Movie>>()
+    private val decadeMoviesMap = mutableMapOf<String, List<Movie>>()
+    private val runtimeMoviesMap = mutableMapOf<String, List<Movie>>()
 
     init {
         _chartsReady.value = false
@@ -127,11 +148,12 @@ class NotificationsViewModel : ViewModel() {
                     _runtimeDistributionData.postValue(runtimeDist)
                     _watchedByMonthData.postValue(watchedByMonth)
 
-                    //genera testo analytics
-                    val analyticsReport = generateAnalyticsReport(
-                        movies, genres, years, directors, ratings, countries
-                    )
-                    _analyticsText.postValue(analyticsReport)
+                    // Calcola top per ogni categoria
+                    genres.maxByOrNull { it.value }?.let { _topGenre.postValue(it.key to it.value) }
+                    years.maxByOrNull { it.value }?.let { _topYear.postValue(it.key to it.value) }
+                    directors.maxByOrNull { it.value }?.let { _topDirector.postValue(it.key to it.value) }
+                    countries.maxByOrNull { it.value }?.let { _topCountry.postValue(it.key to it.value) }
+                    decades.maxByOrNull { it.value }?.let { _topDecade.postValue(it.key to it.value) }
                 }
 
                 _chartsReady.value = true
@@ -145,15 +167,20 @@ class NotificationsViewModel : ViewModel() {
     }
 
     /**
-     * analizza generi - top 10
+     * analizza generi - TUTTI i generi
      */
     private fun analyzeGenres(movies: List<Movie>): Map<String, Int> {
         val genreCount = mutableMapOf<String, Int>()
+        genreMoviesMap.clear()
 
         movies.forEach { movie ->
             movie.genres.forEach { genre ->
                 if (genre.isNotBlank()) {
                     genreCount[genre] = genreCount.getOrDefault(genre, 0) + 1
+
+                    // Aggiungi film alla mappa
+                    val currentList = genreMoviesMap[genre] ?: emptyList()
+                    genreMoviesMap[genre] = currentList + movie
                 }
             }
         }
@@ -161,40 +188,47 @@ class NotificationsViewModel : ViewModel() {
         return genreCount
             .entries
             .sortedByDescending { it.value }
-            .take(10)
             .associate { it.key to it.value }
     }
 
     /**
-     * analizza anni - ultimi 20 anni con film
+     * analizza anni - TUTTI gli anni
      */
     private fun analyzeYears(movies: List<Movie>): Map<Int, Int> {
         val yearCount = mutableMapOf<Int, Int>()
+        yearMoviesMap.clear()
 
         movies.forEach { movie ->
             movie.year?.let { year ->
                 yearCount[year] = yearCount.getOrDefault(year, 0) + 1
+
+                // Aggiungi film alla mappa
+                val currentList = yearMoviesMap[year] ?: emptyList()
+                yearMoviesMap[year] = currentList + movie
             }
         }
 
         return yearCount
             .entries
-            .sortedByDescending { it.key }
-            .take(20)
             .sortedBy { it.key }
             .associate { it.key to it.value }
     }
 
     /**
-     * analizza registi - top 10
+     * analizza registi - TUTTI i registi
      */
     private fun analyzeDirectors(movies: List<Movie>): Map<String, Int> {
         val directorCount = mutableMapOf<String, Int>()
+        directorMoviesMap.clear()
 
         movies.forEach { movie ->
             movie.director?.let { director ->
                 if (director.isNotBlank()) {
                     directorCount[director] = directorCount.getOrDefault(director, 0) + 1
+
+                    // Aggiungi film alla mappa
+                    val currentList = directorMoviesMap[director] ?: emptyList()
+                    directorMoviesMap[director] = currentList + movie
                 }
             }
         }
@@ -202,38 +236,43 @@ class NotificationsViewModel : ViewModel() {
         return directorCount
             .entries
             .sortedByDescending { it.value }
-            .take(10)
             .associate { it.key to it.value }
     }
 
     /**
-     * analizza distribuzione rating utente
+     * analizza distribuzione rating utente - TUTTE le stelle 0-10
      */
     private fun analyzeRatings(movies: List<Movie>): Map<String, Int> {
         val ratingBuckets = mutableMapOf<String, Int>()
+        ratingMoviesMap.clear()
 
-        //inizializza buckets
-        for (i in 1..10) {
+        //inizializza buckets da 0 a 10
+        for (i in 0..10) {
             ratingBuckets["$i"] = 0
+            ratingMoviesMap[i] = emptyList()
         }
 
         movies.forEach { movie ->
             movie.userRating?.let { rating ->
-                val bucket = rating.toInt().coerceIn(1, 10).toString()
-                ratingBuckets[bucket] = ratingBuckets.getOrDefault(bucket, 0) + 1
+                val bucket = rating.toInt().coerceIn(0, 10)
+                val key = bucket.toString()
+                ratingBuckets[key] = ratingBuckets.getOrDefault(key, 0) + 1
+
+                // Aggiungi film alla mappa
+                val currentList = ratingMoviesMap[bucket] ?: emptyList()
+                ratingMoviesMap[bucket] = currentList + movie
             }
         }
 
-        //rimuovi buckets vuoti
-        return ratingBuckets.filter { it.value > 0 }
+        return ratingBuckets
     }
 
     /**
-     * analizza paesi di produzione - top 15
-     * estrae paesi dal campo genres o overview tmdb
+     * analizza paesi di produzione - TUTTI i paesi principali
      */
     private fun analyzeCountries(movies: List<Movie>): Map<String, Int> {
         val countryCount = mutableMapOf<String, Int>()
+        countryMoviesMap.clear()
 
         //lista paesi comuni nel cinema
         val knownCountries = setOf(
@@ -294,6 +333,14 @@ class NotificationsViewModel : ViewModel() {
             "Nuova Zelanda" to "New Zealand"
         )
 
+        // Inizializza tutti i paesi principali con 0
+        val mainCountries = setOf("USA", "UK", "France", "Italy", "Germany", "Spain", "Japan",
+            "South Korea", "India", "Canada", "Australia", "China", "Mexico", "Poland")
+        mainCountries.forEach {
+            countryCount[it] = 0
+            countryMoviesMap[it] = emptyList()
+        }
+
         movies.forEach { movie ->
             //cerca nei generi e overview
             val textToSearch = "${movie.genres.joinToString(" ")} ${movie.overview ?: ""}"
@@ -303,34 +350,44 @@ class NotificationsViewModel : ViewModel() {
                 if (textToSearch.contains(country, ignoreCase = true)) {
                     val normalizedCountry = countryNormalization[country] ?: country
                     countryCount[normalizedCountry] = countryCount.getOrDefault(normalizedCountry, 0) + 1
+
+                    // Aggiungi film alla mappa
+                    val currentList = countryMoviesMap[normalizedCountry] ?: emptyList()
+                    countryMoviesMap[normalizedCountry] = currentList + movie
                     found = true
                 }
             }
 
-            //default a USA se non trovato (maggior produzione mondiale)
+            //default a USA se non trovato
             if (!found && movie.tmdbId != null) {
                 countryCount["USA"] = countryCount.getOrDefault("USA", 0) + 1
+                val currentList = countryMoviesMap["USA"] ?: emptyList()
+                countryMoviesMap["USA"] = currentList + movie
             }
         }
 
         return countryCount
             .entries
             .sortedByDescending { it.value }
-            .take(15)
             .associate { it.key to it.value }
     }
 
     /**
-     * nuovo: analizza decadi - raggruppa per decennio
+     * analizza decadi - TUTTI i decenni
      */
     private fun analyzeDecades(movies: List<Movie>): Map<String, Int> {
         val decadeCount = mutableMapOf<String, Int>()
+        decadeMoviesMap.clear()
 
         movies.forEach { movie ->
             movie.year?.let { year ->
                 val decade = (year / 10) * 10
                 val label = "${decade}s"
                 decadeCount[label] = decadeCount.getOrDefault(label, 0) + 1
+
+                // Aggiungi film alla mappa
+                val currentList = decadeMoviesMap[label] ?: emptyList()
+                decadeMoviesMap[label] = currentList + movie
             }
         }
 
@@ -341,23 +398,25 @@ class NotificationsViewModel : ViewModel() {
     }
 
     /**
-     * nuovo: distribuzione durata film
+     * distribuzione durata film - TUTTE le fasce
      */
     private fun analyzeRuntimeDistribution(movies: List<Movie>): Map<String, Int> {
         val runtimeBuckets = mutableMapOf<String, Int>()
+        runtimeMoviesMap.clear()
 
-        //buckets: <60, 60-90, 90-120, 120-150, 150-180, 180+
+        //inizializza tutte le fasce
         val buckets = listOf(
-            "< 60 min" to (0 until 60),
-            "60-90 min" to (60 until 90),
-            "90-120 min" to (90 until 120),
-            "120-150 min" to (120 until 150),
-            "150-180 min" to (150 until 180),
-            "180+ min" to (180 until Int.MAX_VALUE)
+            "< 60 min",
+            "60-90 min",
+            "90-120 min",
+            "120-150 min",
+            "150-180 min",
+            "> 180 min"
         )
 
-        buckets.forEach { (label, _) ->
-            runtimeBuckets[label] = 0
+        buckets.forEach {
+            runtimeBuckets[it] = 0
+            runtimeMoviesMap[it] = emptyList()
         }
 
         movies.forEach { movie ->
@@ -368,17 +427,21 @@ class NotificationsViewModel : ViewModel() {
                     in 90 until 120 -> "90-120 min"
                     in 120 until 150 -> "120-150 min"
                     in 150 until 180 -> "150-180 min"
-                    else -> "180+ min"
+                    else -> "> 180 min"
                 }
                 runtimeBuckets[bucket] = runtimeBuckets.getOrDefault(bucket, 0) + 1
+
+                // Aggiungi film alla mappa
+                val currentList = runtimeMoviesMap[bucket] ?: emptyList()
+                runtimeMoviesMap[bucket] = currentList + movie
             }
         }
 
-        return runtimeBuckets.filter { it.value > 0 }
+        return runtimeBuckets
     }
 
     /**
-     * nuovo: film visti per mese (ultimi 12 mesi)
+     * film visti per mese - TUTTI i mesi disponibili
      */
     private fun analyzeWatchedByMonth(movies: List<Movie>): Map<String, Int> {
         val monthCount = mutableMapOf<String, Int>()
@@ -400,93 +463,15 @@ class NotificationsViewModel : ViewModel() {
         return monthCount
             .entries
             .sortedBy { it.key }
-            .takeLast(12) //ultimi 12 mesi
             .associate { it.key to it.value }
     }
 
-    /**
-     * genera report testuale analytics
-     */
-    private fun generateAnalyticsReport(
-        movies: List<Movie>,
-        genres: Map<String, Int>,
-        years: Map<Int, Int>,
-        directors: Map<String, Int>,
-        ratings: Map<String, Int>,
-        countries: Map<String, Int>
-    ): String {
-        val watched = movies.count { it.isWatched }
-        val watchlist = movies.count { !it.isWatched }
-        val withRating = movies.count { it.userRating != null }
-
-        val totalRuntime = movies.mapNotNull { it.runtime }.sum()
-        val avgRuntime = if (movies.isNotEmpty()) totalRuntime / movies.size else 0
-
-        val topGenre = genres.maxByOrNull { it.value }
-        val topDirector = directors.maxByOrNull { it.value }
-        val topCountry = countries.maxByOrNull { it.value }
-
-        val avgRating = movies.mapNotNull { it.userRating }.average()
-
-        return buildString {
-            appendLine("analisi cinematografica")
-            appendLine("=" .repeat(30))
-            appendLine()
-
-            appendLine("statistiche generali")
-            appendLine("-".repeat(30))
-            appendLine("film totali: ${movies.size}")
-            appendLine("• visti: $watched")
-            appendLine("• da vedere: $watchlist")
-            appendLine("• con voto: $withRating")
-            appendLine()
-
-            appendLine("durata")
-            appendLine("-".repeat(30))
-            appendLine("totale: ${totalRuntime / 60}h ${totalRuntime % 60}m")
-            appendLine("media: ${avgRuntime}min")
-            appendLine()
-
-            if (topGenre != null) {
-                appendLine("genere preferito")
-                appendLine("-".repeat(30))
-                appendLine("${topGenre.key}: ${topGenre.value} film")
-                appendLine()
-            }
-
-            if (topDirector != null) {
-                appendLine("regista preferito")
-                appendLine("-".repeat(30))
-                appendLine("${topDirector.key}: ${topDirector.value} film")
-                appendLine()
-            }
-
-            if (topCountry != null) {
-                appendLine("paese principale")
-                appendLine("-".repeat(30))
-                appendLine("${topCountry.key}: ${topCountry.value} film")
-                appendLine()
-            }
-
-            if (avgRating.isFinite() && avgRating > 0) {
-                appendLine("valutazione media")
-                appendLine("-".repeat(30))
-                appendLine("${String.format("%.1f", avgRating)}/10")
-                appendLine()
-            }
-
-            val oldestYear = years.keys.minOrNull()
-            val newestYear = years.keys.maxOrNull()
-            if (oldestYear != null && newestYear != null) {
-                appendLine("range temporale")
-                appendLine("-".repeat(30))
-                appendLine("$oldestYear - $newestYear")
-            }
-        }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        movieRepository?.cleanup()
-    }
+    // Funzioni per ottenere i film di una categoria
+    fun getMoviesByGenre(genre: String): List<Movie> = genreMoviesMap[genre] ?: emptyList()
+    fun getMoviesByYear(year: Int): List<Movie> = yearMoviesMap[year] ?: emptyList()
+    fun getMoviesByDirector(director: String): List<Movie> = directorMoviesMap[director] ?: emptyList()
+    fun getMoviesByRating(rating: Int): List<Movie> = ratingMoviesMap[rating] ?: emptyList()
+    fun getMoviesByCountry(country: String): List<Movie> = countryMoviesMap[country] ?: emptyList()
+    fun getMoviesByDecade(decade: String): List<Movie> = decadeMoviesMap[decade] ?: emptyList()
+    fun getMoviesByRuntime(runtime: String): List<Movie> = runtimeMoviesMap[runtime] ?: emptyList()
 }
