@@ -181,8 +181,6 @@ interface ApiInterface {
     @POST("movies/batch")
     suspend fun batchUpload(@Body request: BatchUploadRequest): Response<ApiResponse<BatchResponse>>
 
-    // ✅ RIMOSSO: @GET("movies/all") - endpoint deprecato
-
     // ✅ NUOVO: endpoint per utente specifico
     @GET("movies/user/{userId}")
     suspend fun getUserMovies(
@@ -801,8 +799,6 @@ object ApiService {
                 Result.failure(e)
             }
         }
-
-    // ✅ RIMOSSO: getAllStoredMovies() - metodo deprecato
 
     /**
      * ✅ Recupera i film dell'utente corrente

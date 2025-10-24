@@ -160,7 +160,7 @@ class MovieRepository private constructor(private val context: Context) {
         return try {
             Log.d(TAG, "=== sync ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT} ===")
 
-            val result = ApiService.getAllStoredMovies()
+            val result = ApiService.getUserStoredMovies()
 
             if (result.isSuccess) {
                 val backendMovies = result.getOrNull() ?: emptyList()
