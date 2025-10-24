@@ -145,6 +145,9 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
                 keywords: um.movie.keywords,
                 certification: um.movie.certification,
                 trailer_url: um.movie.trailer_url,
+                user_rating: um.userRating,
+                watched_date: um.watchedDate?.toISOString(),
+                is_watched: um.status === user_movie_entity_1.MovieStatus.WATCHED,
             }));
             this.logger.debug(`📚 Recuperati ${movies.length} film per utente ${userId}`);
             return movies;

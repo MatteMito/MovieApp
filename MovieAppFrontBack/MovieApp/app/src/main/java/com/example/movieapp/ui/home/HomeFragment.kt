@@ -141,16 +141,6 @@ class HomeFragment : Fragment() {
             Log.d(TAG, "📥 Contatori file: $watched visti, $watchlist da vedere")
         }
 
-        // 🆕 NUOVO: Observer contatori totali (dopo refresh)
-        homeViewModel.totalCounters.observe(viewLifecycleOwner) { (watched, watchlist) ->
-            Log.d(TAG, "📊 Contatori totali: $watched visti, $watchlist da vedere")
-
-            // ✅ Aggiorna le stats card con i contatori corretti
-            binding.textWatchedMovies.text = watched.toString()
-            binding.textWatchlistMovies.text = watchlist.toString()
-            binding.textTotalMovies.text = (watched + watchlist).toString()
-        }
-
         // ✅ OBSERVER ENRICHMENT PROGRESS: Con CAP per evitare >100%
         homeViewModel.enrichmentProgress.observe(viewLifecycleOwner) { (processed, total) ->
             when {

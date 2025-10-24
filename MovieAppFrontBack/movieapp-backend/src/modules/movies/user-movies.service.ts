@@ -156,8 +156,8 @@ export class UserMoviesService {
   }
 
   /**
-   * ✅ CORRETTO: Recupera tutti i film di un utente
-   */
+ * Recupera tutti i film di un utente
+ */
   async getUserMovies(
     userId: string,
     status?: MovieStatus,
@@ -174,7 +174,7 @@ export class UserMoviesService {
 
       const userMovies = await query.getMany();
 
-      // Converti in Movie[] 
+      // ✅ CRITICO: Converti in Movie[] con isWatched CORRETTO
       const movies: Movie[] = userMovies.map(um => ({
         id: um.movie.id,
         title: um.movie.title,
@@ -206,6 +206,11 @@ export class UserMoviesService {
         keywords: um.movie.keywords,
         certification: um.movie.certification,
         trailer_url: um.movie.trailer_url,
+        
+        // ✅ AGGIUNGI QUESTI CAMPI UTENTE MANCANTI!
+        user_rating: um.userRating,
+        watched_date: um.watchedDate?.toISOString(),
+        is_watched: um.status === MovieStatus.WATCHED,  // ✅ QUESTO È IL FIX PRINCIPALE!
       }));
 
       this.logger.debug(`📚 Recuperati ${movies.length} film per utente ${userId}`);

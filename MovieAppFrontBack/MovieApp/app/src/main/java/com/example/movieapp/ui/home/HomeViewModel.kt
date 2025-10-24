@@ -209,6 +209,7 @@ class HomeViewModel : ViewModel() {
 
                     withContext(Dispatchers.Main) {
                         _totalCounters.value = watched to watchlist
+                        _movies.value = backendMovies  // ✅ AGGIORNAMENTO CRITICO
                     }
                 }
             } catch (e: Exception) {
@@ -328,7 +329,7 @@ class HomeViewModel : ViewModel() {
             val batchResponse = batchResult.getOrNull()!!
             Log.d(TAG, "✅ Batch upload completato!")
 
-            // Sync
+            // ✅ SYNC CON AGGIORNAMENTO FORZATO
             try {
                 val result = ApiService.getUserStoredMovies()
                 val backendMovies = result.getOrNull() ?: emptyList()
@@ -342,6 +343,7 @@ class HomeViewModel : ViewModel() {
 
                     withContext(Dispatchers.Main) {
                         _totalCounters.value = watched to watchlist
+                        _movies.value = backendMovies  // ✅ AGGIORNAMENTO CRITICO
                     }
                 }
             } catch (e: Exception) {
@@ -491,6 +493,7 @@ class HomeViewModel : ViewModel() {
             val batchResponse = batchResult.getOrNull()!!
             Log.d(TAG, "✅ Batch Letterboxd upload completato!")
 
+            // ✅ SYNC CON AGGIORNAMENTO FORZATO
             try {
                 val result = ApiService.getUserStoredMovies()
                 val backendMovies = result.getOrNull() ?: emptyList()
@@ -504,6 +507,7 @@ class HomeViewModel : ViewModel() {
 
                     withContext(Dispatchers.Main) {
                         _totalCounters.value = watched to watchlist
+                        _movies.value = backendMovies  // ✅ AGGIORNAMENTO CRITICO
                     }
                 }
             } catch (e: Exception) {
