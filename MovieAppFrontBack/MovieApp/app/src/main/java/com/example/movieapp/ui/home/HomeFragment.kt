@@ -18,11 +18,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
  * HomeFragment FIXED
- *
- * ✅ NO card messaggi sotto IMDB
- * ✅ Stats aggiornate dopo OGNI import (cumulativo)
- * ✅ Progress bar con cap massimo per evitare >100%
- * ✅ NUOVO: Observer per contatori separati (file vs totale)
  */
 class HomeFragment : Fragment() {
 
@@ -120,7 +115,7 @@ class HomeFragment : Fragment() {
         //swipe refresh
         binding.swipeRefresh.setOnRefreshListener {
             Log.d(TAG, "🔄 Refresh")
-            homeViewModel.forceBackendSync()
+            homeViewModel.refreshFromBackend()  // ✅ CORRETTO
 
             // Aggiorna stats dopo sync
             binding.swipeRefresh.postDelayed({
@@ -144,9 +139,6 @@ class HomeFragment : Fragment() {
         // 🆕 NUOVO: Observer contatori dal file importato
         homeViewModel.fileCounters.observe(viewLifecycleOwner) { (watched, watchlist) ->
             Log.d(TAG, "📥 Contatori file: $watched visti, $watchlist da vedere")
-            // Questi sono i contatori del file appena importato
-            // Puoi mostrarli in UI se hai un TextView dedicato, esempio:
-            // binding.textFileCounters?.text = "File: $watched visti, $watchlist da vedere"
         }
 
         // 🆕 NUOVO: Observer contatori totali (dopo refresh)
@@ -232,7 +224,7 @@ class HomeFragment : Fragment() {
                     binding.layoutImportProgress.visibility = View.VISIBLE
                     binding.textImportTitle.text = "📤 Invio dati..."
                     binding.progressBarImport.isIndeterminate = true
-                    binding.textProgressImport.text = "${status.count} film"
+                    binding.textProgressImport.text = "${status.totalMovies} film"  // ✅ CORRETTO
                     binding.textCurrentMovieImport.text = ""
                 }
 
@@ -266,7 +258,7 @@ class HomeFragment : Fragment() {
                     binding.layoutImportProgress.visibility = View.VISIBLE
                     binding.progressBarImport.isIndeterminate = false
                     binding.progressBarImport.progress = 100
-                    binding.textProgressImport.text = "${status.total} / ${status.total} (100%)"
+                    binding.textProgressImport.text = "${status.totalMovies} / ${status.totalMovies} (100%)"  // ✅ CORRETTO
                     binding.textImportTitle.text = "✅ Completato!"
                     binding.textCurrentMovieImport.text = ""
 
@@ -300,8 +292,6 @@ class HomeFragment : Fragment() {
                 }
             }
         }
-
-        // ✅ NO observer per message - rimuoviamo completamente
     }
 
     /**
@@ -309,11 +299,11 @@ class HomeFragment : Fragment() {
      * Chiamato SEMPRE dopo ogni modifica ai film
      */
     private fun updatePermanentStatsCard() {
-        val stats = homeViewModel.getStats()
+        val movies = homeViewModel.movies.value ?: emptyList()  // ✅ CORRETTO
 
-        val total = stats["total"] ?: 0
-        val watched = stats["watched"] ?: 0
-        val watchlist = stats["watchlist"] ?: 0
+        val total = movies.size
+        val watched = movies.count { it.isWatched }  // ✅ CORRETTO
+        val watchlist = movies.count { !it.isWatched }  // ✅ CORRETTO
 
         binding.textTotalMovies.text = total.toString()
         binding.textWatchedMovies.text = watched.toString()
