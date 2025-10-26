@@ -21,11 +21,10 @@ export class ListsService {
   ) {}
 
   /**
-   * Crea nuova lista utente
-   */
+  * Crea nuova lista utente
+  */
   async createUserList(createDto: CreateListDto): Promise<MovieListEntity> {
     try {
-      // ✅ FIX: Assicura che gli array siano sempre inizializzati
       const list = this.listRepository.create({
         user_id: createDto.user_id,
         name: createDto.name,
@@ -35,7 +34,7 @@ export class ListsService {
         target_date: createDto.target_date ? new Date(createDto.target_date) : null,
         frequency: createDto.frequency || null,
         followers_count: 0,
-        follower_ids: [], // ✅ Array vuoto esplicito
+        follower_ids: [],  // ✅ Array vuoto esplicito
       });
 
       const saved = await this.listRepository.save(list);

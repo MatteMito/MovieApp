@@ -46,7 +46,7 @@ exports.AppModule = AppModule = __decorate([
                         user_movie_entity_1.UserMovieEntity,
                         list_entity_1.MovieListEntity,
                     ],
-                    synchronize: false,
+                    synchronize: true,
                     logging: true,
                 }),
                 inject: [config_1.ConfigService],

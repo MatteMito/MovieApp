@@ -1,7 +1,3 @@
-// FILE: movieapp-backend/src/database/entities/list.entity.ts
-// ENTITY: Movie List
-// Liste personalizzate di film create dagli utenti
-
 import {
   Entity,
   Column,
@@ -39,7 +35,6 @@ export class MovieListEntity {
   @Column('text', { nullable: true })
   description?: string;
 
-  // ✅ FIX: Usa array vuoto come default, non stringa vuota
   @Column('simple-array', { default: () => "'{}'" })
   movie_ids: string[];
 
@@ -59,11 +54,8 @@ export class MovieListEntity {
   @Column({ default: 0 })
   followers_count: number;
 
-  // ✅ FIX: Usa array vuoto come default, non stringa vuota
   @Column('simple-array', { default: () => "'{}'" })
   follower_ids: string[];
-
-  // TIMESTAMP AUTOMATICI
   
   @CreateDateColumn()
   created_at: Date;

@@ -37,7 +37,7 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
           MovieListEntity,
         ],
         
-        synchronize: false,
+        synchronize: true,
         logging: true,
       }),
       inject: [ConfigService],
