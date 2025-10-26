@@ -57,11 +57,11 @@ let ListsController = ListsController_1 = class ListsController {
             throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getPublicLists(limit) {
+    async getPublicLists(limit, userId) {
         try {
             const limitNum = limit ? parseInt(limit, 10) : 20;
-            this.logger.log(`🌍 Recupero liste pubbliche (limit: ${limitNum})`);
-            const lists = await this.listsService.getPublicLists(limitNum);
+            this.logger.log(`🌐 Recupero liste pubbliche (limit: ${limitNum}, exclude: ${userId || 'nessuno'})`);
+            const lists = await this.listsService.getPublicLists(limitNum, userId);
             return {
                 success: true,
                 data: lists,
@@ -194,8 +194,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)('public'),
     __param(0, (0, common_1.Query)('limit')),
+    __param(1, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "getPublicLists", null);
 __decorate([

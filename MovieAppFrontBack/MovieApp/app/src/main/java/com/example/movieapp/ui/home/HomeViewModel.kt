@@ -235,52 +235,59 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    private suspend fun uploadToBackend(
-        watched: List<Movie>,
-        watchlist: List<Movie>
-    ): Boolean {
+    // FILE: app/src/main/java/com/example/movieapp/ui/home/HomeViewModel.kt
+
+// Trova il metodo uploadToBackend e modifica:
+
+    private suspend fun uploadToBackend(watched: List<Movie>, watchlist: List<Movie>): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val total = watched.size + watchlist.size
-                Log.d(TAG, "📤 Upload $total film al backend...")
+                val totalMovies = watched.size + watchlist.size
+                Log.d(TAG, "📤 Upload ${totalMovies} film al backend...")
 
-                _importStatus.postValue(ImportStatus.SENDING_TO_BACKEND(total))
+                _importStatus.postValue(ImportStatus.SENDING_TO_BACKEND(totalMovies))
 
-                // ✅ Step 1: Connetti WebSocket PRIMA dell'upload
-                webSocketService.connect()
-                delay(1000) // Aspetta connessione
+                // 🔥 FIX: Aumenta timeout per file grandi
+                val estimatedTime = totalMovies * 3 // 3 secondi per film
+                val maxWaitTime = maxOf(estimatedTime * 1000L, 15 * 60 * 1000L) // Min 15 minuti
 
-                if (!webSocketService.isConnected()) {
-                    Log.e(TAG, "❌ WebSocket non connesso!")
-                }
+                Log.d(TAG, "⏱️ Timeout stimato: ${maxWaitTime / 1000 / 60} minuti per $totalMovies film")
 
-                // ✅ Step 2: Avvia upload asincrono (non aspettare la risposta HTTP)
+                // Step 1: Avvia upload asincrono
                 val uploadJob = viewModelScope.launch(Dispatchers.IO) {
                     try {
                         Log.d(TAG, "🚀 Invio richiesta HTTP upload...")
                         ApiService.batchUpload(watched, watchlist)
-                        Log.d(TAG, "✅ HTTP upload completato (o timeout)")
+                        Log.d(TAG, "✅ HTTP upload completato")
                     } catch (e: Exception) {
-                        Log.w(TAG, "⚠️ HTTP upload terminato: ${e.message}")
-                        // Non fallire qui - il WebSocket continuerà a monitorare
+                        Log.w(TAG, "⚠️ HTTP upload error: ${e.message}")
+                        // Non fallire - il WebSocket continua
                     }
                 }
 
-                // ✅ Step 3: Monitora SOLO il WebSocket per il progress
+                // Step 2: Monitora WebSocket
                 Log.d(TAG, "👀 Monitoring enrichment via WebSocket...")
                 var lastProcessed = 0
+                var lastUpdateTime = System.currentTimeMillis()
                 val startTime = System.currentTimeMillis()
-                val maxWaitTime = 10 * 60 * 1000L // 10 minuti max
                 var completed = false
+                var noUpdateTimeout = 60 * 1000L // 60 secondi senza update = problema
 
                 while (!completed) {
                     val update = webSocketService.enrichmentUpdates.value
+                    val currentTime = System.currentTimeMillis()
 
                     if (update != null) {
-                        // Update progress
+                        // Update ricevuto
                         if (update.processed != lastProcessed) {
                             lastProcessed = update.processed
+                            lastUpdateTime = currentTime
+
                             _enrichmentProgress.postValue(update.processed to update.total)
+                            _importStatus.postValue(
+                                ImportStatus.ENRICHING(update.processed, update.total, update.currentMovie)
+                            )
+
                             Log.d(TAG, "📊 Progress: ${update.processed}/${update.total} (${update.percentage}%)")
                         }
 
@@ -299,20 +306,34 @@ class HomeViewModel : ViewModel() {
                         }
                     }
 
-                    // Timeout check
-                    if (System.currentTimeMillis() - startTime > maxWaitTime) {
-                        Log.e(TAG, "⏱️ Timeout enrichment (10 min)")
-                        _importStatus.postValue(ImportStatus.ERROR("Timeout: operazione troppo lunga"))
-                        return@withContext false
+                    // 🔥 Check timeout senza update (possibile freeze)
+                    if (currentTime - lastUpdateTime > noUpdateTimeout && lastProcessed > 0) {
+                        Log.w(TAG, "⚠️ Nessun update da 60 secondi, ma proseguo...")
+                        // Non interrompiamo, solo logghiamo
+                    }
+
+                    // 🔥 Timeout totale
+                    if (currentTime - startTime > maxWaitTime) {
+                        Log.e(TAG, "⏱️ Timeout totale (${maxWaitTime/1000/60} min)")
+
+                        // 🔥 NUOVO: Anche in caso di timeout, prova a recuperare i dati
+                        if (lastProcessed > 0) {
+                            Log.w(TAG, "⚠️ Timeout ma ${lastProcessed} film processati - recupero dati...")
+                            // Continua al refresh per salvare quello che è stato fatto
+                            completed = true
+                            break
+                        } else {
+                            _importStatus.postValue(ImportStatus.ERROR("Timeout: operazione troppo lunga"))
+                            return@withContext false
+                        }
                     }
 
                     delay(500) // Check ogni 500ms
                 }
 
-                // ✅ Step 4: CRITICAL - Refresh dal backend DOPO completamento
-                Log.d(TAG, "🔄 Downloading updated data from backend...")
-
-                delay(2000) // Piccolo delay per sicurezza (backend potrebbe ancora scrivere)
+                // Step 3: Refresh dal backend
+                Log.d(TAG, "🔄 Download dati aggiornati dal backend...")
+                delay(2000) // Delay per sicurezza
 
                 val refreshSuccess = movieRepository?.refreshFromBackend() ?: false
 
@@ -335,19 +356,14 @@ class HomeViewModel : ViewModel() {
                     return@withContext false
                 }
 
-                // Cleanup
                 uploadJob.cancel()
-
                 true
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Errore upload", e)
                 _importStatus.postValue(ImportStatus.ERROR(e.message ?: "Errore sconosciuto"))
+                _message.postValue("❌ Errore: ${e.message}")
                 false
-            } finally {
-                // Reset progress dopo 3 secondi
-                delay(3000)
-                _enrichmentProgress.postValue(0 to 0)
             }
         }
     }

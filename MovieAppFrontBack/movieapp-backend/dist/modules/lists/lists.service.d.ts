@@ -9,12 +9,12 @@ export declare class ListsService {
     constructor(listRepository: Repository<MovieListEntity>, movieRepository: Repository<MovieEntity>);
     createUserList(createDto: CreateListDto): Promise<MovieListEntity>;
     getUserLists(userId: string): Promise<MovieListEntity[]>;
-    getPublicLists(limit?: number): Promise<MovieListEntity[]>;
+    getPublicLists(limit?: number, excludeUserId?: string): Promise<MovieListEntity[]>;
     getListWithMovies(listId: string): Promise<any>;
     updateList(listId: string, updateDto: UpdateListDto): Promise<MovieListEntity>;
     deleteList(listId: string): Promise<void>;
-    addMovieToList(listId: string, movieId: string): Promise<MovieListEntity>;
-    removeMovieFromList(listId: string, movieId: string): Promise<MovieListEntity>;
+    addMovieToList(listId: string, movieId: string): Promise<any>;
+    removeMovieFromList(listId: string, movieId: string): Promise<any>;
     followList(listId: string, userId: string): Promise<MovieListEntity>;
     unfollowList(listId: string, userId: string): Promise<MovieListEntity>;
 }

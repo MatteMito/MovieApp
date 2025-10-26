@@ -1,31 +1,29 @@
 // FILE: app/src/main/java/com/example/movieapp/ui/social/SearchMovieDialogFragment.kt
-// Dialog per cercare film da aggiungere alla lista
+// Dialog aggiornato con ricerca TMDB integrata
 
 package com.example.movieapp.ui.social
 
-import android.app.Dialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.ListAdapter
-import androidx.recyclerview.widget.RecyclerView
 import com.example.movieapp.databinding.DialogSearchMovieBinding
-import com.example.movieapp.databinding.ItemSearchMovieBinding
 import com.example.movieapp.data.models.Movie
 import com.example.movieapp.data.repository.MovieRepository
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.example.movieapp.data.network.ApiService
+import android.util.Log
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import android.util.Log
 
 /**
- * Dialog per cercare film nel DB locale
+ * Dialog per ricerca film
+ *
+ * 🔥 NUOVO: Supporta ricerca TMDB quando non trova risultati locali
  */
 class SearchMovieDialogFragment : DialogFragment() {
     private val TAG = "SearchMovieDialog"
@@ -36,31 +34,41 @@ class SearchMovieDialogFragment : DialogFragment() {
     private lateinit var movieRepository: MovieRepository
     private lateinit var searchAdapter: SearchMovieAdapter
 
-    private var onMovieSelectedListener: ((Movie) -> Unit)? = null
+    private var onMovieSelected: ((Movie) -> Unit)? = null
     private var searchJob: Job? = null
 
-    fun setOnMovieSelectedListener(listener: (Movie) -> Unit) {
-        onMovieSelectedListener = listener
+    private var isSearchingTmdb = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setStyle(STYLE_NORMAL, android.R.style.Theme_Material_Light_Dialog)
+        movieRepository = MovieRepository.getInstance(requireContext())
     }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        _binding = DialogSearchMovieBinding.inflate(LayoutInflater.from(requireContext()))
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = DialogSearchMovieBinding.inflate(inflater, container, false)
+        return binding.root
+    }
 
-        movieRepository = MovieRepository.getInstance(requireContext())
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         setupRecyclerView()
         setupSearchView()
 
-        return MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Cerca Film")
-            .setView(binding.root)
-            .setNegativeButton("Annulla", null)
-            .create()
+        dialog?.window?.setLayout(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
     }
 
     private fun setupRecyclerView() {
         searchAdapter = SearchMovieAdapter { movie ->
-            onMovieSelectedListener?.invoke(movie)
+            onMovieSelected?.invoke(movie)
             dismiss()
         }
 
@@ -78,7 +86,6 @@ class SearchMovieDialogFragment : DialogFragment() {
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
-                // Debounce search
                 searchJob?.cancel()
                 searchJob = lifecycleScope.launch {
                     delay(500)
@@ -95,127 +102,180 @@ class SearchMovieDialogFragment : DialogFragment() {
         })
     }
 
-    /**
-     * Cerca film nel database locale
-     */
     private fun performSearch(query: String) {
         Log.d(TAG, "🔍 Ricerca: $query")
 
+        isSearchingTmdb = false
         binding.progressBar.visibility = View.VISIBLE
         binding.textNoResults.visibility = View.GONE
+        binding.recyclerResults.visibility = View.GONE
 
         lifecycleScope.launch {
             try {
-                // Cerca nel DB locale
                 val results = movieRepository.getAllMovies().filter { movie ->
                     movie.title.contains(query, ignoreCase = true) ||
                             movie.director?.contains(query, ignoreCase = true) == true ||
                             movie.genres.any { it.contains(query, ignoreCase = true) }
                 }
 
+                binding.progressBar.visibility = View.GONE
+
                 if (results.isNotEmpty()) {
-                    searchAdapter.submitList(results)
-                    binding.recyclerResults.visibility = View.VISIBLE
-                    binding.textNoResults.visibility = View.GONE
-                    binding.textResultCount.text = "${results.size} film trovati"
-
-                    Log.d(TAG, "✅ ${results.size} risultati trovati")
+                    showLocalResults(results)
                 } else {
-                    // Nessun risultato nel DB locale
-                    binding.recyclerResults.visibility = View.GONE
-                    binding.textNoResults.visibility = View.VISIBLE
-                    binding.textNoResults.text = "Nessun film trovato nel database.\n\n💡 Suggerimento: Importa più film dalla Home per avere più risultati!"
-                    binding.textResultCount.text = "0 film trovati"
-
-                    Log.d(TAG, "⚠️ Nessun risultato per: $query")
-
-                    // TODO: Implementa ricerca TMDB come fallback
-                    // searchTMDB(query)
+                    showTmdbSearchOption(query)
                 }
-
-                binding.progressBar.visibility = View.GONE
-
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Errore ricerca", e)
+                Log.e(TAG, "❌ Errore ricerca locale", e)
                 binding.progressBar.visibility = View.GONE
-                binding.textNoResults.visibility = View.VISIBLE
-                binding.textNoResults.text = "Errore durante la ricerca"
+                showError("Errore durante la ricerca")
             }
         }
+    }
+
+    private fun showLocalResults(results: List<Movie>) {
+        searchAdapter.submitList(results)
+        binding.recyclerResults.visibility = View.VISIBLE
+        binding.textNoResults.visibility = View.GONE
+        binding.textResultCount.text = "${results.size} film trovati nel database"
+        binding.textResultCount.visibility = View.VISIBLE
+
+        Log.d(TAG, "✅ ${results.size} risultati locali trovati")
+    }
+
+    private fun showTmdbSearchOption(query: String) {
+        binding.recyclerResults.visibility = View.GONE
+        binding.textNoResults.visibility = View.VISIBLE
+        binding.textResultCount.visibility = View.GONE
+
+        binding.textNoResults.text = """
+            Nessun film trovato nel database locale.
+            
+            🎬 Vuoi cercare "$query" su TMDB?
+        """.trimIndent()
+
+        binding.textNoResults.setOnClickListener {
+            searchOnTmdb(query)
+        }
+
+        binding.textNoResults.isClickable = true
+        binding.textNoResults.isFocusable = true
+        binding.textNoResults.setBackgroundResource(android.R.drawable.list_selector_background)
+        binding.textNoResults.setPadding(32, 32, 32, 32)
+
+        Log.d(TAG, "💡 Nessun risultato locale → suggerito TMDB")
+    }
+
+    private fun searchOnTmdb(query: String) {
+        Log.d(TAG, "🌐 Ricerca su TMDB: $query")
+
+        isSearchingTmdb = true
+        binding.progressBar.visibility = View.VISIBLE
+        binding.textNoResults.visibility = View.GONE
+        binding.textNoResults.setOnClickListener(null)
+        binding.textNoResults.isClickable = false
+
+        lifecycleScope.launch {
+            try {
+                val result = ApiService.searchMovieOnTmdb(query)
+
+                binding.progressBar.visibility = View.GONE
+
+                if (result.isSuccess) {
+                    val movie = result.getOrNull()
+                    if (movie != null) {
+                        showTmdbResult(movie)
+                    } else {
+                        showError("Nessun film trovato su TMDB")
+                    }
+                } else {
+                    showError("Nessun film trovato su TMDB")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Errore ricerca TMDB", e)
+                binding.progressBar.visibility = View.GONE
+                showError("Errore durante la ricerca su TMDB")
+            }
+        }
+    }
+
+    private fun showTmdbResult(movie: Movie) {
+        Log.d(TAG, "✅ Film trovato su TMDB: ${movie.title}")
+
+        searchAdapter.submitList(listOf(movie))
+        binding.recyclerResults.visibility = View.VISIBLE
+        binding.textNoResults.visibility = View.GONE
+        binding.textResultCount.text = "Film trovato su TMDB"
+        binding.textResultCount.visibility = View.VISIBLE
+
+        searchAdapter.setOnItemClickListener { selectedMovie ->
+            addTmdbMovieToDatabase(selectedMovie)
+        }
+    }
+
+    /**
+     * ✅ FIX: Aggiunge film da TMDB al database
+     */
+    private fun addTmdbMovieToDatabase(movie: Movie) {
+        Log.d(TAG, "📥 Aggiunta film da TMDB al database: ${movie.title}")
+
+        binding.progressBar.visibility = View.VISIBLE
+
+        lifecycleScope.launch {
+            try {
+                val userId = ApiService.getCurrentUserId() ?: throw Exception("User ID non disponibile")
+                val tmdbId = movie.tmdbId ?: throw Exception("TMDB ID mancante")
+
+                val result = ApiService.addMovieFromTmdb(
+                    tmdbId = tmdbId,
+                    userId = userId,
+                    status = "watchlist"
+                )
+
+                binding.progressBar.visibility = View.GONE
+
+                if (result.isSuccess) {
+                    val savedMovie = result.getOrNull()
+                    if (savedMovie != null) {
+                        Log.d(TAG, "✅ Film aggiunto al database: ${savedMovie.id}")
+
+                        onMovieSelected?.invoke(savedMovie)
+                        dismiss()
+                    }
+                } else {
+                    showError("Errore durante l'aggiunta del film")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Errore aggiunta film", e)
+                binding.progressBar.visibility = View.GONE
+                showError("Errore: ${e.message}")
+            }
+        }
+    }
+
+    private fun showError(message: String) {
+        binding.recyclerResults.visibility = View.GONE
+        binding.textNoResults.visibility = View.VISIBLE
+        binding.textNoResults.text = "⚠️ $message"
+        binding.textNoResults.setOnClickListener(null)
+        binding.textNoResults.isClickable = false
+        binding.textResultCount.visibility = View.GONE
     }
 
     private fun clearResults() {
         searchAdapter.submitList(emptyList())
         binding.recyclerResults.visibility = View.GONE
         binding.textNoResults.visibility = View.GONE
-        binding.textResultCount.text = "0 film"
+        binding.textResultCount.visibility = View.GONE
+    }
+
+    fun setOnMovieSelectedListener(listener: (Movie) -> Unit) {
+        onMovieSelected = listener
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         searchJob?.cancel()
         _binding = null
-    }
-}
-
-/**
- * Adapter semplificato per risultati ricerca nel dialog
- */
-class SearchMovieAdapter(
-    private val onMovieClick: (Movie) -> Unit
-) : ListAdapter<Movie, SearchMovieAdapter.ViewHolder>(MovieDiffCallback()) {
-
-    override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
-        val binding = ItemSearchMovieBinding.inflate(
-            LayoutInflater.from(parent.context),
-            parent,
-            false
-        )
-        return ViewHolder(binding)
-    }
-
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(getItem(position))
-    }
-
-    inner class ViewHolder(
-        private val binding: ItemSearchMovieBinding
-    ) : RecyclerView.ViewHolder(binding.root) {
-
-        fun bind(movie: Movie) {
-            binding.apply {
-                textTitle.text = movie.title
-
-                val details = buildString {
-                    if (movie.year != null) append(movie.year)
-                    if (movie.director != null) {
-                        if (isNotEmpty()) append(" • ")
-                        append(movie.director)
-                    }
-                }
-                textDetails.text = details
-
-                if (movie.genres.isNotEmpty()) {
-                    textGenres.text = movie.genres.take(2).joinToString(", ")
-                    textGenres.visibility = View.VISIBLE
-                } else {
-                    textGenres.visibility = View.GONE
-                }
-
-                root.setOnClickListener {
-                    onMovieClick(movie)
-                }
-            }
-        }
-    }
-
-    class MovieDiffCallback : DiffUtil.ItemCallback<Movie>() {
-        override fun areItemsTheSame(oldItem: Movie, newItem: Movie): Boolean {
-            return oldItem.id == newItem.id
-        }
-
-        override fun areContentsTheSame(oldItem: Movie, newItem: Movie): Boolean {
-            return oldItem == newItem
-        }
     }
 }

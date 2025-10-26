@@ -133,7 +133,16 @@ class ListDetailFragment : Fragment() {
                 val result = ApiService.addMovieToList(listId!!, movie.id)
 
                 if (result.isSuccess) {
+                    val updatedList = result.getOrNull()
+
+                    // aggiorna subito il contatore senza reload completo
+                    updatedList?.let {
+                        binding.textMovieCount.text = "${it.movieCount} film"
+                    }
+
                     Toast.makeText(requireContext(), "Film aggiunto!", Toast.LENGTH_SHORT).show()
+
+                    // ricarica la lista completa per mostrare il film
                     viewModel.loadListDetails(listId!!)
                 } else {
                     Toast.makeText(requireContext(), "Errore aggiunta film", Toast.LENGTH_SHORT).show()
@@ -154,7 +163,16 @@ class ListDetailFragment : Fragment() {
                         val result = ApiService.removeMovieFromList(listId!!, movie.id)
 
                         if (result.isSuccess) {
+                            val updatedList = result.getOrNull()
+
+                            // 🔥 Aggiorna subito il contatore
+                            updatedList?.let {
+                                binding.textMovieCount.text = "${it.movieCount} film"
+                            }
+
                             Toast.makeText(requireContext(), "Film rimosso", Toast.LENGTH_SHORT).show()
+
+                            // Ricarica la lista per aggiornare l'UI
                             viewModel.loadListDetails(listId!!)
                         } else {
                             Toast.makeText(requireContext(), "Errore rimozione film", Toast.LENGTH_SHORT).show()

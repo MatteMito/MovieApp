@@ -1,5 +1,5 @@
 // FILE: app/src/main/java/com/example/movieapp/ui/social/SocialViewModel.kt
-// ViewModel per gestione stato liste social
+// ViewModel aggiornato con sistema filtri
 
 package com.example.movieapp.ui.social
 
@@ -23,7 +23,15 @@ class SocialViewModel : ViewModel() {
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
-    // Liste
+    // 🔥 NUOVO: Filtri
+    private val _currentFilters = MutableLiveData<ListFilters>(ListFilters.default())
+    val currentFilters: LiveData<ListFilters> = _currentFilters
+
+    // Liste RAW (senza filtri)
+    private val _rawMyLists = MutableLiveData<List<MovieList>>(emptyList())
+    private val _rawPublicLists = MutableLiveData<List<MovieList>>(emptyList())
+
+    // Liste FILTRATE (esposte al Fragment)
     private val _myLists = MutableLiveData<List<MovieList>>(emptyList())
     val myLists: LiveData<List<MovieList>> = _myLists
 
@@ -53,6 +61,31 @@ class SocialViewModel : ViewModel() {
     }
 
     /**
+     * 🔥 NUOVO: Applica filtri
+     */
+    fun applyFilters(filters: ListFilters) {
+        _currentFilters.value = filters
+        Log.d(TAG, "🔍 Applicazione filtri: $filters")
+
+        // Applica filtri alle liste raw
+        val filteredMyLists = filters.applyTo(_rawMyLists.value ?: emptyList())
+        val filteredPublicLists = filters.applyTo(_rawPublicLists.value ?: emptyList())
+
+        _myLists.value = filteredMyLists
+        _publicLists.value = filteredPublicLists
+
+        Log.d(TAG, "✅ Le Mie Liste: ${filteredMyLists.size}/${_rawMyLists.value?.size}")
+        Log.d(TAG, "✅ Liste Pubbliche: ${filteredPublicLists.size}/${_rawPublicLists.value?.size}")
+    }
+
+    /**
+     * 🔥 NUOVO: Reset filtri
+     */
+    fun resetFilters() {
+        applyFilters(ListFilters.default())
+    }
+
+    /**
      * Ricarica tutte le liste
      */
     fun refreshLists() {
@@ -74,7 +107,12 @@ class SocialViewModel : ViewModel() {
 
                 if (result.isSuccess) {
                     val lists = result.getOrNull() ?: emptyList()
-                    _myLists.value = lists
+                    _rawMyLists.value = lists
+
+                    // Applica filtri correnti
+                    val filters = _currentFilters.value ?: ListFilters.default()
+                    _myLists.value = filters.applyTo(lists)
+
                     Log.d(TAG, "✅ ${lists.size} liste personali caricate")
                 } else {
                     val errorMsg = result.exceptionOrNull()?.message ?: "Errore caricamento liste"
@@ -103,7 +141,12 @@ class SocialViewModel : ViewModel() {
 
                 if (result.isSuccess) {
                     val lists = result.getOrNull() ?: emptyList()
-                    _publicLists.value = lists
+                    _rawPublicLists.value = lists
+
+                    // Applica filtri correnti
+                    val filters = _currentFilters.value ?: ListFilters.default()
+                    _publicLists.value = filters.applyTo(lists)
+
                     Log.d(TAG, "✅ ${lists.size} liste pubbliche caricate")
                 } else {
                     val errorMsg = result.exceptionOrNull()?.message ?: "Errore caricamento liste pubbliche"
@@ -132,7 +175,6 @@ class SocialViewModel : ViewModel() {
                 Log.d(TAG, "   Nome: $name")
                 Log.d(TAG, "   Pubblica: $isPublic")
 
-                // 🔍 Verifica autenticazione prima di chiamare API
                 if (!ApiService.isAuthenticated()) {
                     Log.e(TAG, "❌ Utente non autenticato!")
                     _error.value = "Effettua nuovamente il login"

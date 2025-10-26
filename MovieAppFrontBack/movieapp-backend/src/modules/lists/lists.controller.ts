@@ -90,16 +90,19 @@ export class ListsController {
   }
 
   /**
-   * GET /api/v1/lists/public?limit=20
-   * Recupera liste pubbliche
+   * GET /api/v1/lists/public?limit=20&userId=xxx
+   * Recupera liste pubbliche (escluse quelle dell'utente)
    */
   @Get('public')
-  async getPublicLists(@Query('limit') limit?: string): Promise<ApiResponse> {
+  async getPublicLists(
+    @Query('limit') limit?: string,
+    @Query('userId') userId?: string,  // 🔥 AGGIUNTO
+  ): Promise<ApiResponse> {
     try {
       const limitNum = limit ? parseInt(limit, 10) : 20;
-      this.logger.log(`🌍 Recupero liste pubbliche (limit: ${limitNum})`);
+      this.logger.log(`🌐 Recupero liste pubbliche (limit: ${limitNum}, exclude: ${userId || 'nessuno'})`);
 
-      const lists = await this.listsService.getPublicLists(limitNum);
+      const lists = await this.listsService.getPublicLists(limitNum, userId);  // 🔥 PASSA userId
 
       return {
         success: true,

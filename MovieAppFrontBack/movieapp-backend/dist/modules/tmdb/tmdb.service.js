@@ -105,35 +105,41 @@ let TmdbService = TmdbService_1 = class TmdbService {
                 const enriched = await this.enrichMovie(movie);
                 if (enriched.tmdb_id) {
                     results.successfulMovies.push(enriched);
-                    await this.databaseService.saveMovie(enriched);
-                    this.logger.debug(`✅ Film arricchito e salvato: ${enriched.title}`);
                 }
                 else {
                     results.failedMovies.push({
                         movie,
-                        error: 'TMDB data not found',
+                        error: 'TMDB ID non trovato'
                     });
                 }
+                results.totalProcessed++;
                 if (options?.onProgress) {
-                    await options.onProgress(results.successfulMovies.length + results.failedMovies.length, movies.length, movie.title);
+                    const totalCache = results.successfulMovies.length - (moviesToEnrich.length - i - 1);
+                    await options.onProgress(results.totalProcessed + results.successfulMovies.length - moviesToEnrich.length + results.totalProcessed, movies.length, movie.title);
+                }
+                if (results.totalProcessed % 5 === 0) {
+                    this.logger.log(`📈 progress: ${results.totalProcessed}/${moviesToEnrich.length} nuovi arricchiti (${results.successfulMovies.length}/${movies.length} totali)`);
                 }
             }
             catch (error) {
-                this.logger.error(`errore arricchimento ${movie.title}: ${error.message}`);
+                this.logger.error(`❌ errore per ${movie.title}: ${error.message}`);
                 results.failedMovies.push({
                     movie,
-                    error: error.message,
+                    error: error.message
                 });
+                results.totalProcessed++;
+            }
+            if (moviesToEnrich.length > 50 && i % 5 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
         }
-        results.totalProcessed = results.successfulMovies.length + results.failedMovies.length;
-        results.successRate = results.totalProcessed > 0
-            ? results.successfulMovies.length / results.totalProcessed
+        results.successRate = movies.length > 0
+            ? (results.successfulMovies.length / movies.length) * 100
             : 0;
-        this.logger.log(`✅ enrichment batch completato:`);
-        this.logger.log(`   successi: ${results.successfulMovies.length}`);
-        this.logger.log(`   falliti: ${results.failedMovies.length}`);
-        this.logger.log(`   success rate: ${(results.successRate * 100).toFixed(1)}%`);
+        this.logger.log(`✅ enrichment completato:`);
+        this.logger.log(`   - successi: ${results.successfulMovies.length}/${movies.length}`);
+        this.logger.log(`   - falliti: ${results.failedMovies.length}`);
+        this.logger.log(`   - tasso successo: ${results.successRate.toFixed(2)}%`);
         return results;
     }
     async enforceRateLimit() {

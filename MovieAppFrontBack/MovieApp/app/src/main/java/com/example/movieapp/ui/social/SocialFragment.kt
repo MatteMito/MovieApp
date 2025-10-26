@@ -1,5 +1,5 @@
 // FILE: app/src/main/java/com/example/movieapp/ui/social/SocialFragment.kt
-// Fragment principale per aspetto social con liste pubbliche/private
+// Fragment aggiornato con sistema filtri completo
 
 package com.example.movieapp.ui.social
 
@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
@@ -17,6 +18,7 @@ import com.example.movieapp.databinding.FragmentSocialBinding
 import com.example.movieapp.data.models.MovieList
 import com.example.movieapp.data.network.ApiService
 import android.util.Log
+import com.google.android.material.chip.Chip
 import com.google.android.material.tabs.TabLayout
 
 /**
@@ -24,6 +26,7 @@ import com.google.android.material.tabs.TabLayout
  *
  * Features:
  * - Tab: Le Mie Liste / Liste Pubbliche
+ * - 🔥 NUOVO: Ricerca e filtri avanzati
  * - Creazione nuove liste (pubblica/privata)
  * - Visualizzazione e gestione liste
  * - Follow liste pubbliche
@@ -67,6 +70,7 @@ class SocialFragment : Fragment() {
     private fun setupUI() {
         setupTabs()
         setupRecyclerViews()
+        setupSearchAndFilters()  // 🔥 NUOVO
         setupButtons()
         setupSwipeRefresh()
     }
@@ -119,6 +123,87 @@ class SocialFragment : Fragment() {
     }
 
     /**
+     * 🔥 NUOVO: Setup Ricerca e Filtri
+     */
+    private fun setupSearchAndFilters() {
+        // SearchView
+        binding.searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                query?.let { applySearchFilter(it) }
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                newText?.let { applySearchFilter(it) }
+                return true
+            }
+        })
+
+        // Bottone Filtri
+        binding.buttonFilters.setOnClickListener {
+            openFiltersBottomSheet()
+        }
+    }
+
+    /**
+     * 🔥 NUOVO: Applica filtro ricerca
+     */
+    private fun applySearchFilter(query: String) {
+        val currentFilters = viewModel.currentFilters.value ?: ListFilters.default()
+        val newFilters = currentFilters.copy(searchQuery = query)
+        viewModel.applyFilters(newFilters)
+
+        Log.d(TAG, "🔍 Ricerca applicata: $query")
+    }
+
+    /**
+     * 🔥 NUOVO: Apri Bottom Sheet filtri
+     */
+    private fun openFiltersBottomSheet() {
+        val currentFilters = viewModel.currentFilters.value ?: ListFilters.default()
+
+        val bottomSheet = FiltersBottomSheet.newInstance(currentFilters)
+        bottomSheet.setOnApplyFiltersListener { newFilters ->
+            // Mantieni la query di ricerca
+            val searchQuery = binding.searchView.query.toString()
+            val filtersWithSearch = newFilters.copy(searchQuery = searchQuery)
+
+            viewModel.applyFilters(filtersWithSearch)
+            Toast.makeText(requireContext(), "Filtri applicati", Toast.LENGTH_SHORT).show()
+        }
+
+        bottomSheet.show(childFragmentManager, "FiltersBottomSheet")
+    }
+
+    /**
+     * 🔥 NUOVO: Aggiorna Chip filtri attivi
+     */
+    private fun updateFilterChips(filters: ListFilters) {
+        binding.chipGroupFilters.removeAllViews()
+
+        if (!filters.hasActiveFilters()) {
+            binding.chipsScrollView.visibility = View.GONE
+            return
+        }
+
+        binding.chipsScrollView.visibility = View.VISIBLE
+
+        // Aggiungi chip per ogni filtro attivo
+        filters.getActiveFiltersDescription().forEach { description ->
+            val chip = Chip(requireContext()).apply {
+                text = description
+                isCloseIconVisible = true
+                setOnCloseIconClickListener {
+                    // Reset filtri quando si clicca sulla X
+                    viewModel.resetFilters()
+                    binding.searchView.setQuery("", false)
+                }
+            }
+            binding.chipGroupFilters.addView(chip)
+        }
+    }
+
+    /**
      * Setup Buttons
      */
     private fun setupButtons() {
@@ -152,6 +237,27 @@ class SocialFragment : Fragment() {
                 binding.progressBar.visibility = View.VISIBLE
             } else {
                 binding.progressBar.visibility = View.GONE
+            }
+        }
+
+        // 🔥 NUOVO: Osserva cambiamenti filtri
+        viewModel.currentFilters.observe(viewLifecycleOwner) { filters ->
+            updateFilterChips(filters)
+
+            // Aggiorna badge conteggio filtri sul bottone
+            val activeFiltersCount = if (filters.hasActiveFilters()) {
+                var count = 0
+                if (filters.minMovieCount > 0) count++
+                if (filters.sortOrder != SortOrder.RECENT) count++
+                count
+            } else {
+                0
+            }
+
+            binding.buttonFilters.text = if (activeFiltersCount > 0) {
+                "Filtri ($activeFiltersCount)"
+            } else {
+                "Filtri"
             }
         }
 
@@ -296,6 +402,7 @@ class SocialFragment : Fragment() {
     private fun showNotAuthenticatedState() {
         binding.apply {
             tabLayout.visibility = View.GONE
+            searchFilterContainer.visibility = View.GONE  // 🔥 NUOVO
             fabCreateList.visibility = View.GONE
             recyclerMyLists.visibility = View.GONE
             recyclerPublicLists.visibility = View.GONE

@@ -1,13 +1,14 @@
-// Modulo per integrazione TMDB API
+// FILE: movieapp-backend/src/modules/tmdb/tmdb.module.ts
+// Modulo aggiornato con controller
 
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { TmdbService } from './tmdb.service';
+import { TmdbController } from './tmdb.controller'; 
 import { DatabaseModule } from '../../database/database.module';
 
 @Module({
   imports: [
-    // HTTP Module per chiamate API TMDB
     HttpModule.register({
       timeout: 10000,
       maxRedirects: 5,
@@ -18,6 +19,7 @@ import { DatabaseModule } from '../../database/database.module';
     }),
     DatabaseModule,
   ],
+  controllers: [TmdbController],
   providers: [TmdbService],
   exports: [TmdbService],
 })

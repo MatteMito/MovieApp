@@ -161,6 +161,17 @@ data class UserStatsResponse(
     val averageRating: Double get() = average_rating
 }
 
+data class AddMovieFromTmdbRequest(
+    @SerializedName("tmdb_id")
+    val tmdbId: Int,
+
+    @SerializedName("user_id")
+    val userId: String,
+
+    @SerializedName("status")
+    val status: String = "watchlist"
+)
+
 // ============================================
 // RETROFIT INTERFACE
 // ============================================
@@ -206,7 +217,8 @@ interface ApiInterface {
 
     @GET("lists/public")
     suspend fun getPublicLists(
-        @Query("limit") limit: Int = 20
+        @Query("limit") limit: Int = 20,
+        @Query("userId") userId: String? = null
     ): Response<ApiResponse<List<MovieList>>>
 
     @GET("lists/{id}")
@@ -250,6 +262,17 @@ interface ApiInterface {
         @Path("id") listId: String,
         @Body request: Map<String, String>
     ): Response<ApiResponse<MovieList>>
+
+    @GET("tmdb/search")
+    suspend fun searchTmdb(
+        @Query("query") query: String,
+        @Query("year") year: Int? = null
+    ): Response<ApiResponse<Movie>>
+
+    @POST("tmdb/add-to-database")
+    suspend fun addMovieFromTmdb(
+        @Body request: AddMovieFromTmdbRequest
+    ): Response<ApiResponse<Movie>>
 }
 
 // ============================================
@@ -417,6 +440,64 @@ object ApiService {
         }
     }
 
+    /**
+     * Cerca film su TMDB
+     */
+    suspend fun searchMovieOnTmdb(query: String, year: Int? = null): Result<Movie> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "🔍 Ricerca TMDB: $query${if (year != null) " ($year)" else ""}")
+
+            val response = apiInterface.searchTmdb(query, year)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val movie = response.body()?.data
+                    ?: return@withContext Result.failure(Exception("Film non trovato su TMDB"))
+
+                Log.d(TAG, "✅ Film trovato su TMDB: ${movie.title}")
+                Result.success(movie)
+            } else {
+                val error = response.body()?.message ?: "Nessun film trovato su TMDB"
+                Log.w(TAG, "⚠️ $error")
+                Result.failure(Exception(error))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Errore ricerca TMDB", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Aggiunge film da TMDB al database
+     */
+    suspend fun addMovieFromTmdb(tmdbId: Int, userId: String, status: String = "watchlist"): Result<Movie> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "📥 Aggiunta film da TMDB: $tmdbId")
+
+            val request = AddMovieFromTmdbRequest(
+                tmdbId = tmdbId,
+                userId = userId,
+                status = status
+            )
+
+            val response = apiInterface.addMovieFromTmdb(request)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val movie = response.body()?.data
+                    ?: return@withContext Result.failure(Exception("Errore aggiunta film"))
+
+                Log.d(TAG, "✅ Film aggiunto al database: ${movie.title}")
+                Result.success(movie)
+            } else {
+                val error = response.body()?.message ?: "Errore aggiunta film da TMDB"
+                Log.w(TAG, "⚠️ $error")
+                Result.failure(Exception(error))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Errore addMovieFromTmdb", e)
+            Result.failure(e)
+        }
+    }
+
     // ============================================
     // LISTE METHODS
     // ============================================
@@ -467,9 +548,10 @@ object ApiService {
 
     suspend fun getPublicLists(limit: Int = 20): Result<List<MovieList>> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "🌍 Recupero liste pubbliche (limit: $limit)")
+            val userId = getCurrentUserId()  // 🔥 Ottieni userId corrente
+            Log.d(TAG, "🌐 Recupero liste pubbliche (limit: $limit, exclude: $userId)")
 
-            val response = apiInterface.getPublicLists(limit)
+            val response = apiInterface.getPublicLists(limit, userId)  // 🔥 PASSA userId
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val lists = response.body()?.data ?: emptyList()

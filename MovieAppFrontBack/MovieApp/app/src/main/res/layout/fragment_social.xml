@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- FILE: app/src/main/res/layout/fragment_social.xml -->
-<!-- Layout per SocialFragment con tab e liste -->
+<!-- Layout aggiornato con ricerca e filtri -->
 
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -17,7 +17,8 @@
 
         <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:fillViewport="true">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -73,6 +74,61 @@
                         android:text="Liste Pubbliche" />
                 </com.google.android.material.tabs.TabLayout>
 
+                <!-- 🔥 NUOVO: Barra Ricerca e Filtri -->
+                <LinearLayout
+                    android:id="@+id/search_filter_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="8dp"
+                    android:background="?attr/colorSurface"
+                    android:elevation="2dp">
+
+                    <!-- SearchView -->
+                    <androidx.appcompat.widget.SearchView
+                        android:id="@+id/search_view"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        app:queryHint="Cerca lista..."
+                        app:iconifiedByDefault="false"
+                        android:background="@android:drawable/editbox_background"/>
+
+                    <!-- Bottone Filtri -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_filters"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Filtri"
+                        app:icon="@drawable/ic_filter"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:textSize="12sp"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"/>
+                </LinearLayout>
+
+                <!-- 🔥 NUOVO: Chip Group per filtri attivi -->
+                <HorizontalScrollView
+                    android:id="@+id/chips_scroll_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/chip_group_filters"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        app:singleLine="true"
+                        app:chipSpacingHorizontal="8dp"/>
+                </HorizontalScrollView>
+
                 <!-- Progress Bar -->
                 <ProgressBar
                     android:id="@+id/progress_bar"
@@ -88,13 +144,24 @@
                     android:id="@+id/recycler_my_lists"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="80dp"
+                    android:padding="8dp"
                     android:clipToPadding="false"
+                    android:visibility="visible"
                     tools:listitem="@layout/item_social_list"
                     tools:itemCount="3"/>
 
-                <!-- Empty State - Le Mie Liste -->
+                <!-- Liste Pubbliche RecyclerView -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recycler_public_lists"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:clipToPadding="false"
+                    android:visibility="gone"
+                    tools:listitem="@layout/item_social_list"
+                    tools:itemCount="3"/>
+
+                <!-- Empty State Le Mie Liste -->
                 <LinearLayout
                     android:id="@+id/empty_state_my_lists"
                     android:layout_width="match_parent"
@@ -109,50 +176,34 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="📋"
-                        android:textSize="72sp"
+                        android:textSize="64sp"
                         android:layout_marginBottom="16dp"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Nessuna lista creata"
-                        android:textSize="20sp"
+                        android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="?android:attr/textColorPrimary"
                         android:layout_marginBottom="8dp"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Tocca il pulsante + per creare\nla tua prima lista di film!"
+                        android:text="Crea la tua prima collezione di film!"
                         android:textSize="14sp"
                         android:textColor="?android:attr/textColorSecondary"
-                        android:gravity="center"
-                        android:layout_marginBottom="24dp"/>
+                        android:layout_marginBottom="16dp"/>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_create_first"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Crea Lista"
-                        android:textAllCaps="false"
-                        app:icon="@android:drawable/ic_input_add"
-                        style="@style/Widget.Material3.Button"/>
+                        app:icon="@drawable/ic_add"/>
                 </LinearLayout>
 
-                <!-- Liste Pubbliche RecyclerView -->
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recycler_public_lists"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="80dp"
-                    android:clipToPadding="false"
-                    android:visibility="gone"
-                    tools:listitem="@layout/item_social_list"
-                    tools:itemCount="3"/>
-
-                <!-- Empty State - Liste Pubbliche -->
+                <!-- Empty State Liste Pubbliche -->
                 <LinearLayout
                     android:id="@+id/empty_state_public_lists"
                     android:layout_width="match_parent"
@@ -165,53 +216,49 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="🌍"
-                        android:textSize="72sp"
+                        android:text="🌐"
+                        android:textSize="64sp"
                         android:layout_marginBottom="16dp"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Nessuna lista pubblica"
-                        android:textSize="20sp"
+                        android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="?android:attr/textColorPrimary"
                         android:layout_marginBottom="8dp"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Sii il primo a condividere\nuna lista pubblica!"
+                        android:text="Le liste pubbliche degli utenti appariranno qui"
                         android:textSize="14sp"
                         android:textColor="?android:attr/textColorSecondary"
                         android:gravity="center"/>
                 </LinearLayout>
 
-                <!-- Not Authenticated State -->
+                <!-- Stato Non Autenticato -->
                 <TextView
                     android:id="@+id/text_not_authenticated"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:padding="48dp"
+                    android:padding="32dp"
                     android:gravity="center"
                     android:textSize="16sp"
-                    android:textColor="?android:attr/textColorSecondary"
                     android:visibility="gone"
-                    tools:visibility="gone"/>
-
+                    tools:text="⚠️ Effettua il login per accedere alle liste"/>
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-    <!-- FAB per creare lista -->
+    <!-- FAB Crea Lista -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_create_list"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:contentDescription="Crea nuova lista"
-        app:srcCompat="@android:drawable/ic_input_add"
-        app:tint="@android:color/white"/>
+        app:srcCompat="@drawable/ic_add"
+        android:contentDescription="Crea nuova lista"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -12,7 +12,7 @@ export declare class ListsController {
     constructor(listsService: ListsService);
     createList(createDto: CreateListDto): Promise<ApiResponse>;
     getUserLists(userId: string): Promise<ApiResponse>;
-    getPublicLists(limit?: string): Promise<ApiResponse>;
+    getPublicLists(limit?: string, userId?: string): Promise<ApiResponse>;
     getListById(listId: string): Promise<ApiResponse>;
     updateList(listId: string, updateDto: UpdateListDto): Promise<ApiResponse>;
     deleteList(listId: string): Promise<ApiResponse>;

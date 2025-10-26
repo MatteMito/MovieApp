@@ -15,6 +15,9 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.movieapp.R
 import com.example.movieapp.databinding.FragmentHomeBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * HomeFragment FIXED
@@ -248,23 +251,25 @@ class HomeFragment : Fragment() {
                     binding.layoutImportProgress.visibility = View.VISIBLE
                     binding.progressBarImport.isIndeterminate = false
                     binding.progressBarImport.progress = 100
-                    binding.textProgressImport.text = "${status.totalMovies} / ${status.totalMovies} (100%)"  // ✅ CORRETTO
+                    binding.textProgressImport.text = "${status.totalMovies} / ${status.totalMovies} (100%)"
                     binding.textImportTitle.text = "✅ Completato!"
                     binding.textCurrentMovieImport.text = ""
 
-                    Log.d(TAG, "✅ Import COMPLETED")
+                    // Aggiorna i contatori SUBITO
+                    lifecycleScope.launch {
+                        delay(1000)  // Piccolo delay per sicurezza
+                        updatePermanentStatsCard()
+                        Log.d(TAG, "🔄 Stats aggiornate dopo import completato")
+                    }
 
-                    // ✅ CRITICO: Forza aggiornamento stats
-                    updatePermanentStatsCard()
-
-                    // Nascondi dopo 2 secondi
+                    // Nascondi progress dopo 3 secondi
                     binding.layoutImportProgress.postDelayed({
                         binding.layoutImportProgress.visibility = View.GONE
-
-                        // ✅ Aggiorna ancora per sicurezza
-                        updatePermanentStatsCard()
-                    }, 2000)
+                    }, 3000)
                 }
+
+
+
 
                 is ImportStatus.ERROR -> {
                     binding.layoutImportProgress.visibility = View.VISIBLE

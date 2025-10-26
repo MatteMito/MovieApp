@@ -10,6 +10,7 @@ exports.TmdbModule = void 0;
 const common_1 = require("@nestjs/common");
 const axios_1 = require("@nestjs/axios");
 const tmdb_service_1 = require("./tmdb.service");
+const tmdb_controller_1 = require("./tmdb.controller");
 const database_module_1 = require("../../database/database.module");
 let TmdbModule = class TmdbModule {
 };
@@ -27,6 +28,7 @@ exports.TmdbModule = TmdbModule = __decorate([
             }),
             database_module_1.DatabaseModule,
         ],
+        controllers: [tmdb_controller_1.TmdbController],
         providers: [tmdb_service_1.TmdbService],
         exports: [tmdb_service_1.TmdbService],
     })

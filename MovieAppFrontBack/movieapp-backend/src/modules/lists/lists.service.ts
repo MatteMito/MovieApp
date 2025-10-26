@@ -66,17 +66,26 @@ export class ListsService {
   }
 
   /**
-   * Recupera liste pubbliche
+   * Recupera liste pubbliche (escluse quelle dell'utente)
    */
-  async getPublicLists(limit: number = 20): Promise<MovieListEntity[]> {
+  async getPublicLists(limit: number = 20, excludeUserId?: string): Promise<MovieListEntity[]> {
     try {
-      const lists = await this.listRepository.find({
-        where: { is_public: true },
-        order: { followers_count: 'DESC', created_at: 'DESC' },
-        take: limit,
-      });
+      const queryBuilder = this.listRepository
+        .createQueryBuilder('list')
+        .where('list.is_public = :isPublic', { isPublic: true });
 
-      this.logger.log(`🌐 ${lists.length} liste pubbliche recuperate`);
+      // 🔥 ESCLUDE le liste dell'utente corrente
+      if (excludeUserId) {
+        queryBuilder.andWhere('list.user_id != :userId', { userId: excludeUserId });
+      }
+
+      const lists = await queryBuilder
+        .orderBy('list.followers_count', 'DESC')
+        .addOrderBy('list.created_at', 'DESC')
+        .take(limit)
+        .getMany();
+
+      this.logger.log(`🌐 ${lists.length} liste pubbliche recuperate (escluso utente: ${excludeUserId || 'nessuno'})`);
       return lists;
     } catch (error) {
       this.logger.error(`❌ Errore recupero liste pubbliche: ${error.message}`);
@@ -171,7 +180,7 @@ export class ListsService {
   /**
    * Aggiungi film a lista
    */
-  async addMovieToList(listId: string, movieId: string): Promise<MovieListEntity> {
+  async addMovieToList(listId: string, movieId: string): Promise<any> {
     try {
       const list = await this.listRepository.findOne({
         where: { id: listId },
@@ -199,7 +208,10 @@ export class ListsService {
         this.logger.log(`⚠️ Film ${movieId} già presente in lista ${listId}`);
       }
 
-      return list;
+      return {
+        ...list,
+        movie_count: list.movie_ids.length,
+      };
     } catch (error) {
       this.logger.error(`❌ Errore aggiunta film: ${error.message}`);
       throw error;
@@ -209,7 +221,7 @@ export class ListsService {
   /**
    * Rimuovi film da lista
    */
-  async removeMovieFromList(listId: string, movieId: string): Promise<MovieListEntity> {
+  async removeMovieFromList(listId: string, movieId: string): Promise<any> {
     try {
       const list = await this.listRepository.findOne({
         where: { id: listId },
@@ -220,11 +232,20 @@ export class ListsService {
       }
 
       // Rimuovi film
+      const previousLength = list.movie_ids.length;
       list.movie_ids = list.movie_ids.filter(id => id !== movieId);
-      await this.listRepository.save(list);
+      
+      if (list.movie_ids.length < previousLength) {
+        await this.listRepository.save(list);
+        this.logger.log(`➖ Film ${movieId} rimosso da lista ${listId}`);
+      } else {
+        this.logger.log(`⚠️ Film ${movieId} non presente in lista ${listId}`);
+      }
 
-      this.logger.log(`➖ Film ${movieId} rimosso da lista ${listId}`);
-      return list;
+      return {
+        ...list,
+        movie_count: list.movie_ids.length,
+      };
     } catch (error) {
       this.logger.error(`❌ Errore rimozione film: ${error.message}`);
       throw error;

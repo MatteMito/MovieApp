@@ -61,14 +61,20 @@ let ListsService = ListsService_1 = class ListsService {
             throw error;
         }
     }
-    async getPublicLists(limit = 20) {
+    async getPublicLists(limit = 20, excludeUserId) {
         try {
-            const lists = await this.listRepository.find({
-                where: { is_public: true },
-                order: { followers_count: 'DESC', created_at: 'DESC' },
-                take: limit,
-            });
-            this.logger.log(`🌐 ${lists.length} liste pubbliche recuperate`);
+            const queryBuilder = this.listRepository
+                .createQueryBuilder('list')
+                .where('list.is_public = :isPublic', { isPublic: true });
+            if (excludeUserId) {
+                queryBuilder.andWhere('list.user_id != :userId', { userId: excludeUserId });
+            }
+            const lists = await queryBuilder
+                .orderBy('list.followers_count', 'DESC')
+                .addOrderBy('list.created_at', 'DESC')
+                .take(limit)
+                .getMany();
+            this.logger.log(`🌐 ${lists.length} liste pubbliche recuperate (escluso utente: ${excludeUserId || 'nessuno'})`);
             return lists;
         }
         catch (error) {
@@ -167,7 +173,10 @@ let ListsService = ListsService_1 = class ListsService {
             else {
                 this.logger.log(`⚠️ Film ${movieId} già presente in lista ${listId}`);
             }
-            return list;
+            return {
+                ...list,
+                movie_count: list.movie_ids.length,
+            };
         }
         catch (error) {
             this.logger.error(`❌ Errore aggiunta film: ${error.message}`);
@@ -182,10 +191,19 @@ let ListsService = ListsService_1 = class ListsService {
             if (!list) {
                 throw new common_1.NotFoundException(`Lista ${listId} non trovata`);
             }
+            const previousLength = list.movie_ids.length;
             list.movie_ids = list.movie_ids.filter(id => id !== movieId);
-            await this.listRepository.save(list);
-            this.logger.log(`➖ Film ${movieId} rimosso da lista ${listId}`);
-            return list;
+            if (list.movie_ids.length < previousLength) {
+                await this.listRepository.save(list);
+                this.logger.log(`➖ Film ${movieId} rimosso da lista ${listId}`);
+            }
+            else {
+                this.logger.log(`⚠️ Film ${movieId} non presente in lista ${listId}`);
+            }
+            return {
+                ...list,
+                movie_count: list.movie_ids.length,
+            };
         }
         catch (error) {
             this.logger.error(`❌ Errore rimozione film: ${error.message}`);

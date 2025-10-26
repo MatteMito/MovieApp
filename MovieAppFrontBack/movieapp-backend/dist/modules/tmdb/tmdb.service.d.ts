@@ -1,7 +1,7 @@
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../database/database.service';
-import { Movie } from '../../common/interfaces/movie.interface';
+import { Movie, TmdbMovieDetails } from '../../common/interfaces/movie.interface';
 export declare class TmdbService {
     private readonly httpService;
     private readonly configService;
@@ -27,8 +27,8 @@ export declare class TmdbService {
     }>;
     private enforceRateLimit;
     private findByImdbId;
-    private searchByTitle;
-    private getMovieDetails;
+    searchByTitle(title: string, year: number | undefined): Promise<TmdbMovieDetails | null>;
+    getMovieDetails(tmdbId: number): Promise<TmdbMovieDetails | null>;
     private findBestMatch;
     private mapTmdbToMovie;
 }
