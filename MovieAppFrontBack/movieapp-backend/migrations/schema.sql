@@ -1,8 +1,3 @@
--- ============================================
--- SCHEMA DATABASE MOVIEAPP v2.1
--- Ottimizzato: rimossa tabella tmdb_cache ridondante
--- ============================================
-
 -- STEP 1: Eliminazione COMPLETA di tutte le tabelle
 SET session_replication_role = 'replica';
 
@@ -12,7 +7,8 @@ DROP TRIGGER IF EXISTS update_movie_lists_updated_at ON movie_lists CASCADE;
 DROP TRIGGER IF EXISTS update_user_movies_updated_at ON user_movies CASCADE;
 
 DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
-
+DROP TABLE IF EXISTS list_movies CASCADE;
+DROP TABLE IF EXISTS lists CASCADE;
 DROP TABLE IF EXISTS user_movies CASCADE;
 DROP TABLE IF EXISTS movie_lists CASCADE;
 DROP TABLE IF EXISTS movies CASCADE;
@@ -169,6 +165,7 @@ COMMENT ON TABLE user_movies IS 'Relazione many-to-many tra users e movies con d
 
 -- ============================================
 -- STEP 7: Creazione tabella movie_lists
+-- ✅ UNICA tabella per le liste (no lists/list_movies)
 -- ============================================
 
 CREATE TABLE movie_lists (
@@ -178,7 +175,7 @@ CREATE TABLE movie_lists (
     -- Dati lista
     name VARCHAR(200) NOT NULL,
     description TEXT,
-    movie_ids TEXT[] DEFAULT '{}',
+    movie_ids TEXT[] DEFAULT '{}',  -- ✅ Array di ID film direttamente nella tabella
     
     -- Pianificazione
     target_date TIMESTAMP,
@@ -187,7 +184,7 @@ CREATE TABLE movie_lists (
     -- Funzionalità social
     is_public BOOLEAN DEFAULT false,
     followers_count INTEGER DEFAULT 0,
-    follower_ids TEXT[] DEFAULT '{}',
+    follower_ids TEXT[] DEFAULT '{}',  -- ✅ Array di ID followers
     
     -- Timestamp
     created_at TIMESTAMP DEFAULT NOW(),
@@ -207,12 +204,13 @@ CREATE TRIGGER update_movie_lists_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-COMMENT ON TABLE movie_lists IS 'Liste personalizzate di film create dagli utenti';
+COMMENT ON TABLE movie_lists IS 'Liste personalizzate di film con array di movie_ids (no tabella junction)';
 
 -- ============================================
 -- STEP 8: Verifica finale
 -- ============================================
 
+-- Verifica tabelle create
 SELECT 
     table_name,
     (SELECT COUNT(*) 
@@ -220,13 +218,5 @@ SELECT
      WHERE table_name = t.table_name) as column_count
 FROM information_schema.tables t
 WHERE table_schema = 'public'
+  AND table_type = 'BASE TABLE'
 ORDER BY table_name;
-
--- Verifica constraints
-SELECT 
-    tc.table_name, 
-    tc.constraint_name, 
-    tc.constraint_type
-FROM information_schema.table_constraints tc
-WHERE tc.table_schema = 'public'
-ORDER BY tc.table_name, tc.constraint_type;

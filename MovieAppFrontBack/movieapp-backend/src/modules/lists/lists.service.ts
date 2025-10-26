@@ -25,16 +25,17 @@ export class ListsService {
    */
   async createUserList(createDto: CreateListDto): Promise<MovieListEntity> {
     try {
+      // ✅ FIX: Assicura che gli array siano sempre inizializzati
       const list = this.listRepository.create({
         user_id: createDto.user_id,
         name: createDto.name,
-        description: createDto.description,
+        description: createDto.description || null,
         is_public: createDto.is_public || false,
-        movie_ids: createDto.movie_ids || [],
+        movie_ids: createDto.movie_ids && createDto.movie_ids.length > 0 ? createDto.movie_ids : [],
         target_date: createDto.target_date ? new Date(createDto.target_date) : null,
-        frequency: createDto.frequency,
+        frequency: createDto.frequency || null,
         followers_count: 0,
-        follower_ids: [],
+        follower_ids: [], // ✅ Array vuoto esplicito
       });
 
       const saved = await this.listRepository.save(list);
@@ -76,7 +77,7 @@ export class ListsService {
         take: limit,
       });
 
-      this.logger.log(`🌍 ${lists.length} liste pubbliche recuperate`);
+      this.logger.log(`🌐 ${lists.length} liste pubbliche recuperate`);
       return lists;
     } catch (error) {
       this.logger.error(`❌ Errore recupero liste pubbliche: ${error.message}`);
@@ -251,16 +252,42 @@ export class ListsService {
       // Aggiungi follower se non già presente
       if (!list.follower_ids.includes(userId)) {
         list.follower_ids.push(userId);
-        list.followers_count = list.follower_ids.length;
+        list.followers_count++;
         await this.listRepository.save(list);
-        this.logger.log(`👥 Utente ${userId} segue lista ${listId}`);
-      } else {
-        this.logger.log(`⚠️ Utente ${userId} già segue lista ${listId}`);
+        this.logger.log(`👥 Utente ${userId} ora segue lista ${listId}`);
       }
 
       return list;
     } catch (error) {
       this.logger.error(`❌ Errore follow lista: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Smetti di seguire lista
+   */
+  async unfollowList(listId: string, userId: string): Promise<MovieListEntity> {
+    try {
+      const list = await this.listRepository.findOne({
+        where: { id: listId },
+      });
+
+      if (!list) {
+        throw new NotFoundException(`Lista ${listId} non trovata`);
+      }
+
+      // Rimuovi follower
+      if (list.follower_ids.includes(userId)) {
+        list.follower_ids = list.follower_ids.filter(id => id !== userId);
+        list.followers_count = Math.max(0, list.followers_count - 1);
+        await this.listRepository.save(list);
+        this.logger.log(`👋 Utente ${userId} non segue più lista ${listId}`);
+      }
+
+      return list;
+    } catch (error) {
+      this.logger.error(`❌ Errore unfollow lista: ${error.message}`);
       throw error;
     }
   }

@@ -1,7 +1,7 @@
 <resources>
     <!-- APP INFO -->
     <string name="app_name">MovieApp</string>
-    <string name="app_version">2.1.0</string>
+    <string name="app_version">1.0.0</string>
 
     <!-- NAVIGATION TITLES -->
     <string name="title_home">Home</string>

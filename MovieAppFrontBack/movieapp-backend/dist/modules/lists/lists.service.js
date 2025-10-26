@@ -30,11 +30,11 @@ let ListsService = ListsService_1 = class ListsService {
             const list = this.listRepository.create({
                 user_id: createDto.user_id,
                 name: createDto.name,
-                description: createDto.description,
+                description: createDto.description || null,
                 is_public: createDto.is_public || false,
-                movie_ids: createDto.movie_ids || [],
+                movie_ids: createDto.movie_ids && createDto.movie_ids.length > 0 ? createDto.movie_ids : [],
                 target_date: createDto.target_date ? new Date(createDto.target_date) : null,
-                frequency: createDto.frequency,
+                frequency: createDto.frequency || null,
                 followers_count: 0,
                 follower_ids: [],
             });
@@ -68,7 +68,7 @@ let ListsService = ListsService_1 = class ListsService {
                 order: { followers_count: 'DESC', created_at: 'DESC' },
                 take: limit,
             });
-            this.logger.log(`🌍 ${lists.length} liste pubbliche recuperate`);
+            this.logger.log(`🌐 ${lists.length} liste pubbliche recuperate`);
             return lists;
         }
         catch (error) {
@@ -205,17 +205,35 @@ let ListsService = ListsService_1 = class ListsService {
             }
             if (!list.follower_ids.includes(userId)) {
                 list.follower_ids.push(userId);
-                list.followers_count = list.follower_ids.length;
+                list.followers_count++;
                 await this.listRepository.save(list);
-                this.logger.log(`👥 Utente ${userId} segue lista ${listId}`);
-            }
-            else {
-                this.logger.log(`⚠️ Utente ${userId} già segue lista ${listId}`);
+                this.logger.log(`👥 Utente ${userId} ora segue lista ${listId}`);
             }
             return list;
         }
         catch (error) {
             this.logger.error(`❌ Errore follow lista: ${error.message}`);
+            throw error;
+        }
+    }
+    async unfollowList(listId, userId) {
+        try {
+            const list = await this.listRepository.findOne({
+                where: { id: listId },
+            });
+            if (!list) {
+                throw new common_1.NotFoundException(`Lista ${listId} non trovata`);
+            }
+            if (list.follower_ids.includes(userId)) {
+                list.follower_ids = list.follower_ids.filter(id => id !== userId);
+                list.followers_count = Math.max(0, list.followers_count - 1);
+                await this.listRepository.save(list);
+                this.logger.log(`👋 Utente ${userId} non segue più lista ${listId}`);
+            }
+            return list;
+        }
+        catch (error) {
+            this.logger.error(`❌ Errore unfollow lista: ${error.message}`);
             throw error;
         }
     }

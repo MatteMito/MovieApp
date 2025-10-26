@@ -16,4 +16,5 @@ export declare class ListsService {
     addMovieToList(listId: string, movieId: string): Promise<MovieListEntity>;
     removeMovieFromList(listId: string, movieId: string): Promise<MovieListEntity>;
     followList(listId: string, userId: string): Promise<MovieListEntity>;
+    unfollowList(listId: string, userId: string): Promise<MovieListEntity>;
 }

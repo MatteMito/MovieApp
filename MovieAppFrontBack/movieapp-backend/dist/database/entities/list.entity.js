@@ -37,7 +37,7 @@ __decorate([
     __metadata("design:type", String)
 ], MovieListEntity.prototype, "description", void 0);
 __decorate([
-    (0, typeorm_1.Column)('simple-array'),
+    (0, typeorm_1.Column)('simple-array', { default: () => "'{}'" }),
     __metadata("design:type", Array)
 ], MovieListEntity.prototype, "movie_ids", void 0);
 __decorate([
@@ -57,7 +57,7 @@ __decorate([
     __metadata("design:type", Number)
 ], MovieListEntity.prototype, "followers_count", void 0);
 __decorate([
-    (0, typeorm_1.Column)('simple-array', { default: '' }),
+    (0, typeorm_1.Column)('simple-array', { default: () => "'{}'" }),
     __metadata("design:type", Array)
 ], MovieListEntity.prototype, "follower_ids", void 0);
 __decorate([

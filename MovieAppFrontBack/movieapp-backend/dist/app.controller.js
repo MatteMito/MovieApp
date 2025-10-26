@@ -14,8 +14,8 @@ const common_1 = require("@nestjs/common");
 let AppController = class AppController {
     getRoot() {
         return {
-            message: 'MovieApp Backend v2.1 Attivo',
-            version: '2.1.0',
+            message: 'MovieApp Backend v1.0 Attivo',
+            version: '1.0.0',
             timestamp: new Date().toISOString(),
             endpoints: {
                 api: '/api/v1',
@@ -33,8 +33,8 @@ let AppController = class AppController {
     }
     getApiInfo() {
         return {
-            message: 'MovieApp API v2.1',
-            version: '2.1.0',
+            message: 'MovieApp API v1.0',
+            version: '1.0.0',
             timestamp: new Date().toISOString(),
             availableEndpoints: {
                 movies: {
@@ -73,7 +73,7 @@ let AppController = class AppController {
             database: {
                 type: 'postgresql',
                 orm: 'typeorm',
-                entities: ['users', 'movies', 'movie_lists', 'tmdb_cache'],
+                entities: ['users', 'movies', 'movie_lists', 'user_movies'],
                 status: 'active',
             },
             cache: {
@@ -82,7 +82,7 @@ let AppController = class AppController {
                 performance: 'optimized',
             },
             websocket: {
-                namespace: '/movieapp',
+                namespace: '/ws',
                 features: ['enrichment-notifications', 'real-time-updates'],
             },
         };

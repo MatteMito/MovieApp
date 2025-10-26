@@ -1,10 +1,7 @@
 package com.example.movieapp.config
 
 /**
- * Configurazione centralizzata app Android - OTTIMIZZATA
- *
- * ✅ WebSocket URL corretto per Socket.IO
- * ✅ Architettura semplificata (database = cache)
+ * Configurazione centralizzata app Android
  */
 object AppConfig {
     // ===== BACKEND CONFIGURATION =====
@@ -15,8 +12,7 @@ object AppConfig {
     const val BASE_URL = "http://$BACKEND_HOST:$BACKEND_PORT/api/v1/"
     const val BACKEND_URL = "http://$BACKEND_HOST:$BACKEND_PORT"
 
-    // ✅ CORRETTO: Socket.IO URL (senza /ws nel path base)
-    // Il namespace /ws viene gestito da Socket.IO automaticamente
+    // WebSocket URL corretto per Socket.IO
     const val WEBSOCKET_URL = "http://$BACKEND_HOST:$BACKEND_PORT"
     const val WEBSOCKET_NAMESPACE = "/ws"
 
@@ -26,8 +22,8 @@ object AppConfig {
     const val WRITE_TIMEOUT = 30L
 
     // ===== SHARED PREFERENCES =====
-    const val REPO_PREFS_NAME = "movieapp_repository_v2"
-    const val AUTH_PREFS_NAME = "movieapp_auth_v2"
+    const val REPO_PREFS_NAME = "movieapp_repository_v1"
+    const val AUTH_PREFS_NAME = "movieapp_auth_v1"
 
     // Film per batch salvataggio
     const val BATCH_SIZE = 50
@@ -36,13 +32,13 @@ object AppConfig {
     const val DATABASE_TYPE = "postgresql"
 
     // ===== APP METADATA =====
-    const val APP_VERSION = "2.3.0"  // ✅ Versione con WebSocket fix + UX migliorata
+    const val APP_VERSION = "1.0.0"
     const val APP_NAME = "MovieApp"
 
     // ===== FEATURE FLAGS =====
     const val ENABLE_WEBSOCKET = true
     const val ENABLE_AUTO_SYNC = true
-    const val ENABLE_REALTIME_PROGRESS = true  // ✅ Nuovo: progress bar real-time
+    const val ENABLE_REALTIME_PROGRESS = true
 
     // ===== VALIDATION =====
     fun isBackendConfigValid(): Boolean {
@@ -74,7 +70,7 @@ object AppConfig {
             appendLine("Progress real-time: ${if (ENABLE_REALTIME_PROGRESS) "attivo" else "disattivo"}")
             appendLine("Auto-sync: ${if (ENABLE_AUTO_SYNC) "attivo" else "disattivo"}")
             appendLine()
-            appendLine("💾 Architettura semplificata:")
+            appendLine("💾 Architettura:")
             appendLine("   Database PostgreSQL = Cache permanente")
             appendLine("   WebSocket per progress real-time")
             appendLine("   Nessuna duplicazione di dati")

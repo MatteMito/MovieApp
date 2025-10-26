@@ -1,3 +1,4 @@
+// FILE: movieapp-backend/src/database/entities/list.entity.ts
 // ENTITY: Movie List
 // Liste personalizzate di film create dagli utenti
 
@@ -38,33 +39,29 @@ export class MovieListEntity {
   @Column('text', { nullable: true })
   description?: string;
 
-  @Column('simple-array')
-  // Array di ID film
-  movie_ids: string[]; 
+  // ✅ FIX: Usa array vuoto come default, non stringa vuota
+  @Column('simple-array', { default: () => "'{}'" })
+  movie_ids: string[];
 
   // PIANIFICAZIONE (opzionale)
   
   @Column({ type: 'timestamp', nullable: true })
-  // Data obiettivo completamento
-  target_date?: Date; 
+  target_date?: Date;
 
   @Column({ length: 50, nullable: true })
-// Frequenza visione (es: "1 al mese")
   frequency?: string;
 
   // FUNZIONALITÀ SOCIAL
   
   @Column({ default: false })
-  // Lista visibile pubblicamente
-  is_public: boolean; 
+  is_public: boolean;
 
   @Column({ default: 0 })
-  // Numero followers
-  followers_count: number; 
+  followers_count: number;
 
-  @Column('simple-array', { default: '' })
-  // Array ID utenti followers
-  follower_ids: string[]; 
+  // ✅ FIX: Usa array vuoto come default, non stringa vuota
+  @Column('simple-array', { default: () => "'{}'" })
+  follower_ids: string[];
 
   // TIMESTAMP AUTOMATICI
   
