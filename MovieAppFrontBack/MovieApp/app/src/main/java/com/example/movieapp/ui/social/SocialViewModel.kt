@@ -1,6 +1,3 @@
-// FILE: app/src/main/java/com/example/movieapp/ui/social/SocialViewModel.kt
-// ViewModel aggiornato con sistema filtri
-
 package com.example.movieapp.ui.social
 
 import android.content.Context
@@ -16,114 +13,65 @@ import kotlinx.coroutines.launch
 class SocialViewModel : ViewModel() {
     private val TAG = "SocialViewModel"
 
-    // Stati UI
-    private val _isLoading = MutableLiveData<Boolean>(false)
-    val isLoading: LiveData<Boolean> = _isLoading
+    // ===== LIVEDATA LISTE =====
+    private val _myLists = MutableLiveData<List<MovieList>>()
+    val myLists: LiveData<List<MovieList>> = _myLists
+
+    private val _publicLists = MutableLiveData<List<MovieList>>()
+    val publicLists: LiveData<List<MovieList>> = _publicLists
+
+    // ===== LIVEDATA FILTRATE (per ricerca) =====
+    private val _filteredMyLists = MutableLiveData<List<MovieList>>()
+    val filteredMyLists: LiveData<List<MovieList>> = _filteredMyLists
+
+    private val _filteredPublicLists = MutableLiveData<List<MovieList>>()
+    val filteredPublicLists: LiveData<List<MovieList>> = _filteredPublicLists
+
+    // ===== LIVEDATA STATI =====
+    private val _loading = MutableLiveData<Boolean>()
+    val loading: LiveData<Boolean> = _loading
 
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
-    // 🔥 NUOVO: Filtri
-    private val _currentFilters = MutableLiveData<ListFilters>(ListFilters.default())
-    val currentFilters: LiveData<ListFilters> = _currentFilters
-
-    // Liste RAW (senza filtri)
-    private val _rawMyLists = MutableLiveData<List<MovieList>>(emptyList())
-    private val _rawPublicLists = MutableLiveData<List<MovieList>>(emptyList())
-
-    // Liste FILTRATE (esposte al Fragment)
-    private val _myLists = MutableLiveData<List<MovieList>>(emptyList())
-    val myLists: LiveData<List<MovieList>> = _myLists
-
-    private val _publicLists = MutableLiveData<List<MovieList>>(emptyList())
-    val publicLists: LiveData<List<MovieList>> = _publicLists
-
-    private var isInitialized = false
+    private var context: Context? = null
+    private var currentSearchQuery: String = ""
 
     /**
-     * Inizializza ViewModel
+     * Inizializza ViewModel con contesto
      */
     fun initialize(context: Context) {
-        if (isInitialized) return
-
-        if (!ApiService.isAuthenticated() || !ApiService.hasUserId()) {
-            Log.w(TAG, "⚠️ Utente non autenticato")
-            _error.value = "Effettua il login per accedere alle liste"
-            return
-        }
-
-        Log.d(TAG, "🚀 Inizializzazione SocialViewModel")
-
-        loadMyLists()
-        loadPublicLists()
-
-        isInitialized = true
-    }
-
-    /**
-     * 🔥 NUOVO: Applica filtri
-     */
-    fun applyFilters(filters: ListFilters) {
-        _currentFilters.value = filters
-        Log.d(TAG, "🔍 Applicazione filtri: $filters")
-
-        // Applica filtri alle liste raw
-        val filteredMyLists = filters.applyTo(_rawMyLists.value ?: emptyList())
-        val filteredPublicLists = filters.applyTo(_rawPublicLists.value ?: emptyList())
-
-        _myLists.value = filteredMyLists
-        _publicLists.value = filteredPublicLists
-
-        Log.d(TAG, "✅ Le Mie Liste: ${filteredMyLists.size}/${_rawMyLists.value?.size}")
-        Log.d(TAG, "✅ Liste Pubbliche: ${filteredPublicLists.size}/${_rawPublicLists.value?.size}")
-    }
-
-    /**
-     * 🔥 NUOVO: Reset filtri
-     */
-    fun resetFilters() {
-        applyFilters(ListFilters.default())
-    }
-
-    /**
-     * Ricarica tutte le liste
-     */
-    fun refreshLists() {
-        Log.d(TAG, "🔄 Refresh liste")
+        this.context = context
         loadMyLists()
         loadPublicLists()
     }
 
+    // ===== CARICAMENTO LISTE =====
+
     /**
-     * Carica liste dell'utente
+     * Carica le mie liste
      */
-    private fun loadMyLists() {
+    fun loadMyLists() {
         viewModelScope.launch {
             try {
-                _isLoading.value = true
+                _loading.value = true
                 _error.value = null
 
-                val result = ApiService.getUserLists()
-
-                if (result.isSuccess) {
-                    val lists = result.getOrNull() ?: emptyList()
-                    _rawMyLists.value = lists
-
-                    // Applica filtri correnti
-                    val filters = _currentFilters.value ?: ListFilters.default()
-                    _myLists.value = filters.applyTo(lists)
-
-                    Log.d(TAG, "✅ ${lists.size} liste personali caricate")
+                val response = ApiService.apiService.getMyLists()
+                if (response.isSuccessful && response.body() != null) {
+                    val lists = response.body()!!
+                    _myLists.value = lists
+                    applySearchFilter(currentSearchQuery) // Applica filtro corrente
+                    Log.d(TAG, "✅ Caricate ${lists.size} liste personali")
                 } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "Errore caricamento liste"
-                    _error.value = errorMsg
-                    Log.e(TAG, "❌ $errorMsg")
+                    _error.value = "Errore caricamento liste: ${response.code()}"
+                    Log.e(TAG, "❌ Errore: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _error.value = "Errore di connessione"
-                Log.e(TAG, "❌ Errore loadMyLists", e)
+                _error.value = "Errore di rete: ${e.message}"
+                Log.e(TAG, "❌ Eccezione: ${e.message}", e)
             } finally {
-                _isLoading.value = false
+                _loading.value = false
             }
         }
     }
@@ -131,155 +79,98 @@ class SocialViewModel : ViewModel() {
     /**
      * Carica liste pubbliche
      */
-    private fun loadPublicLists() {
+    fun loadPublicLists() {
         viewModelScope.launch {
             try {
-                _isLoading.value = true
+                _loading.value = true
                 _error.value = null
 
-                val result = ApiService.getPublicLists(limit = 50)
-
-                if (result.isSuccess) {
-                    val lists = result.getOrNull() ?: emptyList()
-                    _rawPublicLists.value = lists
-
-                    // Applica filtri correnti
-                    val filters = _currentFilters.value ?: ListFilters.default()
-                    _publicLists.value = filters.applyTo(lists)
-
-                    Log.d(TAG, "✅ ${lists.size} liste pubbliche caricate")
+                val response = ApiService.apiService.getPublicLists()
+                if (response.isSuccessful && response.body() != null) {
+                    val lists = response.body()!!
+                    _publicLists.value = lists
+                    applySearchFilter(currentSearchQuery) // Applica filtro corrente
+                    Log.d(TAG, "✅ Caricate ${lists.size} liste pubbliche")
                 } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "Errore caricamento liste pubbliche"
-                    _error.value = errorMsg
-                    Log.e(TAG, "❌ $errorMsg")
+                    _error.value = "Errore caricamento liste pubbliche: ${response.code()}"
+                    Log.e(TAG, "❌ Errore: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _error.value = "Errore di connessione"
-                Log.e(TAG, "❌ Errore loadPublicLists", e)
+                _error.value = "Errore di rete: ${e.message}"
+                Log.e(TAG, "❌ Eccezione: ${e.message}", e)
             } finally {
-                _isLoading.value = false
+                _loading.value = false
             }
         }
     }
 
     /**
-     * Crea nuova lista
+     * Ricarica tutte le liste
      */
-    fun createList(name: String, description: String?, isPublic: Boolean) {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-                _error.value = null
+    fun refreshLists() {
+        loadMyLists()
+        loadPublicLists()
+    }
 
-                Log.d(TAG, "📝 SocialViewModel: Richiesta creazione lista")
-                Log.d(TAG, "   Nome: $name")
-                Log.d(TAG, "   Pubblica: $isPublic")
+    // ===== RICERCA E FILTRI =====
 
-                if (!ApiService.isAuthenticated()) {
-                    Log.e(TAG, "❌ Utente non autenticato!")
-                    _error.value = "Effettua nuovamente il login"
-                    _isLoading.value = false
-                    return@launch
-                }
+    /**
+     * Applica filtro di ricerca
+     */
+    fun applySearchFilter(query: String) {
+        currentSearchQuery = query.trim().lowercase()
 
-                if (!ApiService.hasUserId()) {
-                    Log.e(TAG, "❌ UserId non disponibile!")
-                    _error.value = "Errore dati utente. Rieffettua il login."
-                    _isLoading.value = false
-                    return@launch
-                }
-
-                val userId = ApiService.getCurrentUserId()
-                Log.d(TAG, "✅ UserId disponibile: $userId")
-
-                val result = ApiService.createList(
-                    name = name,
-                    description = description,
-                    isPublic = isPublic
-                )
-
-                if (result.isSuccess) {
-                    Log.d(TAG, "✅ Lista creata con successo!")
-                    _error.value = null
-                    // Ricarica liste
-                    loadMyLists()
-                } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "Errore creazione lista"
-                    _error.value = errorMsg
-                    Log.e(TAG, "❌ Errore: $errorMsg")
-                }
-            } catch (e: Exception) {
-                _error.value = "Errore di connessione: ${e.message}"
-                Log.e(TAG, "❌ Eccezione createList", e)
-            } finally {
-                _isLoading.value = false
+        // Filtra le mie liste
+        val myListsData = _myLists.value ?: emptyList()
+        _filteredMyLists.value = if (currentSearchQuery.isEmpty()) {
+            myListsData
+        } else {
+            myListsData.filter {
+                it.name.lowercase().contains(currentSearchQuery) ||
+                        it.description?.lowercase()?.contains(currentSearchQuery) == true
             }
         }
+
+        // Filtra liste pubbliche
+        val publicListsData = _publicLists.value ?: emptyList()
+        _filteredPublicLists.value = if (currentSearchQuery.isEmpty()) {
+            publicListsData
+        } else {
+            publicListsData.filter {
+                it.name.lowercase().contains(currentSearchQuery) ||
+                        it.description?.lowercase()?.contains(currentSearchQuery) == true
+            }
+        }
+
+        Log.d(TAG, "🔍 Ricerca '$currentSearchQuery': ${_filteredMyLists.value?.size} mie liste, ${_filteredPublicLists.value?.size} pubbliche")
     }
 
     /**
-     * Aggiorna lista esistente
+     * Pulisci filtro ricerca
      */
-    fun updateList(listId: String, name: String?, description: String?, isPublic: Boolean?) {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-                _error.value = null
-
-                Log.d(TAG, "✏️ Aggiornamento lista $listId")
-
-                val result = ApiService.updateList(
-                    listId = listId,
-                    name = name,
-                    description = description,
-                    isPublic = isPublic
-                )
-
-                if (result.isSuccess) {
-                    Log.d(TAG, "✅ Lista aggiornata con successo")
-                    // Ricarica liste
-                    loadMyLists()
-                } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "Errore aggiornamento lista"
-                    _error.value = errorMsg
-                    Log.e(TAG, "❌ $errorMsg")
-                }
-            } catch (e: Exception) {
-                _error.value = "Errore di connessione"
-                Log.e(TAG, "❌ Errore updateList", e)
-            } finally {
-                _isLoading.value = false
-            }
-        }
+    fun clearSearchFilter() {
+        applySearchFilter("")
     }
+
+    // ===== GESTIONE LISTE =====
 
     /**
      * Elimina lista
      */
-    fun deleteList(listId: String) {
+    fun deleteList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                _isLoading.value = true
-                _error.value = null
-
-                Log.d(TAG, "🗑️ Eliminazione lista $listId")
-
-                val result = ApiService.deleteList(listId)
-
-                if (result.isSuccess) {
-                    Log.d(TAG, "✅ Lista eliminata con successo")
-                    // Ricarica liste
-                    loadMyLists()
+                val response = ApiService.apiService.deleteList(listId)
+                if (response.isSuccessful) {
+                    Log.d(TAG, "✅ Lista $listId eliminata")
+                    loadMyLists() // Ricarica liste
+                    onSuccess()
                 } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "Errore eliminazione lista"
-                    _error.value = errorMsg
-                    Log.e(TAG, "❌ $errorMsg")
+                    onError("Errore eliminazione: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _error.value = "Errore di connessione"
-                Log.e(TAG, "❌ Errore deleteList", e)
-            } finally {
-                _isLoading.value = false
+                onError("Errore: ${e.message}")
+                Log.e(TAG, "❌ Errore eliminazione: ${e.message}", e)
             }
         }
     }
@@ -287,31 +178,35 @@ class SocialViewModel : ViewModel() {
     /**
      * Segui lista pubblica
      */
-    fun followList(listId: String) {
+    fun followList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                _isLoading.value = true
-                _error.value = null
-
-                Log.d(TAG, "👥 Follow lista $listId")
-
-                val result = ApiService.followList(listId)
-
-                if (result.isSuccess) {
-                    Log.d(TAG, "✅ Lista seguita con successo")
-                    // Ricarica liste pubbliche per aggiornare contatore followers
-                    loadPublicLists()
+                val response = ApiService.apiService.followList(listId)
+                if (response.isSuccessful) {
+                    Log.d(TAG, "✅ Lista $listId seguita")
+                    onSuccess()
                 } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "Errore follow lista"
-                    _error.value = errorMsg
-                    Log.e(TAG, "❌ $errorMsg")
+                    onError("Errore: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _error.value = "Errore di connessione"
-                Log.e(TAG, "❌ Errore followList", e)
-            } finally {
-                _isLoading.value = false
+                onError("Errore: ${e.message}")
+                Log.e(TAG, "❌ Errore follow: ${e.message}", e)
             }
         }
+    }
+
+    // ===== UTILITY =====
+
+    /**
+     * Reset errore
+     */
+    fun clearError() {
+        _error.value = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        context = null
+        Log.d(TAG, "ViewModel pulito")
     }
 }

@@ -1,6 +1,3 @@
-// FILE: app/src/main/java/com/example/movieapp/ui/social/ListDetailViewModel.kt
-// ViewModel per dettaglio lista
-
 package com.example.movieapp.ui.social
 
 import android.util.Log
@@ -8,6 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.movieapp.data.models.Movie
 import com.example.movieapp.data.models.MovieList
 import com.example.movieapp.data.network.ApiService
 import kotlinx.coroutines.launch
@@ -15,43 +13,96 @@ import kotlinx.coroutines.launch
 class ListDetailViewModel : ViewModel() {
     private val TAG = "ListDetailViewModel"
 
-    private val _isLoading = MutableLiveData<Boolean>(false)
-    val isLoading: LiveData<Boolean> = _isLoading
+    // ===== LIVEDATA =====
+    private val _list = MutableLiveData<MovieList>()
+    val list: LiveData<MovieList> = _list
+
+    private val _movies = MutableLiveData<List<Movie>>()
+    val movies: LiveData<List<Movie>> = _movies
+
+    private val _loading = MutableLiveData<Boolean>()
+    val loading: LiveData<Boolean> = _loading
 
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
-    private val _listDetails = MutableLiveData<MovieList?>()
-    val listDetails: LiveData<MovieList?> = _listDetails
-
     /**
-     * Carica dettagli lista con film
+     * Carica dettagli lista
      */
-    fun loadListDetails(listId: String) {
+    fun loadList(listId: String) {
         viewModelScope.launch {
             try {
-                _isLoading.value = true
+                _loading.value = true
                 _error.value = null
 
-                Log.d(TAG, "📄 Caricamento dettagli lista $listId")
-
-                val result = ApiService.getListById(listId)
-
-                if (result.isSuccess) {
-                    val list = result.getOrNull()
-                    _listDetails.value = list
-                    Log.d(TAG, "✅ Lista caricata: ${list?.name} (${list?.movieCount} film)")
+                val response = ApiService.apiService.getListById(listId)
+                if (response.isSuccessful && response.body() != null) {
+                    val movieList = response.body()!!
+                    _list.value = movieList
+                    _movies.value = movieList.movies ?: emptyList()
+                    Log.d(TAG, "✅ Lista caricata: ${movieList.name} (${movieList.movies?.size} film)")
                 } else {
-                    val errorMsg = result.exceptionOrNull()?.message ?: "Errore caricamento lista"
-                    _error.value = errorMsg
-                    Log.e(TAG, "❌ $errorMsg")
+                    _error.value = "Errore caricamento lista: ${response.code()}"
+                    Log.e(TAG, "❌ Errore: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _error.value = "Errore di connessione"
-                Log.e(TAG, "❌ Errore loadListDetails", e)
+                _error.value = "Errore di rete: ${e.message}"
+                Log.e(TAG, "❌ Eccezione: ${e.message}", e)
             } finally {
-                _isLoading.value = false
+                _loading.value = false
             }
         }
+    }
+
+    /**
+     * Aggiungi film alla lista
+     */
+    fun addMovieToList(listId: String, movieId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val body = mapOf("movieId" to movieId)
+                val response = ApiService.apiService.addMovieToList(listId, body)
+
+                if (response.isSuccessful) {
+                    Log.d(TAG, "✅ Film aggiunto alla lista")
+                    loadList(listId) // Ricarica lista
+                    onSuccess()
+                } else {
+                    onError("Errore: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                onError("Errore: ${e.message}")
+                Log.e(TAG, "❌ Errore aggiunta film: ${e.message}", e)
+            }
+        }
+    }
+
+    /**
+     * Rimuovi film dalla lista
+     */
+    fun removeMovieFromList(listId: String, movieId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = ApiService.apiService.removeMovieFromList(listId, movieId)
+
+                if (response.isSuccessful) {
+                    Log.d(TAG, "✅ Film rimosso dalla lista")
+                    loadList(listId) // Ricarica lista
+                    onSuccess()
+                } else {
+                    onError("Errore: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                onError("Errore: ${e.message}")
+                Log.e(TAG, "❌ Errore rimozione film: ${e.message}", e)
+            }
+        }
+    }
+
+    /**
+     * Reset errore
+     */
+    fun clearError() {
+        _error.value = null
     }
 }

@@ -1,23 +1,23 @@
 import { ListsService } from './lists.service';
 import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dto/list.dto';
-interface ApiResponse<T = any> {
-    success: boolean;
-    data?: T;
-    message?: string;
-    timestamp: string;
-}
 export declare class ListsController {
     private readonly listsService;
-    private readonly logger;
     constructor(listsService: ListsService);
-    createList(createDto: CreateListDto): Promise<ApiResponse>;
-    getUserLists(userId: string): Promise<ApiResponse>;
-    getPublicLists(limit?: string, userId?: string): Promise<ApiResponse>;
-    getListById(listId: string): Promise<ApiResponse>;
-    updateList(listId: string, updateDto: UpdateListDto): Promise<ApiResponse>;
-    deleteList(listId: string): Promise<ApiResponse>;
-    addMovieToList(listId: string, addMovieDto: AddMovieToListDto): Promise<ApiResponse>;
-    removeMovieFromList(listId: string, movieId: string): Promise<ApiResponse>;
-    followList(listId: string, userId: string): Promise<ApiResponse>;
+    getMyLists(req: any): Promise<any[]>;
+    getPublicLists(search?: string, sortBy?: string): Promise<any[]>;
+    getListById(id: string, req: any): Promise<any>;
+    createList(createListDto: CreateListDto, req: any): Promise<import("../../database/entities/list.entity").MovieListEntity>;
+    updateList(id: string, updateListDto: UpdateListDto, req: any): Promise<import("../../database/entities/list.entity").MovieListEntity>;
+    deleteList(id: string, req: any): Promise<{
+        message: string;
+    }>;
+    addMovieToList(listId: string, addMovieDto: AddMovieToListDto, req: any): Promise<any>;
+    removeMovieFromList(listId: string, movieId: string, req: any): Promise<any>;
+    followList(listId: string, req: any): Promise<{
+        message: string;
+    }>;
+    unfollowList(listId: string, req: any): Promise<{
+        message: string;
+    }>;
+    getListFollowers(listId: string): Promise<import("../../database/entities/user.entity").UserEntity[]>;
 }
-export {};

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- FILE: app/src/main/res/layout/dialog_search_movie.xml -->
-<!-- Dialog per ricerca film -->
+<!-- Dialog per ricerca film - REFACTORED -->
 
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -9,7 +9,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:minHeight="400dp">
+    android:minHeight="400dp"
+    android:maxHeight="600dp">
 
     <!-- SearchView -->
     <androidx.appcompat.widget.SearchView
@@ -18,7 +19,7 @@
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
         android:background="?attr/selectableItemBackground"
-        app:queryHint="Cerca per titolo, regista, genere..."
+        app:queryHint="🔍 Cerca per titolo, regista, genere..."
         app:iconifiedByDefault="false"/>
 
     <!-- Contatore risultati -->
@@ -31,6 +32,8 @@
         android:paddingBottom="8dp"
         android:textSize="12sp"
         android:textColor="?android:attr/textColorSecondary"
+        android:visibility="gone"
+        tools:visibility="visible"
         tools:text="5 film trovati"/>
 
     <!-- Progress Bar -->
@@ -52,7 +55,7 @@
         android:minHeight="300dp"
         android:maxHeight="400dp"
         tools:listitem="@layout/item_search_movie"
-        tools:itemCount="3"/>
+        tools:itemCount="5"/>
 
     <!-- No Results -->
     <TextView

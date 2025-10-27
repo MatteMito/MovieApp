@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var ListsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ListsService = void 0;
 const common_1 = require("@nestjs/common");
@@ -19,249 +18,208 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const list_entity_1 = require("../../database/entities/list.entity");
 const movie_entity_1 = require("../../database/entities/movie.entity");
-let ListsService = ListsService_1 = class ListsService {
-    constructor(listRepository, movieRepository) {
+const user_entity_1 = require("../../database/entities/user.entity");
+let ListsService = class ListsService {
+    constructor(listRepository, movieRepository, userRepository) {
         this.listRepository = listRepository;
         this.movieRepository = movieRepository;
-        this.logger = new common_1.Logger(ListsService_1.name);
-    }
-    async createUserList(createDto) {
-        try {
-            const list = this.listRepository.create({
-                user_id: createDto.user_id,
-                name: createDto.name,
-                description: createDto.description || null,
-                is_public: createDto.is_public || false,
-                movie_ids: createDto.movie_ids && createDto.movie_ids.length > 0 ? createDto.movie_ids : [],
-                target_date: createDto.target_date ? new Date(createDto.target_date) : null,
-                frequency: createDto.frequency || null,
-                followers_count: 0,
-                follower_ids: [],
-            });
-            const saved = await this.listRepository.save(list);
-            this.logger.log(`✅ Lista creata: ${saved.name} (${saved.id})`);
-            return saved;
-        }
-        catch (error) {
-            this.logger.error(`❌ Errore creazione lista: ${error.message}`);
-            throw error;
-        }
+        this.userRepository = userRepository;
     }
     async getUserLists(userId) {
-        try {
-            const lists = await this.listRepository.find({
-                where: { user_id: userId },
-                order: { created_at: 'DESC' },
-            });
-            this.logger.log(`📋 ${lists.length} liste trovate per utente ${userId}`);
-            return lists;
-        }
-        catch (error) {
-            this.logger.error(`❌ Errore recupero liste utente: ${error.message}`);
-            throw error;
-        }
-    }
-    async getPublicLists(limit = 20, excludeUserId) {
-        try {
-            const queryBuilder = this.listRepository
-                .createQueryBuilder('list')
-                .where('list.is_public = :isPublic', { isPublic: true });
-            if (excludeUserId) {
-                queryBuilder.andWhere('list.user_id != :userId', { userId: excludeUserId });
-            }
-            const lists = await queryBuilder
-                .orderBy('list.followers_count', 'DESC')
-                .addOrderBy('list.created_at', 'DESC')
-                .take(limit)
-                .getMany();
-            this.logger.log(`🌐 ${lists.length} liste pubbliche recuperate (escluso utente: ${excludeUserId || 'nessuno'})`);
-            return lists;
-        }
-        catch (error) {
-            this.logger.error(`❌ Errore recupero liste pubbliche: ${error.message}`);
-            throw error;
-        }
-    }
-    async getListWithMovies(listId) {
-        try {
-            const list = await this.listRepository.findOne({
-                where: { id: listId },
-            });
-            if (!list) {
-                throw new common_1.NotFoundException(`Lista ${listId} non trovata`);
-            }
-            let movies = [];
-            if (list.movie_ids && list.movie_ids.length > 0) {
-                movies = await this.movieRepository
-                    .createQueryBuilder('movie')
-                    .where('movie.id IN (:...ids)', { ids: list.movie_ids })
-                    .getMany();
-            }
+        const lists = await this.listRepository.find({
+            where: { user_id: userId },
+            order: { created_at: 'DESC' },
+        });
+        const populatedLists = await Promise.all(lists.map(async (list) => {
+            const movies = await this.getMoviesForList(list.movie_ids);
             return {
                 ...list,
                 movies,
-                movie_count: list.movie_ids.length,
             };
-        }
-        catch (error) {
-            this.logger.error(`❌ Errore recupero lista: ${error.message}`);
-            throw error;
-        }
+        }));
+        return populatedLists;
     }
-    async updateList(listId, updateDto) {
-        try {
-            const list = await this.listRepository.findOne({
-                where: { id: listId },
-            });
-            if (!list) {
-                throw new common_1.NotFoundException(`Lista ${listId} non trovata`);
-            }
-            if (updateDto.name !== undefined)
-                list.name = updateDto.name;
-            if (updateDto.description !== undefined)
-                list.description = updateDto.description;
-            if (updateDto.is_public !== undefined)
-                list.is_public = updateDto.is_public;
-            if (updateDto.movie_ids !== undefined)
-                list.movie_ids = updateDto.movie_ids;
-            if (updateDto.target_date !== undefined) {
-                list.target_date = updateDto.target_date ? new Date(updateDto.target_date) : null;
-            }
-            if (updateDto.frequency !== undefined)
-                list.frequency = updateDto.frequency;
-            const updated = await this.listRepository.save(list);
-            this.logger.log(`✅ Lista aggiornata: ${updated.id}`);
-            return updated;
+    async getPublicLists(filters) {
+        let query = this.listRepository.createQueryBuilder('list')
+            .where('list.is_public = :isPublic', { isPublic: true });
+        if (filters?.search) {
+            query = query.andWhere('(list.name ILIKE :search OR list.description ILIKE :search)', { search: `%${filters.search}%` });
         }
-        catch (error) {
-            this.logger.error(`❌ Errore aggiornamento lista: ${error.message}`);
-            throw error;
+        switch (filters?.sortBy) {
+            case 'name':
+                query = query.orderBy('list.name', 'ASC');
+                break;
+            case 'created_at':
+            default:
+                query = query.orderBy('list.created_at', 'DESC');
+                break;
         }
-    }
-    async deleteList(listId) {
-        try {
-            const result = await this.listRepository.delete(listId);
-            if (result.affected === 0) {
-                throw new common_1.NotFoundException(`Lista ${listId} non trovata`);
-            }
-            this.logger.log(`🗑️ Lista eliminata: ${listId}`);
-        }
-        catch (error) {
-            this.logger.error(`❌ Errore eliminazione lista: ${error.message}`);
-            throw error;
-        }
-    }
-    async addMovieToList(listId, movieId) {
-        try {
-            const list = await this.listRepository.findOne({
-                where: { id: listId },
-            });
-            if (!list) {
-                throw new common_1.NotFoundException(`Lista ${listId} non trovata`);
-            }
-            const movie = await this.movieRepository.findOne({
-                where: { id: movieId },
-            });
-            if (!movie) {
-                throw new common_1.NotFoundException(`Film ${movieId} non trovato`);
-            }
-            if (!list.movie_ids.includes(movieId)) {
-                list.movie_ids.push(movieId);
-                await this.listRepository.save(list);
-                this.logger.log(`➕ Film ${movieId} aggiunto a lista ${listId}`);
-            }
-            else {
-                this.logger.log(`⚠️ Film ${movieId} già presente in lista ${listId}`);
-            }
+        const lists = await query.getMany();
+        const populatedLists = await Promise.all(lists.map(async (list) => {
+            const movies = await this.getMoviesForList(list.movie_ids);
             return {
                 ...list,
-                movie_count: list.movie_ids.length,
+                movies,
             };
-        }
-        catch (error) {
-            this.logger.error(`❌ Errore aggiunta film: ${error.message}`);
-            throw error;
-        }
+        }));
+        return populatedLists;
     }
-    async removeMovieFromList(listId, movieId) {
-        try {
-            const list = await this.listRepository.findOne({
-                where: { id: listId },
-            });
-            if (!list) {
-                throw new common_1.NotFoundException(`Lista ${listId} non trovata`);
-            }
-            const previousLength = list.movie_ids.length;
-            list.movie_ids = list.movie_ids.filter(id => id !== movieId);
-            if (list.movie_ids.length < previousLength) {
-                await this.listRepository.save(list);
-                this.logger.log(`➖ Film ${movieId} rimosso da lista ${listId}`);
-            }
-            else {
-                this.logger.log(`⚠️ Film ${movieId} non presente in lista ${listId}`);
-            }
-            return {
-                ...list,
-                movie_count: list.movie_ids.length,
-            };
+    async getListById(listId, userId) {
+        const list = await this.listRepository.findOne({
+            where: { id: listId },
+        });
+        if (!list) {
+            throw new common_1.NotFoundException(`Lista ${listId} non trovata`);
         }
-        catch (error) {
-            this.logger.error(`❌ Errore rimozione film: ${error.message}`);
-            throw error;
+        if (!list.is_public && list.user_id !== userId) {
+            throw new common_1.ForbiddenException('Non hai accesso a questa lista');
         }
+        const movies = await this.getMoviesForList(list.movie_ids);
+        return {
+            ...list,
+            movies,
+        };
+    }
+    async createList(userId, createListDto) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) {
+            throw new common_1.NotFoundException('Utente non trovato');
+        }
+        const newList = this.listRepository.create({
+            user_id: userId,
+            name: createListDto.name,
+            description: createListDto.description || null,
+            is_public: createListDto.is_public || false,
+            movie_ids: [],
+            follower_ids: [],
+            followers_count: 0,
+        });
+        return this.listRepository.save(newList);
+    }
+    async updateList(listId, userId, updateListDto) {
+        const list = await this.listRepository.findOne({ where: { id: listId } });
+        if (!list) {
+            throw new common_1.NotFoundException('Lista non trovata');
+        }
+        if (list.user_id !== userId) {
+            throw new common_1.ForbiddenException('Non puoi modificare questa lista');
+        }
+        if (updateListDto.name !== undefined) {
+            list.name = updateListDto.name;
+        }
+        if (updateListDto.description !== undefined) {
+            list.description = updateListDto.description;
+        }
+        if (updateListDto.is_public !== undefined) {
+            list.is_public = updateListDto.is_public;
+        }
+        return this.listRepository.save(list);
+    }
+    async deleteList(listId, userId) {
+        const list = await this.listRepository.findOne({ where: { id: listId } });
+        if (!list) {
+            throw new common_1.NotFoundException('Lista non trovata');
+        }
+        if (list.user_id !== userId) {
+            throw new common_1.ForbiddenException('Non puoi eliminare questa lista');
+        }
+        await this.listRepository.remove(list);
+        return { message: 'Lista eliminata con successo' };
+    }
+    async addMovieToList(listId, userId, movieId) {
+        const list = await this.listRepository.findOne({ where: { id: listId } });
+        if (!list) {
+            throw new common_1.NotFoundException('Lista non trovata');
+        }
+        if (list.user_id !== userId) {
+            throw new common_1.ForbiddenException('Non puoi modificare questa lista');
+        }
+        const movie = await this.movieRepository.findOne({ where: { id: movieId } });
+        if (!movie) {
+            throw new common_1.NotFoundException(`Film ${movieId} non trovato`);
+        }
+        if (list.movie_ids.includes(movieId)) {
+            throw new common_1.BadRequestException('Film già presente nella lista');
+        }
+        list.movie_ids = [...list.movie_ids, movieId];
+        const updatedList = await this.listRepository.save(list);
+        const movies = await this.getMoviesForList(updatedList.movie_ids);
+        return {
+            ...updatedList,
+            movies,
+        };
+    }
+    async removeMovieFromList(listId, userId, movieId) {
+        const list = await this.listRepository.findOne({ where: { id: listId } });
+        if (!list) {
+            throw new common_1.NotFoundException('Lista non trovata');
+        }
+        if (list.user_id !== userId) {
+            throw new common_1.ForbiddenException('Non puoi modificare questa lista');
+        }
+        list.movie_ids = list.movie_ids.filter((id) => id !== movieId);
+        const updatedList = await this.listRepository.save(list);
+        const movies = await this.getMoviesForList(updatedList.movie_ids);
+        return {
+            ...updatedList,
+            movies,
+        };
     }
     async followList(listId, userId) {
-        try {
-            const list = await this.listRepository.findOne({
-                where: { id: listId },
-            });
-            if (!list) {
-                throw new common_1.NotFoundException(`Lista ${listId} non trovata`);
-            }
-            if (!list.is_public) {
-                throw new Error('Puoi seguire solo liste pubbliche');
-            }
-            if (!list.follower_ids.includes(userId)) {
-                list.follower_ids.push(userId);
-                list.followers_count++;
-                await this.listRepository.save(list);
-                this.logger.log(`👥 Utente ${userId} ora segue lista ${listId}`);
-            }
-            return list;
+        const list = await this.listRepository.findOne({ where: { id: listId } });
+        if (!list) {
+            throw new common_1.NotFoundException('Lista non trovata');
         }
-        catch (error) {
-            this.logger.error(`❌ Errore follow lista: ${error.message}`);
-            throw error;
+        if (!list.is_public) {
+            throw new common_1.ForbiddenException('Puoi seguire solo liste pubbliche');
         }
+        if (list.follower_ids.includes(userId)) {
+            throw new common_1.BadRequestException('Stai già seguendo questa lista');
+        }
+        list.follower_ids = [...list.follower_ids, userId];
+        list.followers_count = list.follower_ids.length;
+        await this.listRepository.save(list);
+        return { message: 'Ora segui questa lista' };
     }
     async unfollowList(listId, userId) {
-        try {
-            const list = await this.listRepository.findOne({
-                where: { id: listId },
-            });
-            if (!list) {
-                throw new common_1.NotFoundException(`Lista ${listId} non trovata`);
-            }
-            if (list.follower_ids.includes(userId)) {
-                list.follower_ids = list.follower_ids.filter(id => id !== userId);
-                list.followers_count = Math.max(0, list.followers_count - 1);
-                await this.listRepository.save(list);
-                this.logger.log(`👋 Utente ${userId} non segue più lista ${listId}`);
-            }
-            return list;
+        const list = await this.listRepository.findOne({ where: { id: listId } });
+        if (!list) {
+            throw new common_1.NotFoundException('Lista non trovata');
         }
-        catch (error) {
-            this.logger.error(`❌ Errore unfollow lista: ${error.message}`);
-            throw error;
+        list.follower_ids = list.follower_ids.filter((id) => id !== userId);
+        list.followers_count = list.follower_ids.length;
+        await this.listRepository.save(list);
+        return { message: 'Non segui più questa lista' };
+    }
+    async getListFollowers(listId) {
+        const list = await this.listRepository.findOne({ where: { id: listId } });
+        if (!list) {
+            throw new common_1.NotFoundException('Lista non trovata');
         }
+        if (list.follower_ids.length === 0) {
+            return [];
+        }
+        return this.userRepository.find({
+            where: { id: (0, typeorm_2.In)(list.follower_ids) },
+        });
+    }
+    async getMoviesForList(movieIds) {
+        if (!movieIds || movieIds.length === 0) {
+            return [];
+        }
+        return this.movieRepository.find({
+            where: { id: (0, typeorm_2.In)(movieIds) },
+        });
     }
 };
 exports.ListsService = ListsService;
-exports.ListsService = ListsService = ListsService_1 = __decorate([
+exports.ListsService = ListsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(list_entity_1.MovieListEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(movie_entity_1.MovieEntity)),
+    __param(2, (0, typeorm_1.InjectRepository)(user_entity_1.UserEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], ListsService);
 //# sourceMappingURL=lists.service.js.map

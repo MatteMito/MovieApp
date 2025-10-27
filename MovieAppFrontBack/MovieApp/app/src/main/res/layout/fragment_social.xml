@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FILE: app/src/main/res/layout/fragment_social.xml -->
-<!-- Layout aggiornato con ricerca e filtri -->
 
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -9,7 +7,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- SwipeRefreshLayout -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipe_refresh"
         android:layout_width="match_parent"
@@ -25,19 +22,20 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <!-- Header -->
+                <!-- Header con gradiente -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp"
-                    android:background="?attr/colorPrimary">
+                    android:background="@drawable/gradient_primary"
+                    android:padding="20dp"
+                    android:elevation="4dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="🎬 Le Mie Liste"
-                        android:textSize="28sp"
+                        android:text="📝 Le Tue Liste"
+                        android:textSize="24sp"
                         android:textStyle="bold"
                         android:textColor="@android:color/white"
                         android:layout_marginBottom="4dp"/>
@@ -74,83 +72,40 @@
                         android:text="Liste Pubbliche" />
                 </com.google.android.material.tabs.TabLayout>
 
-                <!-- 🔥 NUOVO: Barra Ricerca e Filtri -->
+                <!-- 🔥 SearchView - Appare SOLO quando ci sono liste -->
                 <LinearLayout
                     android:id="@+id/search_filter_container"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
+                    android:orientation="vertical"
                     android:padding="8dp"
                     android:background="?attr/colorSurface"
-                    android:elevation="2dp">
-
-                    <!-- SearchView -->
-                    <androidx.appcompat.widget.SearchView
-                        android:id="@+id/search_view"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="8dp"
-                        app:queryHint="Cerca lista..."
-                        app:iconifiedByDefault="false"
-                        android:background="@android:drawable/editbox_background"/>
-
-                    <!-- Bottone Filtri -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/button_filters"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Filtri"
-                        app:icon="@drawable/ic_filter"
-                        style="@style/Widget.Material3.Button.TonalButton"
-                        android:textSize="12sp"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"/>
-                </LinearLayout>
-
-                <!-- 🔥 NUOVO: Chip Group per filtri attivi -->
-                <HorizontalScrollView
-                    android:id="@+id/chips_scroll_view"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:scrollbars="none"
+                    android:elevation="2dp"
                     android:visibility="gone"
                     tools:visibility="visible">
 
-                    <com.google.android.material.chip.ChipGroup
-                        android:id="@+id/chip_group_filters"
-                        android:layout_width="wrap_content"
+                    <androidx.appcompat.widget.SearchView
+                        android:id="@+id/search_view"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:paddingTop="8dp"
-                        android:paddingBottom="8dp"
-                        app:singleLine="true"
-                        app:chipSpacingHorizontal="8dp"/>
-                </HorizontalScrollView>
+                        app:queryHint="🔍 Cerca lista..."
+                        app:iconifiedByDefault="false"
+                        android:background="@android:drawable/editbox_background"/>
+                </LinearLayout>
 
-                <!-- Progress Bar -->
-                <ProgressBar
-                    android:id="@+id/progress_bar"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_margin="24dp"
-                    android:visibility="gone"
-                    tools:visibility="visible"/>
-
-                <!-- Le Mie Liste RecyclerView -->
+                <!-- RecyclerView Le Mie Liste -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recycler_my_lists"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="8dp"
                     android:clipToPadding="false"
-                    android:visibility="visible"
+                    android:visibility="gone"
                     tools:listitem="@layout/item_social_list"
-                    tools:itemCount="3"/>
+                    tools:itemCount="3"
+                    tools:visibility="visible"/>
 
-                <!-- Liste Pubbliche RecyclerView -->
+                <!-- RecyclerView Liste Pubbliche -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recycler_public_lists"
                     android:layout_width="match_parent"
@@ -159,7 +114,7 @@
                     android:clipToPadding="false"
                     android:visibility="gone"
                     tools:listitem="@layout/item_social_list"
-                    tools:itemCount="3"/>
+                    tools:itemCount="2"/>
 
                 <!-- Empty State Le Mie Liste -->
                 <LinearLayout
@@ -216,7 +171,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="🌐"
+                        android:text="🌍"
                         android:textSize="64sp"
                         android:layout_marginBottom="16dp"/>
 

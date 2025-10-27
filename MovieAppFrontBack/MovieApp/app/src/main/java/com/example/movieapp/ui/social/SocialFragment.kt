@@ -1,6 +1,3 @@
-// FILE: app/src/main/java/com/example/movieapp/ui/social/SocialFragment.kt
-// Fragment aggiornato con sistema filtri completo
-
 package com.example.movieapp.ui.social
 
 import android.os.Bundle
@@ -9,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.widget.SearchView
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
@@ -18,20 +16,8 @@ import com.example.movieapp.databinding.FragmentSocialBinding
 import com.example.movieapp.data.models.MovieList
 import com.example.movieapp.data.network.ApiService
 import android.util.Log
-import com.google.android.material.chip.Chip
 import com.google.android.material.tabs.TabLayout
 
-/**
- * Fragment Social - Hub delle liste film
- *
- * Features:
- * - Tab: Le Mie Liste / Liste Pubbliche
- * - 🔥 NUOVO: Ricerca e filtri avanzati
- * - Creazione nuove liste (pubblica/privata)
- * - Visualizzazione e gestione liste
- * - Follow liste pubbliche
- * - Navigazione a dettaglio lista
- */
 class SocialFragment : Fragment() {
     private val TAG = "SocialFragment"
 
@@ -39,9 +25,10 @@ class SocialFragment : Fragment() {
     private val binding get() = _binding!!
 
     private lateinit var viewModel: SocialViewModel
-
     private lateinit var myListsAdapter: SocialListAdapter
     private lateinit var publicListsAdapter: SocialListAdapter
+
+    private var currentTab = 0 // 0 = Le Mie Liste, 1 = Liste Pubbliche
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -60,17 +47,17 @@ class SocialFragment : Fragment() {
             return binding.root
         }
 
-        // Inizializza ViewModel
         viewModel.initialize(requireContext())
-
         Log.d(TAG, "SocialFragment creato")
         return binding.root
     }
 
+    // ===== SETUP UI =====
+
     private fun setupUI() {
         setupTabs()
         setupRecyclerViews()
-        setupSearchAndFilters()  // 🔥 NUOVO
+        setupSearchView()
         setupButtons()
         setupSwipeRefresh()
     }
@@ -82,26 +69,31 @@ class SocialFragment : Fragment() {
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 when (tab?.position) {
-                    0 -> showMyLists()
-                    1 -> showPublicLists()
+                    0 -> {
+                        currentTab = 0
+                        showMyLists()
+                    }
+                    1 -> {
+                        currentTab = 1
+                        showPublicLists()
+                    }
                 }
             }
-
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
     }
 
     /**
-     * Setup RecyclerViews
+     * Setup RecyclerView
      */
     private fun setupRecyclerViews() {
         // Adapter Le Mie Liste
         myListsAdapter = SocialListAdapter(
-            onItemClick = { list -> openListDetail(list) },
-            onEditClick = { list -> editList(list) },
-            onDeleteClick = { list -> deleteList(list) },
-            showActions = true
+            onItemClick = { list -> navigateToListDetail(list) },
+            onEditClick = { list -> navigateToEditList(list) },
+            onDeleteClick = { list -> confirmDeleteList(list) },
+            isMyList = true
         )
 
         binding.recyclerMyLists.apply {
@@ -111,9 +103,9 @@ class SocialFragment : Fragment() {
 
         // Adapter Liste Pubbliche
         publicListsAdapter = SocialListAdapter(
-            onItemClick = { list -> openListDetail(list) },
+            onItemClick = { list -> navigateToListDetail(list) },
             onFollowClick = { list -> followList(list) },
-            showActions = false
+            isMyList = false
         )
 
         binding.recyclerPublicLists.apply {
@@ -123,101 +115,45 @@ class SocialFragment : Fragment() {
     }
 
     /**
-     * 🔥 NUOVO: Setup Ricerca e Filtri
+     * Setup SearchView - MIGLIORATA
      */
-    private fun setupSearchAndFilters() {
-        // SearchView
+    private fun setupSearchView() {
         binding.searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
-                query?.let { applySearchFilter(it) }
+                query?.let { viewModel.applySearchFilter(it) }
                 return true
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
-                newText?.let { applySearchFilter(it) }
+                viewModel.applySearchFilter(newText ?: "")
                 return true
             }
         })
 
-        // Bottone Filtri
-        binding.buttonFilters.setOnClickListener {
-            openFiltersBottomSheet()
+        // Icona clear nella SearchView
+        binding.searchView.setOnCloseListener {
+            viewModel.clearSearchFilter()
+            false
         }
     }
 
     /**
-     * 🔥 NUOVO: Applica filtro ricerca
-     */
-    private fun applySearchFilter(query: String) {
-        val currentFilters = viewModel.currentFilters.value ?: ListFilters.default()
-        val newFilters = currentFilters.copy(searchQuery = query)
-        viewModel.applyFilters(newFilters)
-
-        Log.d(TAG, "🔍 Ricerca applicata: $query")
-    }
-
-    /**
-     * 🔥 NUOVO: Apri Bottom Sheet filtri
-     */
-    private fun openFiltersBottomSheet() {
-        val currentFilters = viewModel.currentFilters.value ?: ListFilters.default()
-
-        val bottomSheet = FiltersBottomSheet.newInstance(currentFilters)
-        bottomSheet.setOnApplyFiltersListener { newFilters ->
-            // Mantieni la query di ricerca
-            val searchQuery = binding.searchView.query.toString()
-            val filtersWithSearch = newFilters.copy(searchQuery = searchQuery)
-
-            viewModel.applyFilters(filtersWithSearch)
-            Toast.makeText(requireContext(), "Filtri applicati", Toast.LENGTH_SHORT).show()
-        }
-
-        bottomSheet.show(childFragmentManager, "FiltersBottomSheet")
-    }
-
-    /**
-     * 🔥 NUOVO: Aggiorna Chip filtri attivi
-     */
-    private fun updateFilterChips(filters: ListFilters) {
-        binding.chipGroupFilters.removeAllViews()
-
-        if (!filters.hasActiveFilters()) {
-            binding.chipsScrollView.visibility = View.GONE
-            return
-        }
-
-        binding.chipsScrollView.visibility = View.VISIBLE
-
-        // Aggiungi chip per ogni filtro attivo
-        filters.getActiveFiltersDescription().forEach { description ->
-            val chip = Chip(requireContext()).apply {
-                text = description
-                isCloseIconVisible = true
-                setOnCloseIconClickListener {
-                    // Reset filtri quando si clicca sulla X
-                    viewModel.resetFilters()
-                    binding.searchView.setQuery("", false)
-                }
-            }
-            binding.chipGroupFilters.addView(chip)
-        }
-    }
-
-    /**
-     * Setup Buttons
+     * Setup bottoni
      */
     private fun setupButtons() {
+        // FAB Crea Lista
         binding.fabCreateList.setOnClickListener {
-            openCreateListDialog()
+            navigateToCreateList()
         }
 
+        // Bottone "Crea Prima Lista" (empty state)
         binding.buttonCreateFirst.setOnClickListener {
-            openCreateListDialog()
+            navigateToCreateList()
         }
     }
 
     /**
-     * Setup Swipe Refresh
+     * Setup SwipeRefresh
      */
     private fun setupSwipeRefresh() {
         binding.swipeRefresh.setOnRefreshListener {
@@ -225,204 +161,181 @@ class SocialFragment : Fragment() {
         }
     }
 
-    /**
-     * Setup Observers
-     */
+    // ===== OBSERVERS =====
+
     private fun setupObservers() {
-        // Loading state
-        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+        // Le Mie Liste (filtrate)
+        viewModel.filteredMyLists.observe(viewLifecycleOwner) { lists ->
+            updateMyListsUI(lists)
+        }
+
+        // Liste Pubbliche (filtrate)
+        viewModel.filteredPublicLists.observe(viewLifecycleOwner) { lists ->
+            updatePublicListsUI(lists)
+        }
+
+        // Loading
+        viewModel.loading.observe(viewLifecycleOwner) { isLoading ->
             binding.swipeRefresh.isRefreshing = isLoading
-
-            if (isLoading) {
-                binding.progressBar.visibility = View.VISIBLE
-            } else {
-                binding.progressBar.visibility = View.GONE
-            }
-        }
-
-        // 🔥 NUOVO: Osserva cambiamenti filtri
-        viewModel.currentFilters.observe(viewLifecycleOwner) { filters ->
-            updateFilterChips(filters)
-
-            // Aggiorna badge conteggio filtri sul bottone
-            val activeFiltersCount = if (filters.hasActiveFilters()) {
-                var count = 0
-                if (filters.minMovieCount > 0) count++
-                if (filters.sortOrder != SortOrder.RECENT) count++
-                count
-            } else {
-                0
-            }
-
-            binding.buttonFilters.text = if (activeFiltersCount > 0) {
-                "Filtri ($activeFiltersCount)"
-            } else {
-                "Filtri"
-            }
-        }
-
-        // Le Mie Liste
-        viewModel.myLists.observe(viewLifecycleOwner) { lists ->
-            myListsAdapter.submitList(lists)
-
-            if (lists.isEmpty() && binding.tabLayout.selectedTabPosition == 0) {
-                binding.emptyStateMyLists.visibility = View.VISIBLE
-                binding.recyclerMyLists.visibility = View.GONE
-            } else {
-                binding.emptyStateMyLists.visibility = View.GONE
-                binding.recyclerMyLists.visibility = View.VISIBLE
-            }
-
-            Log.d(TAG, "✅ ${lists.size} liste personali caricate")
-        }
-
-        // Liste Pubbliche
-        viewModel.publicLists.observe(viewLifecycleOwner) { lists ->
-            publicListsAdapter.submitList(lists)
-
-            if (lists.isEmpty() && binding.tabLayout.selectedTabPosition == 1) {
-                binding.emptyStatePublicLists.visibility = View.VISIBLE
-                binding.recyclerPublicLists.visibility = View.GONE
-            } else {
-                binding.emptyStatePublicLists.visibility = View.GONE
-                binding.recyclerPublicLists.visibility = View.VISIBLE
-            }
-
-            Log.d(TAG, "✅ ${lists.size} liste pubbliche caricate")
         }
 
         // Errori
-        viewModel.error.observe(viewLifecycleOwner) { errorMsg ->
-            if (errorMsg != null) {
-                Toast.makeText(requireContext(), errorMsg, Toast.LENGTH_LONG).show()
+        viewModel.error.observe(viewLifecycleOwner) { error ->
+            error?.let {
+                Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
+                viewModel.clearError()
             }
         }
+    }
+
+    // ===== AGGIORNAMENTO UI =====
+
+    /**
+     * Aggiorna UI Le Mie Liste
+     */
+    private fun updateMyListsUI(lists: List<MovieList>) {
+        myListsAdapter.submitList(lists)
+
+        val isEmpty = lists.isEmpty()
+        binding.emptyStateMyLists.isVisible = isEmpty
+        binding.recyclerMyLists.isVisible = !isEmpty
+
+        // Mostra SearchView solo se ci sono liste
+        updateSearchViewVisibility()
+
+        Log.d(TAG, "📋 Le Mie Liste: ${lists.size}")
+    }
+
+    /**
+     * Aggiorna UI Liste Pubbliche
+     */
+    private fun updatePublicListsUI(lists: List<MovieList>) {
+        publicListsAdapter.submitList(lists)
+
+        val isEmpty = lists.isEmpty()
+        binding.emptyStatePublicLists.isVisible = isEmpty
+        binding.recyclerPublicLists.isVisible = !isEmpty
+
+        // Mostra SearchView solo se ci sono liste
+        updateSearchViewVisibility()
+
+        Log.d(TAG, "🌍 Liste Pubbliche: ${lists.size}")
+    }
+
+    /**
+     * Mostra/nascondi SearchView in base a contenuto - KEY FIX! 🔥
+     */
+    private fun updateSearchViewVisibility() {
+        val myListsCount = viewModel.myLists.value?.size ?: 0
+        val publicListsCount = viewModel.publicLists.value?.size ?: 0
+
+        // Mostra SearchView solo se almeno un tab ha contenuto
+        val shouldShowSearch = when (currentTab) {
+            0 -> myListsCount > 0  // Tab "Le Mie Liste"
+            1 -> publicListsCount > 0  // Tab "Liste Pubbliche"
+            else -> false
+        }
+
+        binding.searchFilterContainer.isVisible = shouldShowSearch
     }
 
     /**
      * Mostra tab Le Mie Liste
      */
     private fun showMyLists() {
-        binding.recyclerMyLists.visibility = View.VISIBLE
-        binding.recyclerPublicLists.visibility = View.GONE
-        binding.emptyStatePublicLists.visibility = View.GONE
+        binding.recyclerMyLists.isVisible = true
+        binding.emptyStateMyLists.isVisible = false
+        binding.recyclerPublicLists.isVisible = false
+        binding.emptyStatePublicLists.isVisible = false
+        binding.textNotAuthenticated.isVisible = false
 
-        if (myListsAdapter.itemCount == 0) {
-            binding.emptyStateMyLists.visibility = View.VISIBLE
-        } else {
-            binding.emptyStateMyLists.visibility = View.GONE
-        }
+        // Aggiorna visibilità in base ai dati
+        val lists = viewModel.filteredMyLists.value ?: emptyList()
+        updateMyListsUI(lists)
     }
 
     /**
      * Mostra tab Liste Pubbliche
      */
     private fun showPublicLists() {
-        binding.recyclerMyLists.visibility = View.GONE
-        binding.recyclerPublicLists.visibility = View.VISIBLE
-        binding.emptyStateMyLists.visibility = View.GONE
+        binding.recyclerMyLists.isVisible = false
+        binding.emptyStateMyLists.isVisible = false
+        binding.recyclerPublicLists.isVisible = true
+        binding.emptyStatePublicLists.isVisible = false
+        binding.textNotAuthenticated.isVisible = false
 
-        if (publicListsAdapter.itemCount == 0) {
-            binding.emptyStatePublicLists.visibility = View.VISIBLE
-        } else {
-            binding.emptyStatePublicLists.visibility = View.GONE
-        }
-    }
-
-    /**
-     * Dialog creazione nuova lista
-     */
-    private fun openCreateListDialog() {
-        val dialog = CreateListDialogFragment()
-        dialog.setOnListCreatedListener { name, description, isPublic ->
-            viewModel.createList(name, description, isPublic)
-        }
-        dialog.show(childFragmentManager, "CreateListDialog")
-    }
-
-    /**
-     * Apri dettaglio lista
-     */
-    private fun openListDetail(list: MovieList) {
-        Log.d(TAG, "📄 Apertura lista: ${list.name}")
-
-        val bundle = Bundle().apply {
-            putString("list_id", list.id)
-            putString("list_name", list.name)
-            putBoolean("is_owner", list.userId == ApiService.getCurrentUserId())
-        }
-
-        findNavController().navigate(
-            R.id.action_social_to_listDetail,
-            bundle
-        )
-    }
-
-    /**
-     * Modifica lista
-     */
-    private fun editList(list: MovieList) {
-        val dialog = EditListDialogFragment.newInstance(list)
-        dialog.setOnListUpdatedListener { name, description, isPublic ->
-            viewModel.updateList(list.id, name, description, isPublic)
-        }
-        dialog.show(childFragmentManager, "EditListDialog")
-    }
-
-    /**
-     * Elimina lista con conferma
-     */
-    private fun deleteList(list: MovieList) {
-        androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            .setTitle("Elimina Lista")
-            .setMessage("Sei sicuro di voler eliminare \"${list.name}\"?\nQuesta azione è irreversibile.")
-            .setPositiveButton("Elimina") { _, _ ->
-                viewModel.deleteList(list.id)
-                Toast.makeText(requireContext(), "Lista eliminata", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Annulla", null)
-            .show()
-    }
-
-    /**
-     * Segui lista pubblica
-     */
-    private fun followList(list: MovieList) {
-        viewModel.followList(list.id)
-        Toast.makeText(
-            requireContext(),
-            "Ora segui: ${list.name}",
-            Toast.LENGTH_SHORT
-        ).show()
+        // Aggiorna visibilità in base ai dati
+        val lists = viewModel.filteredPublicLists.value ?: emptyList()
+        updatePublicListsUI(lists)
     }
 
     /**
      * Mostra stato non autenticato
      */
     private fun showNotAuthenticatedState() {
-        binding.apply {
-            tabLayout.visibility = View.GONE
-            searchFilterContainer.visibility = View.GONE  // 🔥 NUOVO
-            fabCreateList.visibility = View.GONE
-            recyclerMyLists.visibility = View.GONE
-            recyclerPublicLists.visibility = View.GONE
-            emptyStateMyLists.visibility = View.GONE
-            emptyStatePublicLists.visibility = View.GONE
-
-            // Mostra messaggio
-            textNotAuthenticated.visibility = View.VISIBLE
-            textNotAuthenticated.text = "⚠️ Effettua il login per accedere alle liste"
-        }
+        binding.recyclerMyLists.isVisible = false
+        binding.recyclerPublicLists.isVisible = false
+        binding.emptyStateMyLists.isVisible = false
+        binding.emptyStatePublicLists.isVisible = false
+        binding.searchFilterContainer.isVisible = false
+        binding.fabCreateList.isVisible = false
+        binding.textNotAuthenticated.isVisible = true
+        binding.textNotAuthenticated.text = "⚠️ Effettua il login per accedere alle liste"
     }
 
-    override fun onResume() {
-        super.onResume()
+    // ===== AZIONI =====
 
-        // Ricarica liste quando si torna al fragment
-        if (ApiService.isAuthenticated() && ApiService.hasUserId()) {
-            viewModel.refreshLists()
-        }
+    private fun navigateToListDetail(list: MovieList) {
+        val action = SocialFragmentDirections.actionNavigationSocialToListDetailFragment(list.id)
+        findNavController().navigate(action)
     }
+
+    private fun navigateToCreateList() {
+        val action = SocialFragmentDirections.actionNavigationSocialToCreateListDialog()
+        findNavController().navigate(action)
+    }
+
+    private fun navigateToEditList(list: MovieList) {
+        val action = SocialFragmentDirections.actionNavigationSocialToEditListDialog(list.id)
+        findNavController().navigate(action)
+    }
+
+    private fun confirmDeleteList(list: MovieList) {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Elimina Lista")
+            .setMessage("Vuoi davvero eliminare \"${list.name}\"?")
+            .setPositiveButton("Elimina") { _, _ ->
+                deleteList(list)
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun deleteList(list: MovieList) {
+        viewModel.deleteList(
+            listId = list.id,
+            onSuccess = {
+                Toast.makeText(requireContext(), "Lista eliminata", Toast.LENGTH_SHORT).show()
+            },
+            onError = { error ->
+                Toast.makeText(requireContext(), error, Toast.LENGTH_LONG).show()
+            }
+        )
+    }
+
+    private fun followList(list: MovieList) {
+        viewModel.followList(
+            listId = list.id,
+            onSuccess = {
+                Toast.makeText(requireContext(), "Ora segui questa lista!", Toast.LENGTH_SHORT).show()
+            },
+            onError = { error ->
+                Toast.makeText(requireContext(), error, Toast.LENGTH_LONG).show()
+            }
+        )
+    }
+
+    // ===== LIFECYCLE =====
 
     override fun onDestroyView() {
         super.onDestroyView()
