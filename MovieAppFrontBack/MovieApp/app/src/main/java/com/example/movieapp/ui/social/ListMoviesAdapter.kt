@@ -1,11 +1,11 @@
 // FILE: app/src/main/java/com/example/movieapp/ui/social/ListMoviesAdapter.kt
-// Adapter per film all'interno di una lista
+// Adapter per film in una lista - COMPLETO
 
 package com.example.movieapp.ui.social
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -14,27 +14,24 @@ import com.example.movieapp.R
 import com.example.movieapp.databinding.ItemListMovieBinding
 import com.example.movieapp.data.models.Movie
 
-/**
- * Adapter per visualizzare film in una lista
- */
 class ListMoviesAdapter(
-    private val onRemoveClick: ((Movie) -> Unit)? = null
-) : ListAdapter<Movie, ListMoviesAdapter.ViewHolder>(DiffCallback()) {
+    private val onRemoveClick: (Movie) -> Unit
+) : ListAdapter<Movie, ListMoviesAdapter.MovieViewHolder>(MovieDiffCallback()) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MovieViewHolder {
         val binding = ItemListMovieBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
         )
-        return ViewHolder(binding)
+        return MovieViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: MovieViewHolder, position: Int) {
         holder.bind(getItem(position))
     }
 
-    inner class ViewHolder(
+    inner class MovieViewHolder(
         private val binding: ItemListMovieBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
@@ -43,46 +40,28 @@ class ListMoviesAdapter(
                 // Titolo
                 textTitle.text = movie.title
 
-                // Anno e Regista
+                // Anno e regista
                 val details = buildString {
-                    if (movie.year != null) append(movie.year)
-                    if (movie.director != null) {
+                    if (movie.year != null) {
+                        append(movie.year)
+                    }
+                    if (!movie.director.isNullOrEmpty()) {
                         if (isNotEmpty()) append(" • ")
                         append(movie.director)
                     }
                 }
-                textDetails.text = details.ifEmpty { "Dettagli non disponibili" }
+                textDetails.text = details
+                textDetails.isVisible = details.isNotEmpty()
 
                 // Generi
-                if (movie.genres.isNotEmpty()) {
-                    textGenres.text = movie.genres.take(3).joinToString(", ")
-                    textGenres.visibility = View.VISIBLE
-                } else {
-                    textGenres.visibility = View.GONE
-                }
-
-                // Rating
-                if (movie.userRating != null && movie.userRating > 0) {
-                    textRating.text = "⭐ ${String.format("%.1f", movie.userRating)}"
-                    textRating.visibility = View.VISIBLE
-                } else if (movie.tmdbRating != null && movie.tmdbRating > 0) {
-                    textRating.text = "⭐ ${String.format("%.1f", movie.tmdbRating)}"
-                    textRating.visibility = View.VISIBLE
-                } else {
-                    textRating.visibility = View.GONE
-                }
+                val genres = movie.genres.joinToString(", ")
+                textGenres.text = genres
+                textGenres.isVisible = genres.isNotEmpty()
 
                 // Poster
                 if (!movie.posterUrl.isNullOrEmpty()) {
-                    Glide.with(imagePoster)
+                    Glide.with(imagePoster.context)
                         .load(movie.posterUrl)
-                        .placeholder(R.drawable.ic_home)
-                        .error(R.drawable.ic_home)
-                        .into(imagePoster)
-                } else if (movie.tmdbId != null) {
-                    val posterUrl = "https://image.tmdb.org/t/p/w185${movie.posterUrl ?: ""}"
-                    Glide.with(imagePoster)
-                        .load(posterUrl)
                         .placeholder(R.drawable.ic_home)
                         .error(R.drawable.ic_home)
                         .into(imagePoster)
@@ -90,20 +69,15 @@ class ListMoviesAdapter(
                     imagePoster.setImageResource(R.drawable.ic_home)
                 }
 
-                // Bottone rimuovi (solo se proprietario)
-                if (onRemoveClick != null) {
-                    buttonRemove.visibility = View.VISIBLE
-                    buttonRemove.setOnClickListener {
-                        onRemoveClick.invoke(movie)
-                    }
-                } else {
-                    buttonRemove.visibility = View.GONE
+                // Bottone rimuovi
+                buttonRemove.setOnClickListener {
+                    onRemoveClick(movie)
                 }
             }
         }
     }
 
-    class DiffCallback : DiffUtil.ItemCallback<Movie>() {
+    private class MovieDiffCallback : DiffUtil.ItemCallback<Movie>() {
         override fun areItemsTheSame(oldItem: Movie, newItem: Movie): Boolean {
             return oldItem.id == newItem.id
         }

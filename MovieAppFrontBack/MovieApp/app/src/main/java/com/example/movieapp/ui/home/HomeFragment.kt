@@ -1,3 +1,6 @@
+// FILE: app/src/main/java/com/example/movieapp/ui/home/HomeFragment.kt
+// OTTIMIZZATO - Progress bar migliore, nessun freeze! 🚀
+
 package com.example.movieapp.ui.home
 
 import android.app.Activity
@@ -10,18 +13,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import com.example.movieapp.R
 import com.example.movieapp.databinding.FragmentHomeBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
-/**
- * HomeFragment FIXED
- */
 class HomeFragment : Fragment() {
 
     private val TAG = "HomeFragment"
@@ -31,13 +28,14 @@ class HomeFragment : Fragment() {
 
     private lateinit var homeViewModel: HomeViewModel
 
-    //file pickers
+    // ===== FILE PICKERS =====
+
     private val imdbWatchedPicker = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.data?.let { uri ->
-                Log.d(TAG, "IMDB Watched selezionato")
+                Log.d(TAG, "📁 IMDB Watched selezionato")
                 processImdbWatchedFile(uri)
             }
         }
@@ -48,7 +46,7 @@ class HomeFragment : Fragment() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.data?.let { uri ->
-                Log.d(TAG, "IMDB Watchlist selezionato")
+                Log.d(TAG, "📁 IMDB Watchlist selezionato")
                 processImdbWatchlistFile(uri)
             }
         }
@@ -59,7 +57,7 @@ class HomeFragment : Fragment() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.data?.let { uri ->
-                Log.d(TAG, "Letterboxd Watched selezionato")
+                Log.d(TAG, "📁 Letterboxd Watched selezionato")
                 processLetterboxdWatchedFile(uri)
             }
         }
@@ -70,11 +68,13 @@ class HomeFragment : Fragment() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.data?.let { uri ->
-                Log.d(TAG, "Letterboxd Watchlist selezionato")
+                Log.d(TAG, "📁 Letterboxd Watchlist selezionato")
                 processLetterboxdWatchlistFile(uri)
             }
         }
     }
+
+    // ===== LIFECYCLE =====
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -89,12 +89,14 @@ class HomeFragment : Fragment() {
 
         homeViewModel.initialize(requireContext())
 
-        Log.d(TAG, "✅ HomeFragment creato FIXED")
+        Log.d(TAG, "✅ HomeFragment creato")
         return binding.root
     }
 
+    // ===== SETUP UI =====
+
     private fun setupUI() {
-        //bottoni import
+        // Bottoni import
         binding.buttonImportImdbWatched.setOnClickListener {
             showImdbWatchedHelp()
         }
@@ -115,223 +117,197 @@ class HomeFragment : Fragment() {
             showClearAllConfirmation()
         }
 
-        //swipe refresh
+        // Swipe refresh
         binding.swipeRefresh.setOnRefreshListener {
-            Log.d(TAG, "🔄 Refresh")
-            homeViewModel.refreshFromBackend()  // ✅ CORRETTO
-
-            // Aggiorna stats dopo sync
-            binding.swipeRefresh.postDelayed({
-                updatePermanentStatsCard()
-            }, 500)
+            Log.d(TAG, "🔄 Refresh manuale")
+            homeViewModel.refreshFromBackend()
         }
     }
 
+    // ===== OBSERVERS =====
+
     private fun setupObservers() {
-        //observer loading state
+        // Loading state
         homeViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            updateLoadingUI(isLoading)
+            binding.swipeRefresh.isRefreshing = isLoading
         }
 
-        // ✅ OBSERVER MOVIES: Aggiorna stats SEMPRE quando cambiano i film
+        // Movies - aggiorna stats
         homeViewModel.movies.observe(viewLifecycleOwner) { movies ->
-            updatePermanentStatsCard()
-            Log.d(TAG, "📊 Movies aggiornati: ${movies.size} film")
+            updateStatsCard(movies)
         }
 
-        // 🆕 NUOVO: Observer contatori dal file importato
-        homeViewModel.fileCounters.observe(viewLifecycleOwner) { (watched, watchlist) ->
-            Log.d(TAG, "📥 Contatori file: $watched visti, $watchlist da vedere")
-        }
-
-        // ✅ OBSERVER ENRICHMENT PROGRESS: Con CAP per evitare >100%
-        homeViewModel.enrichmentProgress.observe(viewLifecycleOwner) { (processed, total) ->
-            when {
-                total == 0 -> {
-                    // Nessun import in corso
-                    binding.layoutImportProgress.visibility = View.GONE
-                }
-                processed < total -> {
-                    // ✅ IMPORT IN CORSO con CAP
-                    binding.layoutImportProgress.visibility = View.VISIBLE
-
-                    // ✅ CAP: Se processed > total, usa total come max
-                    val cappedProcessed = if (processed > total) total else processed
-
-                    val percentage = if (total > 0) {
-                        (cappedProcessed * 100) / total
-                    } else {
-                        0
-                    }
-
-                    // ✅ CAP percentuale a 100
-                    val cappedPercentage = if (percentage > 100) 100 else percentage
-
-                    binding.progressBarImport.isIndeterminate = false
-                    binding.progressBarImport.progress = cappedPercentage
-                    binding.textProgressImport.text = "$cappedProcessed / $total ($cappedPercentage%)"
-                    binding.textImportTitle.text = "✨ Import in corso..."
-
-                    Log.d(TAG, "📊 Progress: $cappedProcessed/$total ($cappedPercentage%) [original: $processed]")
-                }
-                else -> {
-                    // ✅ COMPLETATO
-                    binding.layoutImportProgress.visibility = View.VISIBLE
-                    binding.progressBarImport.isIndeterminate = false
-                    binding.progressBarImport.progress = 100
-                    binding.textProgressImport.text = "$total / $total (100%)"
-                    binding.textImportTitle.text = "✅ Completato!"
-
-                    Log.d(TAG, "✅ Import completato!")
-
-                    // ✅ CRITICO: Aggiorna stats SUBITO dopo completamento
-                    updatePermanentStatsCard()
-
-                    // Nascondi dopo 2 secondi
-                    binding.layoutImportProgress.postDelayed({
-                        binding.layoutImportProgress.visibility = View.GONE
-
-                        // ✅ Aggiorna di nuovo per sicurezza
-                        updatePermanentStatsCard()
-                    }, 2000)
+        // Messages
+        homeViewModel.message.observe(viewLifecycleOwner) { message ->
+            if (message.isNotEmpty()) {
+                // Mostra solo se non è un messaggio di progress
+                if (!message.contains("in corso")) {
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                 }
             }
         }
 
-        //Observer import status
+        // 🔥 IMPORT STATUS - Gestisce UI progress
         homeViewModel.importStatus.observe(viewLifecycleOwner) { status ->
-            when (status) {
-                is ImportStatus.IDLE -> {
-                    binding.layoutImportProgress.visibility = View.GONE
-                }
+            updateImportStatusUI(status)
+        }
 
-                is ImportStatus.PARSING -> {
-                    binding.layoutImportProgress.visibility = View.VISIBLE
-                    binding.textImportTitle.text = "📖 Lettura file..."
-                    binding.progressBarImport.isIndeterminate = true
-                    binding.textProgressImport.text = "Analisi in corso"
-                    binding.textCurrentMovieImport.text = ""
-                }
+        // 🔥 ENRICHMENT PROGRESS - Aggiorna progress bar
+        homeViewModel.enrichmentProgress.observe(viewLifecycleOwner) { (processed, total) ->
+            updateProgressBar(processed, total)
+        }
+    }
 
-                is ImportStatus.SENDING_TO_BACKEND -> {
-                    binding.layoutImportProgress.visibility = View.VISIBLE
-                    binding.textImportTitle.text = "📤 Invio dati..."
-                    binding.progressBarImport.isIndeterminate = true
-                    binding.textProgressImport.text = "${status.totalMovies} film"  // ✅ CORRETTO
-                    binding.textCurrentMovieImport.text = ""
-                }
+    // ===== UI UPDATES =====
 
-                is ImportStatus.ENRICHING -> {
-                    binding.layoutImportProgress.visibility = View.VISIBLE
-                    binding.progressBarImport.isIndeterminate = false
+    /**
+     * Aggiorna stats card permanente
+     */
+    private fun updateStatsCard(movies: List<com.example.movieapp.data.models.Movie>) {
+        val total = movies.size
+        val watched = movies.count { it.isWatched }
+        val watchlist = movies.count { !it.isWatched }
+        val enriched = movies.count { it.tmdbId != null }
 
-                    // ✅ CAP: processed non può superare total
-                    val cappedProcessed = if (status.processed > status.total) status.total else status.processed
+        binding.textTotalMovies.text = "$total"
+        binding.textWatchedMovies.text = "$watched"
+        binding.textWatchlistMovies.text = "$watchlist"
+        binding.textEnrichedMovies.text = "$enriched"
 
-                    val percentage = if (status.total > 0) {
-                        (cappedProcessed * 100) / status.total
-                    } else 0
+        Log.d(TAG, "📊 Stats: $total film ($watched visti, $watchlist da vedere, $enriched enriched)")
+    }
 
-                    // ✅ CAP percentuale
-                    val cappedPercentage = if (percentage > 100) 100 else percentage
+    /**
+     * 🔥 Aggiorna UI in base allo stato import
+     */
+    private fun updateImportStatusUI(status: ImportStatus) {
+        when (status) {
+            is ImportStatus.IDLE -> {
+                // Nasconde progress
+                binding.layoutImportProgress.isVisible = false
+                enableImportButtons(true)
+            }
 
-                    binding.progressBarImport.max = 100
-                    binding.progressBarImport.progress = cappedPercentage
-                    binding.textProgressImport.text = "$cappedProcessed / ${status.total} ($cappedPercentage%)"
-                    binding.textImportTitle.text = "✨ Import in corso..."
+            is ImportStatus.PARSING -> {
+                // Mostra parsing
+                binding.layoutImportProgress.isVisible = true
+                binding.textImportTitle.text = "📖 Lettura file CSV..."
+                binding.progressBarImport.isIndeterminate = true
+                binding.textProgressImport.text = "Analisi in corso..."
+                enableImportButtons(false)
+            }
 
-                    if (status.currentMovie.isNotEmpty()) {
-                        binding.textCurrentMovieImport.text = status.currentMovie
-                    } else {
-                        binding.textCurrentMovieImport.text = ""
-                    }
-                }
+            is ImportStatus.CONNECTING_WEBSOCKET -> {
+                binding.layoutImportProgress.isVisible = true
+                binding.textImportTitle.text = "🔌 Connessione server..."
+                binding.progressBarImport.isIndeterminate = true
+                binding.textProgressImport.text = "Preparazione..."
+                enableImportButtons(false)
+            }
 
-                is ImportStatus.COMPLETED -> {
-                    binding.layoutImportProgress.visibility = View.VISIBLE
-                    binding.progressBarImport.isIndeterminate = false
-                    binding.progressBarImport.progress = 100
-                    binding.textProgressImport.text = "${status.totalMovies} / ${status.totalMovies} (100%)"
-                    binding.textImportTitle.text = "✅ Completato!"
-                    binding.textCurrentMovieImport.text = ""
+            is ImportStatus.UPLOADING -> {
+                // Mostra upload
+                binding.layoutImportProgress.isVisible = true
+                binding.textImportTitle.text = "📤 Upload al server..."
+                binding.progressBarImport.isIndeterminate = false
 
-                    // Aggiorna i contatori SUBITO
-                    lifecycleScope.launch {
-                        delay(1000)  // Piccolo delay per sicurezza
-                        updatePermanentStatsCard()
-                        Log.d(TAG, "🔄 Stats aggiornate dopo import completato")
-                    }
+                val percentage = if (status.total > 0) {
+                    (status.uploaded * 100) / status.total
+                } else 0
 
-                    // Nascondi progress dopo 3 secondi
-                    binding.layoutImportProgress.postDelayed({
-                        binding.layoutImportProgress.visibility = View.GONE
-                    }, 3000)
-                }
+                binding.progressBarImport.progress = percentage
+                binding.textProgressImport.text = "${status.uploaded} / ${status.total} film"
+                enableImportButtons(false)
+            }
 
+            is ImportStatus.ENRICHING -> {
+                // Mostra enrichment con dettagli
+                binding.layoutImportProgress.isVisible = true
+                binding.textImportTitle.text = "✨ Enrichment TMDB..."
+                binding.progressBarImport.isIndeterminate = false
 
+                val percentage = if (status.total > 0) {
+                    (status.processed * 100) / status.total
+                } else 0
 
+                binding.progressBarImport.progress = percentage
 
-                is ImportStatus.ERROR -> {
-                    binding.layoutImportProgress.visibility = View.VISIBLE
-                    binding.progressBarImport.isIndeterminate = false
-                    binding.textImportTitle.text = "❌ Errore"
-                    binding.textProgressImport.text = "Operazione fallita"
-                    binding.textCurrentMovieImport.text = ""
+                val movieInfo = if (status.currentMovie.isNotEmpty()) {
+                    "\n${status.currentMovie}"
+                } else ""
 
-                    Log.e(TAG, "❌ Errore: ${status.message}")
+                binding.textProgressImport.text =
+                    "${status.processed} / ${status.total} (${percentage}%)$movieInfo"
+                enableImportButtons(false)
+            }
 
-                    // Nascondi dopo 3 secondi
-                    binding.layoutImportProgress.postDelayed({
-                        binding.layoutImportProgress.visibility = View.GONE
-                    }, 3000)
-                }
+            is ImportStatus.COMPLETED -> {
+                // Mostra completamento
+                binding.layoutImportProgress.isVisible = true
+                binding.textImportTitle.text = "✅ Completato!"
+                binding.progressBarImport.isIndeterminate = false
+                binding.progressBarImport.progress = 100
+                binding.textProgressImport.text = "${status.totalMovies} film importati"
+
+                // Nasconde dopo 3 secondi
+                binding.layoutImportProgress.postDelayed({
+                    binding.layoutImportProgress.isVisible = false
+                    enableImportButtons(true)
+                }, 3000)
+            }
+
+            is ImportStatus.ERROR -> {
+                // Mostra errore
+                binding.layoutImportProgress.isVisible = true
+                binding.textImportTitle.text = "❌ Errore"
+                binding.progressBarImport.isIndeterminate = false
+                binding.progressBarImport.progress = 0
+                binding.textProgressImport.text = status.message
+
+                Toast.makeText(requireContext(), "Errore: ${status.message}", Toast.LENGTH_LONG).show()
+
+                // Nasconde dopo 5 secondi
+                binding.layoutImportProgress.postDelayed({
+                    binding.layoutImportProgress.isVisible = false
+                    enableImportButtons(true)
+                }, 5000)
             }
         }
     }
 
     /**
-     * ✅ FIX: Aggiorna card statistiche usando contatori dal backend (già filtrati per userId)
+     * Aggiorna solo progress bar (chiamata da enrichmentProgress observer)
      */
-    private fun updatePermanentStatsCard() {
-        // ✅ Usa i contatori totali che vengono dal backend (già filtrati per userId)
-        val counters = homeViewModel.totalCounters.value
+    private fun updateProgressBar(processed: Int, total: Int) {
+        if (total == 0) return
 
-        if (counters != null) {
-            val (watched, watchlist) = counters
-            val total = watched + watchlist
+        val percentage = ((processed.toFloat() / total) * 100).toInt().coerceIn(0, 100)
 
-            binding.textTotalMovies.text = total.toString()
-            binding.textWatchedMovies.text = watched.toString()
-            binding.textWatchlistMovies.text = watchlist.toString()
-
-            Log.d(TAG, "📊 Stats aggiornate dal backend: $total totali ($watched visti, $watchlist da vedere)")
-        } else {
-            // Fallback: se i contatori non sono disponibili, mostra 0
-            binding.textTotalMovies.text = "0"
-            binding.textWatchedMovies.text = "0"
-            binding.textWatchlistMovies.text = "0"
-
-            Log.d(TAG, "⚠️ Contatori non disponibili - mostrando 0")
+        // Aggiorna solo se layout visibile
+        if (binding.layoutImportProgress.isVisible) {
+            binding.progressBarImport.progress = percentage
         }
     }
 
-    //DIALOG HELPERS
+    /**
+     * Abilita/disabilita bottoni import
+     */
+    private fun enableImportButtons(enabled: Boolean) {
+        binding.buttonImportImdbWatched.isEnabled = enabled
+        binding.buttonImportImdbWatchlist.isEnabled = enabled
+        binding.buttonImportLetterboxdWatched.isEnabled = enabled
+        binding.buttonImportLetterboxdWatchlist.isEnabled = enabled
+        binding.buttonClearAll.isEnabled = enabled
+    }
+
+    // ===== FILE SELECTION HELPERS =====
 
     private fun showImdbWatchedHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("📥 Importa Watched IMDB")
-            .setMessage(buildString {
-                appendLine("Come ottenere il file:")
-                appendLine()
-                appendLine("1. Vai su imdb.com")
-                appendLine("2. Accedi al tuo account")
-                appendLine("3. Vai su 'Your Ratings'")
-                appendLine("4. Clicca sui 3 puntini (⋮)")
-                appendLine("5. Seleziona 'Export'")
-                appendLine("6. Scarica ratings.csv")
-            })
-            .setPositiveButton("Seleziona file") { _, _ ->
-                openImdbWatchedPicker()
+            .setTitle("📁 Importa IMDB Watched")
+            .setMessage("Seleziona il file ratings.csv esportato da IMDB")
+            .setPositiveButton("Seleziona File") { _, _ ->
+                openFilePicker(imdbWatchedPicker)
             }
             .setNegativeButton("Annulla", null)
             .show()
@@ -339,19 +315,10 @@ class HomeFragment : Fragment() {
 
     private fun showImdbWatchlistHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("📥 Importa Watchlist IMDB")
-            .setMessage(buildString {
-                appendLine("Come ottenere il file:")
-                appendLine()
-                appendLine("1. Vai su imdb.com")
-                appendLine("2. Accedi al tuo account")
-                appendLine("3. Vai su 'Your Watchlist'")
-                appendLine("4. Clicca sui 3 puntini (⋮)")
-                appendLine("5. Seleziona 'Export'")
-                appendLine("6. Scarica watchlist.csv")
-            })
-            .setPositiveButton("Seleziona file") { _, _ ->
-                openImdbWatchlistPicker()
+            .setTitle("📁 Importa IMDB Watchlist")
+            .setMessage("Seleziona il file watchlist.csv esportato da IMDB")
+            .setPositiveButton("Seleziona File") { _, _ ->
+                openFilePicker(imdbWatchlistPicker)
             }
             .setNegativeButton("Annulla", null)
             .show()
@@ -359,18 +326,10 @@ class HomeFragment : Fragment() {
 
     private fun showLetterboxdWatchedHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("📥 Importa Watched Letterboxd")
-            .setMessage(buildString {
-                appendLine("Come ottenere il file:")
-                appendLine()
-                appendLine("1. Vai su letterboxd.com")
-                appendLine("2. Accedi al tuo account")
-                appendLine("3. Settings > Import & Export")
-                appendLine("4. Clicca 'Export Your Data'")
-                appendLine("5. Scarica e estrai diary.csv")
-            })
-            .setPositiveButton("Seleziona file") { _, _ ->
-                openLetterboxdWatchedPicker()
+            .setTitle("📁 Importa Letterboxd Watched")
+            .setMessage("Seleziona il file watched.csv esportato da Letterboxd")
+            .setPositiveButton("Seleziona File") { _, _ ->
+                openFilePicker(letterboxdWatchedPicker)
             }
             .setNegativeButton("Annulla", null)
             .show()
@@ -378,74 +337,38 @@ class HomeFragment : Fragment() {
 
     private fun showLetterboxdWatchlistHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("📥 Importa Watchlist Letterboxd")
-            .setMessage(buildString {
-                appendLine("Come ottenere il file:")
-                appendLine()
-                appendLine("1. Vai su letterboxd.com")
-                appendLine("2. Accedi al tuo account")
-                appendLine("3. Settings > Import & Export")
-                appendLine("4. Clicca 'Export Your Data'")
-                appendLine("5. Scarica e estrai watchlist.csv")
-            })
-            .setPositiveButton("Seleziona file") { _, _ ->
-                openLetterboxdWatchlistPicker()
+            .setTitle("📁 Importa Letterboxd Watchlist")
+            .setMessage("Seleziona il file watchlist.csv esportato da Letterboxd")
+            .setPositiveButton("Seleziona File") { _, _ ->
+                openFilePicker(letterboxdWatchlistPicker)
             }
             .setNegativeButton("Annulla", null)
             .show()
     }
 
-    //FILE PICKERS
-
-    private fun openImdbWatchedPicker() {
+    private fun openFilePicker(picker: androidx.activity.result.ActivityResultLauncher<Intent>) {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
-            type = "text/*"
+            type = "*/*"
             putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/csv", "text/comma-separated-values"))
         }
-        imdbWatchedPicker.launch(intent)
+        picker.launch(intent)
     }
 
-    private fun openImdbWatchlistPicker() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "text/*"
-            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/csv", "text/comma-separated-values"))
-        }
-        imdbWatchlistPicker.launch(intent)
-    }
-
-    private fun openLetterboxdWatchedPicker() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "text/*"
-            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/csv", "text/comma-separated-values"))
-        }
-        letterboxdWatchedPicker.launch(intent)
-    }
-
-    private fun openLetterboxdWatchlistPicker() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "text/*"
-            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/csv", "text/comma-separated-values"))
-        }
-        letterboxdWatchlistPicker.launch(intent)
-    }
-
-    //FILE PROCESSING
+    // ===== FILE PROCESSING =====
 
     private fun processImdbWatchedFile(uri: Uri) {
         try {
             val inputStream = requireContext().contentResolver.openInputStream(uri)
             if (inputStream != null) {
                 homeViewModel.processImdbWatchedCsv(inputStream)
+                Log.d(TAG, "✅ Processing IMDB Watched avviato")
             } else {
                 Toast.makeText(requireContext(), "Impossibile leggere il file", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Errore processing IMDB watched", e)
-            Toast.makeText(requireContext(), "Errore durante l'import", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "❌ Errore processing IMDB watched", e)
+            Toast.makeText(requireContext(), "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -454,12 +377,13 @@ class HomeFragment : Fragment() {
             val inputStream = requireContext().contentResolver.openInputStream(uri)
             if (inputStream != null) {
                 homeViewModel.processImdbWatchlistCsv(inputStream)
+                Log.d(TAG, "✅ Processing IMDB Watchlist avviato")
             } else {
                 Toast.makeText(requireContext(), "Impossibile leggere il file", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Errore processing IMDB watchlist", e)
-            Toast.makeText(requireContext(), "Errore durante l'import", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "❌ Errore processing IMDB watchlist", e)
+            Toast.makeText(requireContext(), "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -468,12 +392,13 @@ class HomeFragment : Fragment() {
             val inputStream = requireContext().contentResolver.openInputStream(uri)
             if (inputStream != null) {
                 homeViewModel.processLetterboxdWatchedCsv(inputStream)
+                Log.d(TAG, "✅ Processing Letterboxd Watched avviato")
             } else {
                 Toast.makeText(requireContext(), "Impossibile leggere il file", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Errore processing Letterboxd watched", e)
-            Toast.makeText(requireContext(), "Errore durante l'import", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "❌ Errore processing Letterboxd watched", e)
+            Toast.makeText(requireContext(), "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -482,70 +407,30 @@ class HomeFragment : Fragment() {
             val inputStream = requireContext().contentResolver.openInputStream(uri)
             if (inputStream != null) {
                 homeViewModel.processLetterboxdWatchlistCsv(inputStream)
+                Log.d(TAG, "✅ Processing Letterboxd Watchlist avviato")
             } else {
                 Toast.makeText(requireContext(), "Impossibile leggere il file", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Errore processing Letterboxd watchlist", e)
-            Toast.makeText(requireContext(), "Errore durante l'import", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "❌ Errore processing Letterboxd watchlist", e)
+            Toast.makeText(requireContext(), "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    //UI HELPERS
-
-    private fun updateLoadingUI(isLoading: Boolean) {
-        binding.swipeRefresh.isRefreshing = isLoading
-
-        if (isLoading) {
-            setButtonsEnabled(false)
-        } else {
-            setButtonsEnabled(true)
-        }
-    }
-
-    private fun setButtonsEnabled(enabled: Boolean) {
-        binding.buttonImportImdbWatched.isEnabled = enabled
-        binding.buttonImportImdbWatchlist.isEnabled = enabled
-        binding.buttonImportLetterboxdWatched.isEnabled = enabled
-        binding.buttonImportLetterboxdWatchlist.isEnabled = enabled
-        binding.buttonClearAll.isEnabled = enabled
-    }
-
-    //DIALOGS
+    // ===== CLEAR ALL =====
 
     private fun showClearAllConfirmation() {
-        val movieCount = homeViewModel.movies.value?.size ?: 0
-
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("⚠️ Elimina tutto")
-            .setMessage(
-                if (movieCount > 0) {
-                    "Vuoi eliminare tutti i $movieCount film?\n\n" +
-                            "Questa azione è irreversibile."
-                } else {
-                    "Non ci sono film da eliminare."
-                }
-            )
+            .setTitle("🗑️ Elimina tutti i film")
+            .setMessage("Sei sicuro di voler eliminare TUTTI i film?\n\nQuesta operazione non può essere annullata.")
             .setPositiveButton("Elimina") { _, _ ->
-                homeViewModel.clearAllData()
-                Toast.makeText(requireContext(), "Dati eliminati", Toast.LENGTH_SHORT).show()
-
-                // ✅ Aggiorna stats dopo clear
-                updatePermanentStatsCard()
+                homeViewModel.clearAllMovies()
             }
             .setNegativeButton("Annulla", null)
-            .setIcon(R.drawable.ic_warning)
             .show()
     }
 
-    //LIFECYCLE
-
-    override fun onResume() {
-        super.onResume()
-        // ✅ Aggiorna stats quando il fragment torna visibile
-        updatePermanentStatsCard()
-        Log.d(TAG, "Fragment resumed - stats aggiornate")
-    }
+    // ===== LIFECYCLE =====
 
     override fun onDestroyView() {
         super.onDestroyView()

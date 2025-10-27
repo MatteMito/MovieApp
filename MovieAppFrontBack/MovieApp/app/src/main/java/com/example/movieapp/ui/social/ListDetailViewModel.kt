@@ -1,3 +1,6 @@
+// FILE: app/src/main/java/com/example/movieapp/ui/social/ListDetailViewModel.kt
+// ViewModel per dettaglio lista - REFACTORED
+
 package com.example.movieapp.ui.social
 
 import android.util.Log
@@ -35,7 +38,7 @@ class ListDetailViewModel : ViewModel() {
                 _loading.value = true
                 _error.value = null
 
-                val response = ApiService.apiService.getListById(listId)
+                val response = ApiService.apiInterface.getListById(listId)
                 if (response.isSuccessful && response.body() != null) {
                     val movieList = response.body()!!
                     _list.value = movieList
@@ -60,8 +63,8 @@ class ListDetailViewModel : ViewModel() {
     fun addMovieToList(listId: String, movieId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                val body = mapOf("movieId" to movieId)
-                val response = ApiService.apiService.addMovieToList(listId, body)
+                val request = AddMovieToListRequest(movie_id = movieId)
+                val response = ApiService.apiInterface.addMovieToList(listId, request)
 
                 if (response.isSuccessful) {
                     Log.d(TAG, "✅ Film aggiunto alla lista")
@@ -83,7 +86,7 @@ class ListDetailViewModel : ViewModel() {
     fun removeMovieFromList(listId: String, movieId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                val response = ApiService.apiService.removeMovieFromList(listId, movieId)
+                val response = ApiService.apiInterface.removeMovieFromList(listId, movieId)
 
                 if (response.isSuccessful) {
                     Log.d(TAG, "✅ Film rimosso dalla lista")

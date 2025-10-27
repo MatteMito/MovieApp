@@ -286,18 +286,18 @@ class SocialFragment : Fragment() {
     // ===== AZIONI =====
 
     private fun navigateToListDetail(list: MovieList) {
-        val action = SocialFragmentDirections.actionNavigationSocialToListDetailFragment(list.id)
-        findNavController().navigate(action)
+        // TODO: Implementa navigazione a dettaglio lista
+        Toast.makeText(requireContext(), "Dettaglio lista: ${list.name}", Toast.LENGTH_SHORT).show()
     }
 
     private fun navigateToCreateList() {
-        val action = SocialFragmentDirections.actionNavigationSocialToCreateListDialog()
-        findNavController().navigate(action)
+        // TODO: Implementa dialog creazione lista
+        Toast.makeText(requireContext(), "Crea nuova lista", Toast.LENGTH_SHORT).show()
     }
 
     private fun navigateToEditList(list: MovieList) {
-        val action = SocialFragmentDirections.actionNavigationSocialToEditListDialog(list.id)
-        findNavController().navigate(action)
+        // TODO: Implementa dialog modifica lista
+        Toast.makeText(requireContext(), "Modifica lista: ${list.name}", Toast.LENGTH_SHORT).show()
     }
 
     private fun confirmDeleteList(list: MovieList) {

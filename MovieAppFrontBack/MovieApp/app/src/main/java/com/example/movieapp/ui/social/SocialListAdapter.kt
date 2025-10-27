@@ -1,3 +1,6 @@
+// FILE: app/src/main/java/com/example/movieapp/ui/social/SocialListAdapter.kt
+// Adapter per liste social - REFACTORED
+
 package com.example.movieapp.ui.social
 
 import android.view.LayoutInflater
@@ -51,18 +54,24 @@ class SocialListAdapter(
                 val movieCount = list.movies?.size ?: 0
                 textMovieCount.text = "$movieCount film"
 
-                // Followers (solo per liste pubbliche)
+                // Followers (solo per liste pubbliche) - COMMENTATO perché non disponibile
+                textFollowers.isVisible = false
+                /*
                 textFollowers.isVisible = list.isPublic
                 if (list.isPublic) {
                     val followersCount = list.followers?.size ?: 0
                     textFollowers.text = "👥 $followersCount followers"
                 }
+                */
 
-                // Deadline (se presente)
+                // Deadline - COMMENTATO perché non disponibile
+                textDeadline.isVisible = false
+                /*
                 textDeadline.isVisible = !list.deadline.isNullOrEmpty()
                 if (!list.deadline.isNullOrEmpty()) {
                     textDeadline.text = "📅 ${list.deadline}"
                 }
+                */
 
                 // Azioni: Edit/Delete (solo per le mie liste)
                 layoutActions.isVisible = isMyList

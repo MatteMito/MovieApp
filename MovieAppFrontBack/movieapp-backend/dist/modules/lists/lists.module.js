@@ -13,6 +13,7 @@ const lists_controller_1 = require("./lists.controller");
 const lists_service_1 = require("./lists.service");
 const list_entity_1 = require("../../database/entities/list.entity");
 const movie_entity_1 = require("../../database/entities/movie.entity");
+const user_entity_1 = require("../../database/entities/user.entity");
 let ListsModule = class ListsModule {
 };
 exports.ListsModule = ListsModule;
@@ -22,6 +23,7 @@ exports.ListsModule = ListsModule = __decorate([
             typeorm_1.TypeOrmModule.forFeature([
                 list_entity_1.MovieListEntity,
                 movie_entity_1.MovieEntity,
+                user_entity_1.UserEntity,
             ]),
         ],
         controllers: [lists_controller_1.ListsController],

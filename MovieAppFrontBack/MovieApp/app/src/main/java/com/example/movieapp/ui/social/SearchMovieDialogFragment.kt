@@ -1,3 +1,6 @@
+// FILE: app/src/main/java/com/example/movieapp/ui/social/SearchMovieDialogFragment.kt
+// Dialog per ricerca e selezione film - REFACTORED
+
 package com.example.movieapp.ui.social
 
 import android.os.Bundle
@@ -13,9 +16,7 @@ import com.example.movieapp.databinding.DialogSearchMovieBinding
 import com.example.movieapp.data.models.Movie
 import com.example.movieapp.data.repository.MovieRepository
 
-class SearchMovieDialogFragment(
-    private val onMovieSelected: (Movie) -> Unit
-) : DialogFragment() {
+class SearchMovieDialogFragment : DialogFragment() {
 
     private var _binding: DialogSearchMovieBinding? = null
     private val binding get() = _binding!!
@@ -23,6 +24,17 @@ class SearchMovieDialogFragment(
     private lateinit var adapter: SearchMovieAdapter
     private lateinit var movieRepository: MovieRepository
     private var allMovies: List<Movie> = emptyList()
+
+    // Callback per film selezionato
+    private var onMovieSelected: ((Movie) -> Unit)? = null
+
+    companion object {
+        fun newInstance(onMovieSelected: (Movie) -> Unit): SearchMovieDialogFragment {
+            return SearchMovieDialogFragment().apply {
+                this.onMovieSelected = onMovieSelected
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -56,7 +68,7 @@ class SearchMovieDialogFragment(
 
     private fun setupRecyclerView() {
         adapter = SearchMovieAdapter { movie ->
-            onMovieSelected(movie)
+            onMovieSelected?.invoke(movie)  // ⬅️ Safe call con ?.
             dismiss()
         }
 

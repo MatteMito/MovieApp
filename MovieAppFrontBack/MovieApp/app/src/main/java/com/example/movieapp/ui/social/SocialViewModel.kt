@@ -1,3 +1,6 @@
+// FILE: app/src/main/java/com/example/movieapp/ui/social/SocialViewModel.kt
+// ViewModel per SocialFragment - REFACTORED
+
 package com.example.movieapp.ui.social
 
 import android.content.Context
@@ -57,7 +60,7 @@ class SocialViewModel : ViewModel() {
                 _loading.value = true
                 _error.value = null
 
-                val response = ApiService.apiService.getMyLists()
+                val response = ApiService.apiInterface.getMyLists(ApiService.getCurrentUserId() ?: "")
                 if (response.isSuccessful && response.body() != null) {
                     val lists = response.body()!!
                     _myLists.value = lists
@@ -85,7 +88,7 @@ class SocialViewModel : ViewModel() {
                 _loading.value = true
                 _error.value = null
 
-                val response = ApiService.apiService.getPublicLists()
+                val response = ApiService.apiInterface.getPublicLists()
                 if (response.isSuccessful && response.body() != null) {
                     val lists = response.body()!!
                     _publicLists.value = lists
@@ -160,7 +163,7 @@ class SocialViewModel : ViewModel() {
     fun deleteList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                val response = ApiService.apiService.deleteList(listId)
+                val response = ApiService.apiInterface.deleteList(listId)
                 if (response.isSuccessful) {
                     Log.d(TAG, "✅ Lista $listId eliminata")
                     loadMyLists() // Ricarica liste
@@ -181,7 +184,7 @@ class SocialViewModel : ViewModel() {
     fun followList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                val response = ApiService.apiService.followList(listId)
+                val response = ApiService.apiInterface.followList(listId, mapOf("userId" to ApiService.getCurrentUserId()!!))
                 if (response.isSuccessful) {
                     Log.d(TAG, "✅ Lista $listId seguita")
                     onSuccess()

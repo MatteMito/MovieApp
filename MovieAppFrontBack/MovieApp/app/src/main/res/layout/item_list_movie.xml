@@ -89,17 +89,14 @@
         </LinearLayout>
 
         <!-- Bottone Rimuovi -->
-        <ImageButton
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/button_remove"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center_vertical"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_delete"
-            android:contentDescription="Rimuovi"
-            app:tint="@android:color/holo_red_dark"
-            android:visibility="gone"
-            tools:visibility="visible"/>
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✕"
+            android:textSize="18sp"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:contentDescription="Rimuovi film"/>
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

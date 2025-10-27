@@ -1,467 +1,215 @@
-// File: src/modules/movies/movies.service.ts
-// AGGIORNATO: gestione completa con UserMovieEntity
-
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { MovieEntity } from '../../database/entities/movie.entity';
+import { UserEntity } from '../../database/entities/user.entity';
 import { DatabaseService } from '../../database/database.service';
 import { TmdbService } from '../tmdb/tmdb.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
-import { UserMoviesService, ImportCounters } from './user-movies.service';
-import { MovieStatus } from '../../database/entities/user-movie.entity';
+import { Movie, BatchUploadResult, EnrichmentResult, FailedMovie } from '../../common/interfaces/movie.interface';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  Movie,
-  EnrichmentResult,
-  BatchUploadResult,
-} from '../../common/interfaces/movie.interface';
 
 @Injectable()
 export class MoviesService {
   private readonly logger = new Logger(MoviesService.name);
 
   constructor(
-    private readonly databaseService: DatabaseService,
-    private readonly tmdbService: TmdbService,
-    private readonly websocketGateway: WebsocketGateway,
-    private readonly userMoviesService: UserMoviesService,
+    @InjectRepository(MovieEntity)
+    private movieRepository: Repository<MovieEntity>,
+    @InjectRepository(UserEntity)
+    private userRepository: Repository<UserEntity>,
+    private databaseService: DatabaseService,
+    private tmdbService: TmdbService,
+    private websocketGateway: WebsocketGateway,
   ) {}
 
-  async batchUploadWithUserAssociation(
-    userId: string,
+  /**
+   * 🔥 Batch upload OTTIMIZZATO con progress real-time
+   * Supporta file grandi (1000+ film)
+   */
+  async batchUpload(
     watchlist: Movie[],
     watched: Movie[],
-  ): Promise<BatchUploadResult & { importCounters: ImportCounters }> {
+    userId: string,
+  ): Promise<BatchUploadResult> {
     const sessionId = uuidv4();
-    const startTime = Date.now();
+    const totalMovies = watchlist.length + watched.length;
 
-    this.logger.log(`📦 === BATCH UPLOAD SESSION ${sessionId} ===`);
-    this.logger.log(`User ID: ${userId}`);
-    this.logger.log(`watchlist: ${watchlist.length} film`);
-    this.logger.log(`watched: ${watched.length} film`);
+    this.logger.log(`🎬 BATCH UPLOAD avviato`);
+    this.logger.log(`   Session: ${sessionId}`);
+    this.logger.log(`   User: ${userId}`);
+    this.logger.log(`   Watchlist: ${watchlist.length} film`);
+    this.logger.log(`   Watched: ${watched.length} film`);
+    this.logger.log(`   TOTALE: ${totalMovies} film`);
 
     try {
-      // STEP 1: Salva tutti i film nella tabella movies
-      this.logger.log(`💾 salvataggio film in tabella movies...`);
+      // STEP 1: Salva tutti i film nel database (senza enrichment)
+      this.logger.log(`💾 Salvataggio ${totalMovies} film in database...`);
       const allMovies = [...watchlist, ...watched];
       await this.databaseService.saveMovies(allMovies);
-      this.logger.log(`✅ salvati ${allMovies.length} film in tabella movies`);
+      this.logger.log(`✅ ${totalMovies} film salvati`);
 
-      // ✅ Notifica inizio enrichment
-      await this.websocketGateway.notifyEnrichmentStarted(sessionId, allMovies.length);
+      // STEP 2: Notifica inizio enrichment
+      await this.websocketGateway.notifyEnrichmentStarted(sessionId, totalMovies);
 
-      // STEP 2: Enrichment watchlist CON PROGRESS
-      this.logger.log(`🎬 enrichment watchlist...`);
-      const watchlistEnrichment = await this.tmdbService.enrichMovies(watchlist, {
-        onProgress: async (processed, total, currentMovie) => {
-          // ✅ Invia progress via WebSocket
-          await this.websocketGateway.notifyEnrichmentProgress(
-            sessionId,
-            processed,
-            total,
-            currentMovie
-          );
-        }
-      });
-      
-      const watchlistResult: EnrichmentResult = {
-        sessionId: uuidv4(),
-        successfulMovies: watchlistEnrichment.successfulMovies,
-        failedMovies: watchlistEnrichment.failedMovies,
-        totalProcessed: watchlistEnrichment.totalProcessed,
-        successRate: watchlistEnrichment.successRate,
-        cacheHits: 0,
-      };
+      // STEP 3: Enrichment con progress real-time
+      this.logger.log(`✨ Avvio enrichment TMDB...`);
 
-      // STEP 3: Enrichment watched CON PROGRESS
-      this.logger.log(`🎬 enrichment watched...`);
-      const watchedEnrichment = await this.tmdbService.enrichMovies(watched, {
-        onProgress: async (processed, total, currentMovie) => {
-          // ✅ Invia progress via WebSocket (offset per watchlist)
-          await this.websocketGateway.notifyEnrichmentProgress(
-            sessionId,
-            watchlist.length + processed,
-            allMovies.length,
-            currentMovie
-          );
-        }
-      });
-      
-      const watchedResult: EnrichmentResult = {
-        sessionId: uuidv4(),
-        successfulMovies: watchedEnrichment.successfulMovies,
-        failedMovies: watchedEnrichment.failedMovies,
-        totalProcessed: watchedEnrichment.totalProcessed,
-        successRate: watchedEnrichment.successRate,
-        cacheHits: 0,
-      };
+      let processedCount = 0;
 
-      // STEP 4: Associazioni user_movies
-      this.logger.log(`🔗 creazione associazioni user_movies...`);
-      
-      const watchlistAssociations = watchlistResult.successfulMovies.map(m => ({
-        movieId: m.id,
-        status: MovieStatus.WATCHLIST,
-      }));
+      // Enrichment watchlist
+      const watchlistResult = await this.enrichMoviesWithProgress(
+        watchlist,
+        sessionId,
+        processedCount,
+        totalMovies,
+      );
+      processedCount += watchlist.length;
 
-      const watchedAssociations = watchedResult.successfulMovies.map(m => ({
-        movieId: m.id,
-        status: MovieStatus.WATCHED,
-      }));
-
-      await this.userMoviesService.batchAssociateMovies(
-        userId,
-        [...watchlistAssociations, ...watchedAssociations]
+      // Enrichment watched
+      const watchedResult = await this.enrichMoviesWithProgress(
+        watched,
+        sessionId,
+        processedCount,
+        totalMovies,
       );
 
-      this.logger.log(`✅ associazioni create per ${watchlistAssociations.length + watchedAssociations.length} film`);
-
-      // STEP 5: Recupera contatori aggiornati
-      const userStats = await this.userMoviesService.getUserMovieStats(userId);
-
-      const importCounters: ImportCounters = {
-        watchedFromFile: watched.length,
-        watchlistFromFile: watchlist.length,
-        totalWatched: userStats.watchedCount,
-        totalWatchlist: userStats.watchlistCount,
-      };
-
-      // Statistiche finali
-      const totalMovies = watchlist.length + watched.length;
-      const totalEnriched =
-        watchlistResult.successfulMovies.filter((m) => m.tmdb_id).length +
-        watchedResult.successfulMovies.filter((m) => m.tmdb_id).length;
-      const totalCacheHits = watchlistResult.cacheHits + watchedResult.cacheHits;
-
-      // ✅ Notifica completamento
+      // STEP 4: Notifica completamento
       await this.websocketGateway.notifyEnrichmentCompleted(
         sessionId,
         totalMovies,
-        totalEnriched,
-        totalCacheHits
+        totalMovies,
       );
 
-      const duration = Date.now() - startTime;
+      // Summary
+      const summary = {
+        totalMovies,
+        watchlistCount: watchlist.length,
+        watchedCount: watched.length,
+        totalEnriched: watchlistResult.successfulMovies.length + watchedResult.successfulMovies.length,
+        overallSuccessRate: ((watchlistResult.successfulMovies.length + watchedResult.successfulMovies.length) / totalMovies) * 100,
+        cacheHitsTotal: 0,
+      };
 
-      this.logger.log(`=== BATCH UPLOAD COMPLETATO ===`);
-      this.logger.log(`durata: ${(duration / 1000).toFixed(1)}s`);
-      this.logger.log(`film arricchiti: ${totalEnriched}/${totalMovies}`);
+      this.logger.log(`✅ BATCH UPLOAD COMPLETATO`);
+      this.logger.log(`   Enriched: ${summary.totalEnriched}/${totalMovies}`);
+      this.logger.log(`   Success rate: ${summary.overallSuccessRate.toFixed(1)}%`);
 
       return {
         sessionId,
         watchlistResult,
         watchedResult,
-        importCounters,
-        summary: {
-          totalMovies,
-          watchlistCount: watchlist.length,
-          watchedCount: watched.length,
-          totalEnriched,
-          overallSuccessRate: totalEnriched / totalMovies,
-          cacheHitsTotal: totalCacheHits,
-        },
+        summary,
       };
+
     } catch (error) {
-      this.logger.error(`❌ errore batch upload: ${error.message}`);
+      this.logger.error(`❌ Errore batch upload: ${error.message}`);
       
-      // ✅ Notifica errore
-      await this.websocketGateway.notifyEnrichmentError(sessionId, error.message);
-      
-      throw error;
-    }
-  }
-
-  /**
-   * 🆕 Recupera film di un utente specifico
-   */
-  async getUserMovies(
-    userId: string,
-    filters?: {
-      status?: 'watched' | 'watchlist';
-      query?: string;
-      genre?: string;
-      year?: number;
-      director?: string;
-      minRating?: number;
-      maxRating?: number;
-      sortBy?: string;
-      sortOrder?: 'ASC' | 'DESC';
-      limit?: number;
-      offset?: number;
-    },
-  ): Promise<{ movies: Movie[]; total: number }> {
-    try {
-      this.logger.debug(`🔍 Recupero film per utente ${userId}`);
-
-      // Converti status in MovieStatus enum
-      const movieStatus = filters?.status === 'watched' 
-        ? MovieStatus.WATCHED 
-        : filters?.status === 'watchlist'
-        ? MovieStatus.WATCHLIST
-        : undefined;
-
-      // Recupera film dell'utente tramite UserMoviesService
-      const userMoviesData = await this.userMoviesService.getUserMovies(
-        userId,
-        movieStatus,
+      // Notifica errore via WebSocket
+      await this.websocketGateway.notifyEnrichmentError(
+        sessionId,
+        error.message,
       );
 
-      let movies = userMoviesData;
-
-      // Applica filtri aggiuntivi
-      if (filters?.query) {
-        const queryLower = filters.query.toLowerCase();
-        movies = movies.filter(m => 
-          m.title.toLowerCase().includes(queryLower) ||
-          m.director?.toLowerCase().includes(queryLower)
-        );
-      }
-
-      if (filters?.genre) {
-        movies = movies.filter(m =>
-          m.genres?.some(g => g.toLowerCase().includes(filters.genre!.toLowerCase()))
-        );
-      }
-
-      if (filters?.year) {
-        movies = movies.filter(m => m.year === filters.year);
-      }
-
-      if (filters?.director) {
-        movies = movies.filter(m =>
-          m.director?.toLowerCase().includes(filters.director!.toLowerCase())
-        );
-      }
-
-      const total = movies.length;
-
-      // Ordinamento
-      if (filters?.sortBy) {
-        movies = this.sortMovies(movies, filters.sortBy, filters.sortOrder);
-      }
-
-      // Paginazione
-      const offset = filters?.offset || 0;
-      const limit = filters?.limit || 50;
-      movies = movies.slice(offset, offset + limit);
-
-      this.logger.debug(`✅ trovati ${total} film (mostrati ${movies.length})`);
-
-      return { movies, total };
-    } catch (error) {
-      this.logger.error(`errore getUserMovies: ${error.message}`);
-      return { movies: [], total: 0 };
-    }
-  }
-
-  /**
-   * 🆕 Statistiche utente
-   */
-  async getUserStats(userId: string): Promise<any> {
-    try {
-      const userStats = await this.userMoviesService.getUserMovieStats(userId);
-      
-      return {
-        user_id: userId,
-        total_movies: userStats.totalMovies,
-        watched_count: userStats.watchedCount,
-        watchlist_count: userStats.watchlistCount,
-        average_rating: userStats.averageRating,
-      };
-    } catch (error) {
-      this.logger.error(`errore getUserStats: ${error.message}`);
-      return { error: error.message };
-    }
-  }
-
-  /**
-   * Enrichment batch
-   */
-  async enrichMovies(movies: Movie[]): Promise<EnrichmentResult> {
-    try {
-      const result = await this.tmdbService.enrichMovies(movies);
-      
-      // TmdbService ritorna un risultato senza sessionId e cacheHits
-      // Li aggiungiamo qui per conformità con EnrichmentResult
-      return {
-        sessionId: uuidv4(),
-        successfulMovies: result.successfulMovies,
-        failedMovies: result.failedMovies,
-        totalProcessed: result.totalProcessed,
-        successRate: result.successRate,
-        cacheHits: 0, // TmdbService non traccia cache hits
-      };
-    } catch (error) {
-      this.logger.error(`errore enrichMovies: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * Cerca film
+   * 🔥 Enrichment con progress tracking real-time
    */
-  async searchMovies(filters: {
-    query?: string;
-    genre?: string;
-    year?: number;
-    director?: string;
-    sortBy?: string;
-    sortOrder?: 'ASC' | 'DESC';
-    limit?: number;
-    offset?: number;
-  }): Promise<{ movies: Movie[]; total: number }> {
-    try {
-      let movies = await this.databaseService.getAllMovies();
-
-      // Applica filtri
-      if (filters.query) {
-        const queryLower = filters.query.toLowerCase();
-        movies = movies.filter(m =>
-          m.title.toLowerCase().includes(queryLower) ||
-          m.director?.toLowerCase().includes(queryLower)
-        );
-      }
-
-      if (filters.genre) {
-        movies = movies.filter(m =>
-          m.genres?.some(g => g.toLowerCase().includes(filters.genre!.toLowerCase()))
-        );
-      }
-
-      if (filters.year) {
-        movies = movies.filter(m => m.year === filters.year);
-      }
-
-      if (filters.director) {
-        movies = movies.filter(m =>
-          m.director?.toLowerCase().includes(filters.director!.toLowerCase())
-        );
-      }
-
-      const total = movies.length;
-
-      // Ordinamento
-      if (filters.sortBy) {
-        movies = this.sortMovies(movies, filters.sortBy, filters.sortOrder);
-      }
-
-      // Paginazione
-      const offset = filters.offset || 0;
-      const limit = filters.limit || 50;
-      movies = movies.slice(offset, offset + limit);
-
-      return { movies, total };
-    } catch (error) {
-      this.logger.error(`errore searchMovies: ${error.message}`);
-      return { movies: [], total: 0 };
-    }
-  }
-
-  /**
-   * Ordinamento film
-   */
-  private sortMovies(
+  private async enrichMoviesWithProgress(
     movies: Movie[],
-    sortBy: string,
-    sortOrder?: 'ASC' | 'DESC',
-  ): Movie[] {
-    const order = sortOrder || 'ASC';
+    sessionId: string,
+    startOffset: number,
+    totalMovies: number,
+  ): Promise<EnrichmentResult> {
+    const successfulMovies: Movie[] = [];
+    const failedMovies: FailedMovie[] = [];
 
-    const sorted = [...movies].sort((a, b) => {
-      let comparison = 0;
+    for (let i = 0; i < movies.length; i++) {
+      const movie = movies[i];
+      const currentProgress = startOffset + i + 1;
 
-      switch (sortBy) {
-        case 'title':
-          comparison = a.title.localeCompare(b.title);
-          break;
-        case 'year':
-          comparison = (a.year || 0) - (b.year || 0);
-          break;
-        case 'director':
-          comparison = (a.director || '').localeCompare(b.director || '');
-          break;
-        case 'rating':
-          comparison = (a.tmdb_rating || 0) - (b.tmdb_rating || 0);
-          break;
-        case 'runtime':
-          comparison = (a.runtime || 0) - (b.runtime || 0);
-          break;
-        default:
-          comparison = 0;
+      try {
+        // Enrichment singolo film
+        const enrichedMovie = await this.tmdbService.enrichMovie(movie);
+        
+        if (enrichedMovie && enrichedMovie.tmdb_id) {
+          successfulMovies.push(enrichedMovie);
+          
+          // Salva film enriched
+          await this.databaseService.saveMovie(enrichedMovie);
+        } else {
+          failedMovies.push({
+            movie,
+            error: 'No TMDB data found',
+          });
+        }
+
+        // 🔥 Invia progress via WebSocket
+        await this.websocketGateway.notifyEnrichmentProgress(
+          sessionId,
+          currentProgress,
+          totalMovies,
+          movie.title,
+        );
+
+        // Piccola pausa per evitare rate limiting TMDB
+        await this.sleep(300);
+
+      } catch (error) {
+        this.logger.warn(`⚠️ Errore enrichment "${movie.title}": ${error.message}`);
+        failedMovies.push({
+          movie,
+          error: error.message,
+        });
       }
+    }
 
-      return order === 'DESC' ? -comparison : comparison;
-    });
+    const successRate = (successfulMovies.length / movies.length) * 100;
 
-    return sorted;
-  }
-
-  /**
-   * Health check
-   */
-  async healthCheck(): Promise<{ status: string; timestamp: string }> {
     return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
+      sessionId: uuidv4(),
+      successfulMovies,
+      failedMovies,
+      totalProcessed: movies.length,
+      successRate,
+      cacheHits: 0,
     };
   }
 
   /**
-   * Statistiche sistema
+   * Get all movies for a user
    */
-  async getStats(): Promise<any> {
-    try {
-      const allMovies = await this.databaseService.getAllMovies();
-      const enrichedMovies = allMovies.filter(m => m.tmdb_id);
-
-      return {
-        totalMovies: allMovies.length,
-        enrichedMovies: enrichedMovies.length,
-        enrichmentRate: allMovies.length > 0
-          ? (enrichedMovies.length / allMovies.length) * 100
-          : 0,
-      };
-    } catch (error) {
-      this.logger.error(`errore getStats: ${error.message}`);
-      return { error: error.message };
-    }
+  async getAllMovies(userId: string): Promise<MovieEntity[]> {
+    return this.movieRepository.find({
+      where: { user: { id: userId } },
+      order: { created_at: 'DESC' },
+    });
   }
 
   /**
-   * Get all movies (legacy)
+   * Delete all movies for a user
    */
-  async getAllMovies(): Promise<Movie[]> {
-    try {
-      return await this.databaseService.getAllMovies();
-    } catch (error) {
-      this.logger.error(`errore getAllMovies: ${error.message}`);
-      return [];
-    }
+  async deleteAllMovies(userId: string): Promise<{ message: string; deletedCount: number }> {
+    const movies = await this.getAllMovies(userId);
+    const deletedCount = movies.length;
+
+    await this.movieRepository.remove(movies);
+
+    this.logger.log(`🗑️ Eliminati ${deletedCount} film per user ${userId}`);
+
+    return {
+      message: 'All movies deleted successfully',
+      deletedCount,
+    };
   }
 
   /**
-   * Get movie by ID
+   * Utility: sleep
    */
-  async getMovieById(id: string): Promise<Movie | null> {
-    try {
-      return await this.databaseService.getMovieById(id);
-    } catch (error) {
-      this.logger.error(`errore getMovieById: ${error.message}`);
-      return null;
-    }
-  }
-
-  /**
-   * Delete all movies
-   */
-  async deleteAllMovies(): Promise<void> {
-    try {
-      const allMovies = await this.databaseService.getAllMovies();
-      for (const movie of allMovies) {
-        await this.databaseService.deleteMovie(movie.id);
-      }
-      this.logger.log('🗑️ tutti i film eliminati');
-    } catch (error) {
-      this.logger.error(`errore deleteAllMovies: ${error.message}`);
-      throw error;
-    }
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

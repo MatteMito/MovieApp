@@ -172,6 +172,10 @@ data class AddMovieFromTmdbRequest(
     val status: String = "watchlist"
 )
 
+data class AddMovieToListRequest(
+    val movie_id: String
+)
+
 // ============================================
 // RETROFIT INTERFACE
 // ============================================
@@ -215,53 +219,8 @@ interface ApiInterface {
         @Query("userId") userId: String
     ): Response<ApiResponse<List<MovieList>>>
 
-    @GET("lists/public")
-    suspend fun getPublicLists(
-        @Query("limit") limit: Int = 20,
-        @Query("userId") userId: String? = null
-    ): Response<ApiResponse<List<MovieList>>>
-
-    @GET("lists/{id}")
-    suspend fun getListById(
-        @Path("id") listId: String
-    ): Response<ApiResponse<MovieList>>
-
-    @POST("lists")
-    suspend fun createList(
-        @Body request: CreateListRequest
-    ): Response<ApiResponse<MovieList>>
-
-    @PUT("lists/{id}")
-    suspend fun updateList(
-        @Path("id") listId: String,
-        @Body request: UpdateListRequest
-    ): Response<ApiResponse<MovieList>>
-
-    @DELETE("lists/{id}")
-    suspend fun deleteList(
-        @Path("id") listId: String
-    ): Response<ApiResponse<Any>>
-
-    @POST("lists/{id}/movies")
-    suspend fun addMovieToList(
-        @Path("id") listId: String,
-        @Body request: AddMovieToListRequest
-    ): Response<ApiResponse<MovieList>>
-
-    @DELETE("lists/{id}/movies/{movieId}")
-    suspend fun removeMovieFromList(
-        @Path("id") listId: String,
-        @Path("movieId") movieId: String
-    ): Response<ApiResponse<MovieList>>
-
     @DELETE("movies/user/{userId}/all")
     suspend fun deleteAllUserMovies(@Path("userId") userId: String): Response<ApiResponse<Unit>>
-
-    @POST("lists/{id}/follow")
-    suspend fun followList(
-        @Path("id") listId: String,
-        @Body request: Map<String, String>
-    ): Response<ApiResponse<MovieList>>
 
     @GET("tmdb/search")
     suspend fun searchTmdb(
@@ -273,6 +232,66 @@ interface ApiInterface {
     suspend fun addMovieFromTmdb(
         @Body request: AddMovieFromTmdbRequest
     ): Response<ApiResponse<Movie>>
+
+    @POST("api/v1/lists")
+    suspend fun createList(
+        @Body request: CreateListRequest
+    ): Response<MovieList>
+
+    @PUT("api/v1/lists/{id}")
+    suspend fun updateList(
+        @Path("id") listId: String,
+        @Body request: UpdateListRequest
+    ): Response<MovieList>
+
+    @GET("api/v1/lists/my")
+    suspend fun getMyLists(
+        @Query("userId") userId: String
+    ): Response<List<MovieList>>
+
+    @GET("api/v1/lists/public")
+    suspend fun getPublicLists(
+        @Query("limit") limit: Int = 20,
+        @Query("userId") userId: String? = null
+    ): Response<List<MovieList>>
+
+    @GET("api/v1/lists/{id}")
+    suspend fun getListById(
+        @Path("id") listId: String
+    ): Response<MovieList>
+
+    @DELETE("api/v1/lists/{id}")
+    suspend fun deleteList(
+        @Path("id") listId: String
+    ): Response<Any>
+
+    @POST("api/v1/lists/{id}/movies")
+    suspend fun addMovieToList(
+        @Path("id") listId: String,
+        @Body request: AddMovieToListRequest
+    ): Response<MovieList>
+
+    @DELETE("api/v1/lists/{id}/movies/{movieId}")
+    suspend fun removeMovieFromList(
+        @Path("id") listId: String,
+        @Path("movieId") movieId: String
+    ): Response<MovieList>
+
+    @POST("api/v1/lists/{id}/follow")
+    suspend fun followList(
+        @Path("id") listId: String,
+        @Body body: Map<String, String>
+    ): Response<Any>
+
+    @DELETE("api/v1/lists/{id}/follow")
+    suspend fun unfollowList(
+        @Path("id") listId: String
+    ): Response<Any>
+
+    @GET("api/v1/lists/{id}/followers")
+    suspend fun getListFollowers(
+        @Path("id") listId: String
+    ): Response<List<UserInfo>>
 }
 
 // ============================================
@@ -529,14 +548,14 @@ object ApiService {
 
             Log.d(TAG, "📋 Recupero liste per utente $userId")
 
-            val response = apiInterface.getUserLists(userId)
+            val response = apiInterface.getMyLists(userId)
 
-            if (response.isSuccessful && response.body()?.success == true) {
-                val lists = response.body()?.data ?: emptyList()
+            if (response.isSuccessful) {  // ⬅️ Senza .body()?.success
+                val lists = response.body() ?: emptyList()  // ⬅️ Diretto, senza .data
                 Log.d(TAG, "✅ ${lists.size} liste recuperate")
                 Result.success(lists)
             } else {
-                val error = response.body()?.message ?: "Errore recupero liste"
+                val error = response.message() ?: "Errore recupero liste"
                 Log.w(TAG, "⚠️ $error")
                 Result.failure(Exception(error))
             }
@@ -548,17 +567,17 @@ object ApiService {
 
     suspend fun getPublicLists(limit: Int = 20): Result<List<MovieList>> = withContext(Dispatchers.IO) {
         try {
-            val userId = getCurrentUserId()  // 🔥 Ottieni userId corrente
+            val userId = getCurrentUserId()
             Log.d(TAG, "🌐 Recupero liste pubbliche (limit: $limit, exclude: $userId)")
 
-            val response = apiInterface.getPublicLists(limit, userId)  // 🔥 PASSA userId
+            val response = apiInterface.getPublicLists(limit, userId)
 
-            if (response.isSuccessful && response.body()?.success == true) {
-                val lists = response.body()?.data ?: emptyList()
+            if (response.isSuccessful) {  // ⬅️ Senza .body()?.success
+                val lists = response.body() ?: emptyList()  // ⬅️ Diretto, senza .data
                 Log.d(TAG, "✅ ${lists.size} liste pubbliche recuperate")
                 Result.success(lists)
             } else {
-                val error = response.body()?.message ?: "Errore recupero liste pubbliche"
+                val error = response.message() ?: "Errore recupero liste pubbliche"
                 Log.w(TAG, "⚠️ $error")
                 Result.failure(Exception(error))
             }
@@ -574,19 +593,110 @@ object ApiService {
 
             val response = apiInterface.getListById(listId)
 
-            if (response.isSuccessful && response.body()?.success == true) {
-                val list = response.body()?.data
+            if (response.isSuccessful) {
+                val list = response.body()
                     ?: return@withContext Result.failure(Exception("Lista non trovata"))
 
-                Log.d(TAG, "✅ Lista recuperata: ${list.name} (${list.movieCount} film)")
+                Log.d(TAG, "✅ Lista recuperata: ${list.name}")
                 Result.success(list)
             } else {
-                val error = response.body()?.message ?: "Errore recupero lista"
+                val error = response.message() ?: "Errore recupero lista"
                 Log.w(TAG, "⚠️ $error")
                 Result.failure(Exception(error))
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Errore getListById", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteList(listId: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "🗑️ Eliminazione lista $listId")
+
+            val response = apiInterface.deleteList(listId)
+
+            if (response.isSuccessful) {
+                Log.d(TAG, "✅ Lista eliminata: $listId")
+                Result.success(true)
+            } else {
+                val error = response.message() ?: "Errore eliminazione lista"
+                Log.w(TAG, "⚠️ $error")
+                Result.failure(Exception(error))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Errore deleteList", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addMovieToList(listId: String, movieId: String): Result<MovieList> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "➕ Aggiunta film $movieId a lista $listId")
+
+            val request = AddMovieToListRequest(movie_id = movieId)  // ⬅️ movie_id
+            val response = apiInterface.addMovieToList(listId, request)
+
+            if (response.isSuccessful) {
+                val list = response.body()
+                    ?: return@withContext Result.failure(Exception("Errore aggiunta film"))
+
+                Log.d(TAG, "✅ Film aggiunto a lista")
+                Result.success(list)
+            } else {
+                val error = response.message() ?: "Errore aggiunta film"
+                Log.w(TAG, "⚠️ $error")
+                Result.failure(Exception(error))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Errore addMovieToList", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun removeMovieFromList(listId: String, movieId: String): Result<MovieList> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "➖ Rimozione film $movieId da lista $listId")
+
+            val response = apiInterface.removeMovieFromList(listId, movieId)
+
+            if (response.isSuccessful) {
+                val list = response.body()
+                    ?: return@withContext Result.failure(Exception("Errore rimozione film"))
+
+                Log.d(TAG, "✅ Film rimosso da lista")
+                Result.success(list)
+            } else {
+                val error = response.message() ?: "Errore rimozione film"
+                Log.w(TAG, "⚠️ $error")
+                Result.failure(Exception(error))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Errore removeMovieFromList", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun followList(listId: String): Result<Any> = withContext(Dispatchers.IO) {
+        try {
+            val userId = getCurrentUserId()
+                ?: return@withContext Result.failure(Exception("Utente non autenticato"))
+
+            Log.d(TAG, "👥 Follow lista $listId")
+
+            val request = mapOf("userId" to userId)
+            val response = apiInterface.followList(listId, request)
+
+            if (response.isSuccessful) {
+                Log.d(TAG, "✅ Lista seguita")
+                Result.success(Unit)
+            } else {
+                val error = response.message() ?: "Errore follow lista"
+                Log.w(TAG, "⚠️ $error")
+                Result.failure(Exception(error))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Errore followList", e)
             Result.failure(e)
         }
     }
@@ -663,8 +773,8 @@ object ApiService {
             Log.d(TAG, "   code: ${response.code()}")
             Log.d(TAG, "   message: ${response.message()}")
 
-            if (response.isSuccessful && response.body()?.success == true) {
-                val list = response.body()?.data
+            if (response.isSuccessful) {
+                val list = response.body()
                     ?: return@withContext Result.failure(Exception("Dati lista non presenti nella risposta"))
 
                 Log.d(TAG, "✅ LISTA CREATA CON SUCCESSO!")
@@ -673,7 +783,7 @@ object ApiService {
                 Log.d(TAG, "========================================")
                 Result.success(list)
             } else {
-                val error = response.body()?.message ?: response.message() ?: "Errore creazione lista"
+                val error = response.message() ?: "Errore creazione lista"
                 val errorBody = response.errorBody()?.string()
 
                 Log.e(TAG, "❌ ERRORE CREAZIONE LISTA")
@@ -713,113 +823,19 @@ object ApiService {
 
             val response = apiInterface.updateList(listId, request)
 
-            if (response.isSuccessful && response.body()?.success == true) {
-                val list = response.body()?.data
+            if (response.isSuccessful) {
+                val list = response.body()
                     ?: return@withContext Result.failure(Exception("Errore aggiornamento lista"))
 
                 Log.d(TAG, "✅ Lista aggiornata: $listId")
                 Result.success(list)
             } else {
-                val error = response.body()?.message ?: "Errore aggiornamento lista"
+                val error = response.message() ?: "Errore creazione lista"
                 Log.w(TAG, "⚠️ $error")
                 Result.failure(Exception(error))
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Errore updateList", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun deleteList(listId: String): Result<Boolean> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "🗑️ Eliminazione lista $listId")
-
-            val response = apiInterface.deleteList(listId)
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                Log.d(TAG, "✅ Lista eliminata: $listId")
-                Result.success(true)
-            } else {
-                val error = response.body()?.message ?: "Errore eliminazione lista"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore deleteList", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun addMovieToList(listId: String, movieId: String): Result<MovieList> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "➕ Aggiunta film $movieId a lista $listId")
-
-            val request = AddMovieToListRequest(movieId)
-            val response = apiInterface.addMovieToList(listId, request)
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                val list = response.body()?.data
-                    ?: return@withContext Result.failure(Exception("Errore aggiunta film"))
-
-                Log.d(TAG, "✅ Film aggiunto a lista")
-                Result.success(list)
-            } else {
-                val error = response.body()?.message ?: "Errore aggiunta film"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore addMovieToList", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun removeMovieFromList(listId: String, movieId: String): Result<MovieList> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "➖ Rimozione film $movieId da lista $listId")
-
-            val response = apiInterface.removeMovieFromList(listId, movieId)
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                val list = response.body()?.data
-                    ?: return@withContext Result.failure(Exception("Errore rimozione film"))
-
-                Log.d(TAG, "✅ Film rimosso da lista")
-                Result.success(list)
-            } else {
-                val error = response.body()?.message ?: "Errore rimozione film"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore removeMovieFromList", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun followList(listId: String): Result<MovieList> = withContext(Dispatchers.IO) {
-        try {
-            val userId = getCurrentUserId()
-                ?: return@withContext Result.failure(Exception("Utente non autenticato"))
-
-            Log.d(TAG, "👥 Follow lista $listId")
-
-            val request = mapOf("userId" to userId)
-            val response = apiInterface.followList(listId, request)
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                val list = response.body()?.data
-                    ?: return@withContext Result.failure(Exception("Errore follow lista"))
-
-                Log.d(TAG, "✅ Lista seguita")
-                Result.success(list)
-            } else {
-                val error = response.body()?.message ?: "Errore follow lista"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore followList", e)
             Result.failure(e)
         }
     }
