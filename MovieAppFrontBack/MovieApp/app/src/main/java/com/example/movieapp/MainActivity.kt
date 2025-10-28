@@ -14,6 +14,7 @@ import androidx.navigation.ui.setupWithNavController
 import com.example.movieapp.databinding.ActivityMainBinding
 import com.example.movieapp.config.AppConfig
 import com.example.movieapp.data.network.ApiService
+import com.example.movieapp.ui.auth.LoginActivity
 // ❌ RIMOSSO: import com.example.movieapp.data.cache.CacheService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

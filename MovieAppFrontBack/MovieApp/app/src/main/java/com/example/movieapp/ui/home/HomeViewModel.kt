@@ -1,6 +1,3 @@
-// FILE: app/src/main/java/com/example/movieapp/ui/home/HomeViewModel.kt
-// COMPLETAMENTE RIFATTO - File grandi NON bloccano più l'app! 🚀
-
 package com.example.movieapp.ui.home
 
 import android.content.Context
@@ -28,7 +25,7 @@ class HomeViewModel : ViewModel() {
     private val csvProcessor = CsvProcessor()
     private val webSocketService = WebSocketService.getInstance()
 
-    // ===== LIVEDATA =====
+    //livedata
     private val _movies = MutableLiveData<List<Movie>>()
     val movies: LiveData<List<Movie>> = _movies
 
@@ -38,17 +35,18 @@ class HomeViewModel : ViewModel() {
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
-    private val _importStatus = MutableLiveData<ImportStatus>()
-    val importStatus: LiveData<ImportStatus> = _importStatus
+    //solo progress percentuale
+    private val _importProgress = MutableLiveData<Int>()
+    val importProgress: LiveData<Int> = _importProgress
 
-    private val _enrichmentProgress = MutableLiveData<Pair<Int, Int>>()
-    val enrichmentProgress: LiveData<Pair<Int, Int>> = _enrichmentProgress
+    private val _isImporting = MutableLiveData<Boolean>()
+    val isImporting: LiveData<Boolean> = _isImporting
 
     init {
         _isLoading.value = false
-        _importStatus.value = ImportStatus.IDLE
-        _enrichmentProgress.value = 0 to 0
-        Log.d(TAG, "✅ HomeViewModel inizializzato")
+        _isImporting.value = false
+        _importProgress.value = 0
+        Log.d(TAG, "viewmodel inizializzato")
     }
 
     fun initialize(context: Context) {
@@ -61,16 +59,16 @@ class HomeViewModel : ViewModel() {
 
         loadSavedMovies()
 
-        // Connetti WebSocket
+        //connetti websocket
         viewModelScope.launch {
             try {
                 webSocketService.connect()
                 delay(1000)
                 if (webSocketService.isConnected()) {
-                    Log.d(TAG, "✅ WebSocket connesso")
+                    Log.d(TAG, "websocket connesso")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Errore WebSocket: ${e.message}")
+                Log.e(TAG, "errore websocket: ${e.message}")
             }
         }
     }
@@ -80,9 +78,9 @@ class HomeViewModel : ViewModel() {
             try {
                 val savedMovies = movieRepository?.getAllMovies() ?: emptyList()
                 _movies.postValue(savedMovies)
-                Log.d(TAG, "📚 Caricati ${savedMovies.size} film salvati")
+                Log.d(TAG, "caricati ${savedMovies.size} film salvati")
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Errore caricamento: ${e.message}")
+                Log.e(TAG, "errore caricamento: ${e.message}")
             }
         }
     }
@@ -95,138 +93,113 @@ class HomeViewModel : ViewModel() {
                 if (success) {
                     val movies = movieRepository?.movies?.value ?: emptyList()
                     _movies.postValue(movies)
-                    _message.value = "✅ Dati aggiornati: ${movies.size} film"
-                    Log.d(TAG, "✅ Refresh completato")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Errore refresh: ${e.message}")
+                Log.e(TAG, "errore refresh: ${e.message}")
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    // ===== IMPORT CSV - VERSIONE OTTIMIZZATA =====
+    //import csv
 
-    /**
-     * Process IMDB Watched - ASINCRONO
-     */
     fun processImdbWatchedCsv(inputStream: InputStream) {
         viewModelScope.launch(Dispatchers.IO) {
             processCsvFileAsync(inputStream, CsvType.IMDB_WATCHED)
         }
     }
 
-    /**
-     * Process IMDB Watchlist - ASINCRONO
-     */
     fun processImdbWatchlistCsv(inputStream: InputStream) {
         viewModelScope.launch(Dispatchers.IO) {
             processCsvFileAsync(inputStream, CsvType.IMDB_WATCHLIST)
         }
     }
 
-    /**
-     * Process Letterboxd Watched - ASINCRONO
-     */
     fun processLetterboxdWatchedCsv(inputStream: InputStream) {
         viewModelScope.launch(Dispatchers.IO) {
             processCsvFileAsync(inputStream, CsvType.LETTERBOXD_WATCHED)
         }
     }
 
-    /**
-     * Process Letterboxd Watchlist - ASINCRONO
-     */
     fun processLetterboxdWatchlistCsv(inputStream: InputStream) {
         viewModelScope.launch(Dispatchers.IO) {
             processCsvFileAsync(inputStream, CsvType.LETTERBOXD_WATCHLIST)
         }
     }
 
-    /**
-     * 🔥 FUNZIONE PRINCIPALE - Processing asincrono con chunking
-     */
     private suspend fun processCsvFileAsync(inputStream: InputStream, csvType: CsvType) {
         try {
-            // STEP 1: Parsing (in background)
             withContext(Dispatchers.Main) {
-                _importStatus.value = ImportStatus.PARSING
-                _message.value = "📖 Lettura file CSV..."
+                _isImporting.value = true
+                _importProgress.value = 0
             }
 
-            Log.d(TAG, "🔍 Parsing CSV type: $csvType")
+            Log.d(TAG, "parsing csv type: $csvType")
 
+            //step 1: parsing
             val movies = withContext(Dispatchers.IO) {
                 when (csvType) {
-                    CsvType.IMDB_WATCHED -> {
-                        csvProcessor.parseImdbWatchedCsv(inputStream).movies
-                    }
-                    CsvType.IMDB_WATCHLIST -> {
-                        csvProcessor.parseImdbWatchlistCsv(inputStream).movies
-                    }
-                    CsvType.LETTERBOXD_WATCHED -> {
-                        csvProcessor.parseLetterboxdWatchedCsv(inputStream).movies
-                    }
-                    CsvType.LETTERBOXD_WATCHLIST -> {
-                        csvProcessor.parseLetterboxdWatchlistCsv(inputStream).movies
-                    }
+                    CsvType.IMDB_WATCHED -> csvProcessor.parseImdbWatchedCsv(inputStream).movies
+                    CsvType.IMDB_WATCHLIST -> csvProcessor.parseImdbWatchlistCsv(inputStream).movies
+                    CsvType.LETTERBOXD_WATCHED -> csvProcessor.parseLetterboxdWatchedCsv(inputStream).movies
+                    CsvType.LETTERBOXD_WATCHLIST -> csvProcessor.parseLetterboxdWatchlistCsv(inputStream).movies
                 }
             }
 
             if (movies.isEmpty()) {
                 withContext(Dispatchers.Main) {
-                    _message.value = "❌ Nessun film trovato nel file"
-                    _importStatus.value = ImportStatus.ERROR("File vuoto")
+                    _message.value = "nessun film trovato nel file"
+                    _isImporting.value = false
                 }
                 return
             }
 
-            Log.d(TAG, "✅ Parsing completato: ${movies.size} film")
+            Log.d(TAG, "parsing completato: ${movies.size} film")
 
-            // STEP 2: Connetti WebSocket
             withContext(Dispatchers.Main) {
-                _importStatus.value = ImportStatus.CONNECTING_WEBSOCKET
-                _message.value = "🔌 Connessione al server..."
+                _importProgress.value = 10 //parsing completato
             }
 
+            //step 2: connetti websocket
             webSocketService.connect()
-            delay(1500)
+            delay(1000)
 
-            if (!webSocketService.isConnected()) {
-                Log.w(TAG, "⚠️ WebSocket non connesso, continuo comunque")
-            }
-
-            // STEP 3: Upload con CHUNKING
             withContext(Dispatchers.Main) {
-                _importStatus.value = ImportStatus.UPLOADING(0, movies.size)
-                _enrichmentProgress.value = 0 to movies.size
+                _importProgress.value = 15
             }
 
-            Log.d(TAG, "📤 Upload ${movies.size} film con chunking...")
+            //step 3: upload con chunking
+            Log.d(TAG, "upload ${movies.size} film...")
 
             val isWatched = (csvType == CsvType.IMDB_WATCHED || csvType == CsvType.LETTERBOXD_WATCHED)
             val uploadSuccess = uploadMoviesInChunks(movies, isWatched)
 
             if (!uploadSuccess) {
                 withContext(Dispatchers.Main) {
-                    _message.value = "❌ Errore durante l'upload"
-                    _importStatus.value = ImportStatus.ERROR("Upload fallito")
+                    _message.value = "errore durante l'upload"
+                    _isImporting.value = false
                 }
                 return
             }
 
-            // STEP 4: Monitora enrichment via WebSocket
             withContext(Dispatchers.Main) {
-                _importStatus.value = ImportStatus.ENRICHING(0, movies.size, "")
-                _message.value = "✨ Enrichment TMDB in corso..."
+                _importProgress.value = 50 //upload completato
             }
 
+            //step 4: monitora enrichment
             val enrichmentSuccess = monitorEnrichment(movies.size)
 
-            // STEP 5: Refresh finale
             if (enrichmentSuccess) {
+                //step 5: aspetta e refresh
+                Log.d(TAG, "aspetto 2 secondi prima del refresh...")
                 delay(2000)
+
+                withContext(Dispatchers.Main) {
+                    _importProgress.value = 95
+                }
+
+                //refresh per aggiornare contatori
                 val refreshSuccess = movieRepository?.refreshFromBackend() ?: false
 
                 if (refreshSuccess) {
@@ -234,132 +207,115 @@ class HomeViewModel : ViewModel() {
 
                     withContext(Dispatchers.Main) {
                         _movies.value = finalMovies
-                        _message.value = "✅ Import completato!\n\n📊 Totale: ${finalMovies.size} film"
-                        _importStatus.value = ImportStatus.COMPLETED(finalMovies.size)
-                        _enrichmentProgress.value = movies.size to movies.size
+                        _importProgress.value = 100
+                        _message.value = "import completato! ${finalMovies.size} film totali"
                     }
 
-                    Log.d(TAG, "✅ Import completato con successo!")
+                    Log.d(TAG, "import completato: ${finalMovies.size} film")
 
-                    // Resetta dopo 3 secondi
-                    delay(3000)
+                    //nascondi progress dopo 2 secondi
+                    delay(2000)
                     withContext(Dispatchers.Main) {
-                        _importStatus.value = ImportStatus.IDLE
-                        _enrichmentProgress.value = 0 to 0
+                        _isImporting.value = false
+                        _importProgress.value = 0
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        _message.value = "⚠️ Enrichment OK ma refresh fallito"
-                        _importStatus.value = ImportStatus.ERROR("Refresh fallito")
+                        _importProgress.value = 100
+                        _message.value = "import completato"
+                        delay(2000)
+                        _isImporting.value = false
+                        _importProgress.value = 0
                     }
                 }
             } else {
                 withContext(Dispatchers.Main) {
-                    _message.value = "⚠️ Enrichment parzialmente completato"
-                    _importStatus.value = ImportStatus.ERROR("Timeout enrichment")
+                    _message.value = "enrichment parzialmente completato"
+                    _isImporting.value = false
+                    _importProgress.value = 0
                 }
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ ERRORE PROCESSING", e)
+            Log.e(TAG, "errore processing", e)
             withContext(Dispatchers.Main) {
-                _message.value = "❌ Errore: ${e.message}"
-                _importStatus.value = ImportStatus.ERROR(e.message ?: "Unknown error")
-                _enrichmentProgress.value = 0 to 0
+                _message.value = "errore: ${e.message}"
+                _isImporting.value = false
+                _importProgress.value = 0
             }
         }
     }
 
-    /**
-     * 🔥 Upload film in chunk per evitare timeout
-     */
     private suspend fun uploadMoviesInChunks(movies: List<Movie>, isWatched: Boolean): Boolean {
-        val chunkSize = 50 // Upload 50 film alla volta
+        val chunkSize = 50
         val chunks = movies.chunked(chunkSize)
 
-        Log.d(TAG, "📦 Uploading ${chunks.size} chunks di max $chunkSize film")
+        Log.d(TAG, "uploading ${chunks.size} chunks")
 
         chunks.forEachIndexed { index, chunk ->
             try {
-                Log.d(TAG, "📤 Chunk ${index + 1}/${chunks.size}: ${chunk.size} film")
-
                 val watchlist = if (isWatched) emptyList() else chunk
                 val watched = if (isWatched) chunk else emptyList()
 
                 ApiService.batchUpload(watchlist, watched)
 
-                // Aggiorna progress
-                val uploaded = (index + 1) * chunkSize
+                //aggiorna progress (da 15% a 50%)
+                val progress = 15 + ((index + 1) * 35 / chunks.size)
                 withContext(Dispatchers.Main) {
-                    _importStatus.value = ImportStatus.UPLOADING(
-                        uploaded.coerceAtMost(movies.size),
-                        movies.size
-                    )
+                    _importProgress.value = progress
                 }
 
-                delay(500) // Piccola pausa tra chunk
-
+                delay(500)
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Errore chunk ${index + 1}: ${e.message}")
-                // Continua con i prossimi chunk
+                Log.e(TAG, "errore chunk ${index + 1}: ${e.message}")
             }
         }
 
         return true
     }
 
-    /**
-     * 🔥 Monitora enrichment via WebSocket con timeout esteso
-     */
     private suspend fun monitorEnrichment(totalMovies: Int): Boolean {
-        Log.d(TAG, "👀 Monitoring enrichment per $totalMovies film...")
+        Log.d(TAG, "monitoring enrichment per $totalMovies film...")
 
         var lastProcessed = 0
         var lastUpdateTime = System.currentTimeMillis()
         val startTime = System.currentTimeMillis()
-        val maxWaitTime = 30 * 60 * 1000L // 30 minuti per file grandi
-        val noUpdateTimeout = 120 * 1000L // 2 minuti senza update = continua comunque
+        val maxWaitTime = 30 * 60 * 1000L
+        val noUpdateTimeout = 120 * 1000L
 
         while (true) {
             val update = webSocketService.enrichmentUpdates.value
             val currentTime = System.currentTimeMillis()
 
-            // Update ricevuto
             if (update != null && update.processed > lastProcessed) {
                 lastProcessed = update.processed
                 lastUpdateTime = currentTime
 
+                //aggiorna progress (da 50% a 90%)
+                val enrichmentProgress = 50 + ((update.processed * 40) / update.total)
                 withContext(Dispatchers.Main) {
-                    _enrichmentProgress.value = update.processed to update.total
-                    _importStatus.value = ImportStatus.ENRICHING(
-                        update.processed,
-                        update.total,
-                        update.currentMovie
-                    )
+                    _importProgress.value = enrichmentProgress
                 }
 
-                Log.d(TAG, "📊 Progress: ${update.processed}/${update.total} (${update.percentage}%)")
+                Log.d(TAG, "progress: ${update.processed}/${update.total} (${update.percentage}%)")
 
-                // Completato!
                 if (update.type == "completed") {
-                    Log.d(TAG, "✅ Enrichment completato!")
+                    Log.d(TAG, "enrichment completato!")
                     return true
                 }
             }
 
-            // Timeout totale
             if (currentTime - startTime > maxWaitTime) {
-                Log.w(TAG, "⏱️ Timeout massimo raggiunto (30 min)")
-                return lastProcessed > 0 // True se almeno qualcosa è stato processato
+                Log.w(TAG, "timeout massimo raggiunto")
+                return lastProcessed > 0
             }
 
-            // Timeout senza update - ma continua
             if (currentTime - lastUpdateTime > noUpdateTimeout && lastProcessed > 0) {
-                Log.w(TAG, "⚠️ Nessun update da 2 minuti ma ${lastProcessed} film OK - considero completato")
+                Log.w(TAG, "nessun update da 2 minuti ma ${lastProcessed} film ok")
                 return true
             }
 
-            delay(500) // Check ogni 500ms
+            delay(500)
         }
     }
 
@@ -368,19 +324,17 @@ class HomeViewModel : ViewModel() {
             try {
                 _isLoading.value = true
 
-                // Chiama API per eliminare dal backend
                 val userId = ApiService.getCurrentUserId()
                 if (userId != null) {
                     ApiService.apiInterface.deleteAllUserMovies(userId)
                 }
 
-                // Pulisci repository locale - USA clearAll() non clearAllMovies()
                 movieRepository?.clearAll()
                 _movies.value = emptyList()
-                _message.value = "🗑️ Tutti i film eliminati"
-                Log.d(TAG, "✅ Clear completato")
+                _message.value = "tutti i film eliminati"
+                Log.d(TAG, "clear completato")
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Errore clear: ${e.message}")
+                Log.e(TAG, "errore clear: ${e.message}")
             } finally {
                 _isLoading.value = false
             }
@@ -391,23 +345,9 @@ class HomeViewModel : ViewModel() {
         super.onCleared()
         applicationContext = null
         movieRepository = null
-        Log.d(TAG, "ViewModel pulito")
+        Log.d(TAG, "viewmodel pulito")
     }
 }
-
-// ===== STATI IMPORT =====
-
-sealed class ImportStatus {
-    object IDLE : ImportStatus()
-    object PARSING : ImportStatus()
-    object CONNECTING_WEBSOCKET : ImportStatus()
-    data class UPLOADING(val uploaded: Int, val total: Int) : ImportStatus()
-    data class ENRICHING(val processed: Int, val total: Int, val currentMovie: String) : ImportStatus()
-    data class COMPLETED(val totalMovies: Int) : ImportStatus()
-    data class ERROR(val message: String) : ImportStatus()
-}
-
-// ===== TIPI CSV =====
 
 enum class CsvType {
     IMDB_WATCHED,

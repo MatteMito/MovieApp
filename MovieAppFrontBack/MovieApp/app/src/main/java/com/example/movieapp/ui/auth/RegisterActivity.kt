@@ -1,4 +1,4 @@
-package com.example.movieapp
+package com.example.movieapp.ui.auth
 
 import android.content.Intent
 import android.os.Bundle
@@ -7,6 +7,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.example.movieapp.MainActivity
 import com.example.movieapp.config.AppConfig
 import com.example.movieapp.databinding.ActivityRegisterBinding
 import com.example.movieapp.data.network.ApiService

@@ -257,12 +257,60 @@ let MoviesService = MoviesService_1 = class MoviesService {
     async batchUploadWithUserAssociation(userId, watchlist, watched) {
         this.logger.log(`📦 Batch upload per user ${userId}: ${watchlist.length} watchlist, ${watched.length} watched`);
         const result = await this.batchUpload(watchlist, watched, userId);
+        this.logger.log(`🔗 Creazione associazioni user_movies...`);
+        const watchlistMovies = result.watchlistResult.successfulMovies;
+        const watchedMovies = result.watchedResult.successfulMovies;
+        for (const movie of watchlistMovies) {
+            try {
+                const existing = await this.userMovieRepository.findOne({
+                    where: {
+                        userId: userId,
+                        movieId: movie.id,
+                    },
+                });
+                if (!existing) {
+                    const userMovie = this.userMovieRepository.create({
+                        userId: userId,
+                        movieId: movie.id,
+                        status: user_movie_entity_1.MovieStatus.WATCHLIST,
+                    });
+                    await this.userMovieRepository.save(userMovie);
+                    this.logger.debug(`✓ associato watchlist: ${movie.title}`);
+                }
+            }
+            catch (error) {
+                this.logger.warn(`⚠️ errore associazione ${movie.title}: ${error.message}`);
+            }
+        }
+        for (const movie of watchedMovies) {
+            try {
+                const existing = await this.userMovieRepository.findOne({
+                    where: {
+                        userId: userId,
+                        movieId: movie.id,
+                    },
+                });
+                if (!existing) {
+                    const userMovie = this.userMovieRepository.create({
+                        userId: userId,
+                        movieId: movie.id,
+                        status: user_movie_entity_1.MovieStatus.WATCHED,
+                    });
+                    await this.userMovieRepository.save(userMovie);
+                    this.logger.debug(`✓ associato watched: ${movie.title}`);
+                }
+            }
+            catch (error) {
+                this.logger.warn(`⚠️ errore associazione ${movie.title}: ${error.message}`);
+            }
+        }
         const totalWatched = await this.userMovieRepository.count({
             where: { userId, status: user_movie_entity_1.MovieStatus.WATCHED },
         });
         const totalWatchlist = await this.userMovieRepository.count({
             where: { userId, status: user_movie_entity_1.MovieStatus.WATCHLIST },
         });
+        this.logger.log(`✅ Associazioni create - Totali: ${totalWatched} watched, ${totalWatchlist} watchlist`);
         return {
             ...result,
             importCounters: {

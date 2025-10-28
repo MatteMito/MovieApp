@@ -9,7 +9,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-    <!-- Android 13+ (opzionali, solo se usi media locali) -->
+    <!-- Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
 
@@ -28,7 +28,7 @@
 
         <!-- LoginActivity - LAUNCHER (Prima schermata) -->
         <activity
-            android:name=".LoginActivity"
+            android:name=".ui.auth.LoginActivity"
             android:exported="true"
             android:label="Login"
             android:theme="@style/Theme.MovieApp">
@@ -40,7 +40,7 @@
 
         <!-- RegisterActivity -->
         <activity
-            android:name=".RegisterActivity"
+            android:name=".ui.auth.RegisterActivity"
             android:exported="false"
             android:label="Registrazione"
             android:theme="@style/Theme.MovieApp" />
