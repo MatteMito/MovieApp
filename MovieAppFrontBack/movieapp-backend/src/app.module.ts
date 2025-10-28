@@ -12,6 +12,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ListsModule } from './modules/lists/lists.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
+import { DatabaseModule } from './database/database.module';
+import { TmdbModule } from './modules/tmdb/tmdb.module';
 
 @Module({
   imports: [
@@ -60,8 +62,10 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
       maxRedirects: 5,
     }),
 
+    DatabaseModule,
     MoviesModule,
     AuthModule,
+    TmdbModule,
     AnalyticsModule,
     ListsModule,
     WebsocketModule,

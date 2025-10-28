@@ -134,7 +134,6 @@ export class ListsService {
       is_public: createListDto.is_public || false,
       movie_ids: [],
       follower_ids: [],
-      followers_count: 0,
     });
 
     return this.listRepository.save(newList);

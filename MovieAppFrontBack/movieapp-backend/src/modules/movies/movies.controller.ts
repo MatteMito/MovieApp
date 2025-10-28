@@ -324,39 +324,7 @@ export class MoviesController {
     }
   }
 
-  /**
-   * 🔄 DEPRECATO: GET /api/v1/movies/all
-   * Ora dovrebbe essere usato GET /api/v1/movies/user/:userId
-   * Mantenuto per retrocompatibilità ma deprecato
-   */
-  @Get('all')
-  async getAllMovies(): Promise<ApiResponse> {
-    this.logger.warn('⚠️ Endpoint /all deprecato. Usare /user/:userId');
-    
-    try {
-      this.logger.log('📚 richiesta tutti i film (deprecato)');
-
-      const movies = await this.moviesService.getAllMovies();
-
-      return {
-        success: true,
-        data: { movies },
-        message: `recuperati ${movies.length} film - ATTENZIONE: endpoint deprecato, usare /user/:userId`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore recupero film: ${error.message}`);
-
-      throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero film',
-          timestamp: new Date().toISOString(),
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
+  
 
   /**
    * GET /api/v1/movies/:id
@@ -404,35 +372,7 @@ export class MoviesController {
     }
   }
 
-  /**
-   * DELETE /api/v1/movies/all
-   * elimina tutti i film
-   */
-  @Delete('all')
-  async deleteAllMovies(): Promise<ApiResponse> {
-    try {
-      this.logger.log('🗑️ richiesta eliminazione tutti i film');
-
-      await this.moviesService.deleteAllMovies();
-
-      return {
-        success: true,
-        message: 'tutti i film eliminati',
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore eliminazione film: ${error.message}`);
-
-      throw new HttpException(
-        {
-          success: false,
-          message: 'errore eliminazione film',
-          timestamp: new Date().toISOString(),
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
+  
 
   // RICERCA
 
@@ -496,21 +436,123 @@ export class MoviesController {
       );
     }
   }
+  
+  /**
+ * 🔄 DEPRECATO: GET /api/v1/movies/all
+ * Ora dovrebbe essere usato GET /api/v1/movies/user/:userId
+ * Mantenuto per retrocompatibilità ma deprecato
+ */
+  @Get('all')
+  async getAllMovies(@Headers('x-user-id') userId?: string): Promise<ApiResponse> {
+    this.logger.warn('⚠️ Endpoint /all deprecato. Usare /user/:userId');
+    
+    try {
+      // Se non c'è userId negli headers, restituisci errore
+      if (!userId) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'userId richiesto negli headers (x-user-id)',
+            timestamp: new Date().toISOString(),
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      this.logger.log('📚 richiesta tutti i film (deprecato)');
+
+      const movies = await this.moviesService.getAllMovies(userId);
+
+      return {
+        success: true,
+        data: { movies },
+        message: `recuperati ${movies.length} film - ATTENZIONE: endpoint deprecato, usare /user/:userId`,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`errore recupero film: ${error.message}`);
+
+      throw new HttpException(
+        {
+          success: false,
+          message: 'errore recupero film',
+          timestamp: new Date().toISOString(),
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * DELETE /api/v1/movies/all
+   * elimina tutti i film
+   */
+  @Delete('all')
+  async deleteAllMovies(@Headers('x-user-id') userId?: string): Promise<ApiResponse> {
+    try {
+      // Se non c'è userId negli headers, restituisci errore
+      if (!userId) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'userId richiesto negli headers (x-user-id)',
+            timestamp: new Date().toISOString(),
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      this.logger.log(`🗑️ richiesta eliminazione tutti i film per user ${userId}`);
+
+      const result = await this.moviesService.deleteAllMovies(userId);
+
+      return {
+        success: true,
+        data: result,
+        message: `eliminati ${result.deletedCount} film`,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`errore eliminazione film: ${error.message}`);
+
+      throw new HttpException(
+        {
+          success: false,
+          message: 'errore eliminazione film',
+          timestamp: new Date().toISOString(),
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   /**
    * GET /api/v1/movies/initialize
    * inizializza app client con dati completi e ritorna film e statistiche per bootstrap veloce
    */
   @Get('initialize')
-  async initializeApp(): Promise<ApiResponse> {
+  async initializeApp(@Headers('x-user-id') userId?: string): Promise<ApiResponse> {
     try {
       this.logger.log('🚀 inizializzazione app client');
 
-      const [movies, stats] = await Promise.all([
-        this.moviesService.getAllMovies(),
+      // Se userId è fornito, usa getUserMovies, altrimenti restituisci errore
+      if (!userId) {
+        throw new HttpException(
+          {
+            success: false,
+            message: 'userId richiesto negli headers (x-user-id)',
+            timestamp: new Date().toISOString(),
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const [userMoviesResult, stats] = await Promise.all([
+        this.moviesService.getUserMovies(userId, {}),
         this.moviesService.getStats(),
       ]);
 
+      const movies = userMoviesResult.movies;
       const enrichedCount = movies.filter((m) => m.tmdb_id).length;
 
       this.logger.log(

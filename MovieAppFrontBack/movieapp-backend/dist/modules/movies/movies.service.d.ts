@@ -1,56 +1,33 @@
+import { Repository } from 'typeorm';
+import { MovieEntity } from '../../database/entities/movie.entity';
+import { UserEntity } from '../../database/entities/user.entity';
+import { UserMovieEntity } from '../../database/entities/user-movie.entity';
 import { DatabaseService } from '../../database/database.service';
 import { TmdbService } from '../tmdb/tmdb.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
-import { UserMoviesService, ImportCounters } from './user-movies.service';
-import { Movie, EnrichmentResult, BatchUploadResult } from '../../common/interfaces/movie.interface';
+import { Movie, BatchUploadResult, EnrichmentResult } from '../../common/interfaces/movie.interface';
 export declare class MoviesService {
-    private readonly databaseService;
-    private readonly tmdbService;
-    private readonly websocketGateway;
-    private readonly userMoviesService;
+    private movieRepository;
+    private userRepository;
+    private userMovieRepository;
+    private databaseService;
+    private tmdbService;
+    private websocketGateway;
     private readonly logger;
-    constructor(databaseService: DatabaseService, tmdbService: TmdbService, websocketGateway: WebsocketGateway, userMoviesService: UserMoviesService);
-    batchUploadWithUserAssociation(userId: string, watchlist: Movie[], watched: Movie[]): Promise<BatchUploadResult & {
-        importCounters: ImportCounters;
-    }>;
-    getUserMovies(userId: string, filters?: {
-        status?: 'watched' | 'watchlist';
-        query?: string;
-        genre?: string;
-        year?: number;
-        director?: string;
-        minRating?: number;
-        maxRating?: number;
-        sortBy?: string;
-        sortOrder?: 'ASC' | 'DESC';
-        limit?: number;
-        offset?: number;
-    }): Promise<{
-        movies: Movie[];
-        total: number;
-    }>;
-    getUserStats(userId: string): Promise<any>;
-    enrichMovies(movies: Movie[]): Promise<EnrichmentResult>;
-    searchMovies(filters: {
-        query?: string;
-        genre?: string;
-        year?: number;
-        director?: string;
-        sortBy?: string;
-        sortOrder?: 'ASC' | 'DESC';
-        limit?: number;
-        offset?: number;
-    }): Promise<{
-        movies: Movie[];
-        total: number;
-    }>;
-    private sortMovies;
-    healthCheck(): Promise<{
-        status: string;
-        timestamp: string;
-    }>;
+    constructor(movieRepository: Repository<MovieEntity>, userRepository: Repository<UserEntity>, userMovieRepository: Repository<UserMovieEntity>, databaseService: DatabaseService, tmdbService: TmdbService, websocketGateway: WebsocketGateway);
+    healthCheck(): Promise<any>;
     getStats(): Promise<any>;
-    getAllMovies(): Promise<Movie[]>;
-    getMovieById(id: string): Promise<Movie | null>;
-    deleteAllMovies(): Promise<void>;
+    getUserStats(userId: string): Promise<any>;
+    getMovieById(id: string): Promise<MovieEntity | null>;
+    getAllMovies(userId: string): Promise<MovieEntity[]>;
+    deleteAllMovies(userId: string): Promise<{
+        message: string;
+        deletedCount: number;
+    }>;
+    getUserMovies(userId: string, filters: any): Promise<any>;
+    searchMovies(filters: any): Promise<any>;
+    enrichMovies(movies: Movie[]): Promise<EnrichmentResult>;
+    batchUpload(watchlist: Movie[], watched: Movie[], userId?: string): Promise<BatchUploadResult>;
+    batchUploadWithUserAssociation(userId: string, watchlist: Movie[], watched: Movie[]): Promise<any>;
+    private sleep;
 }

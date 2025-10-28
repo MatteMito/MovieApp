@@ -1,65 +1,46 @@
 import {
   Entity,
-  Column,
   PrimaryGeneratedColumn,
+  Column,
   CreateDateColumn,
   UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
-  Index,
 } from 'typeorm';
-import { UserEntity } from './user.entity';
 
 @Entity('movie_lists')
-@Index(['user_id'])
-@Index(['is_public'])
-@Index(['target_date'])
 export class MovieListEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // PROPRIETARIO LISTA
-  
-  @Column()
+  @Column({ name: 'user_id', type: 'uuid' })
   user_id: string;
 
-  @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
-  user: UserEntity;
-
-  // DATI LISTA
-  
-  @Column({ length: 200 })
+  @Column({ type: 'varchar', length: 200 })
   name: string;
 
-  @Column('text', { nullable: true })
-  description?: string;
+  @Column({ type: 'text', nullable: true })
+  description: string;
 
-  @Column('simple-array', { default: () => "'{}'" })
+  @Column({ name: 'movie_ids', type: 'text', array: true, default: '{}' })
   movie_ids: string[];
 
-  // PIANIFICAZIONE (opzionale)
-  
-  @Column({ type: 'timestamp', nullable: true })
-  target_date?: Date;
-
-  @Column({ length: 50, nullable: true })
-  frequency?: string;
-
-  // FUNZIONALITÀ SOCIAL
-  
-  @Column({ default: false })
+  @Column({ name: 'is_public', type: 'boolean', default: false })
   is_public: boolean;
 
-  @Column({ default: 0 })
+  @Column({ name: 'follower_ids', type: 'text', array: true, default: '{}' })
+  follower_ids: string[];
+
+  @Column({ name: 'followers_count', type: 'int', default: 0 })
   followers_count: number;
 
-  @Column('simple-array', { default: () => "'{}'" })
-  follower_ids: string[];
-  
-  @CreateDateColumn()
+  @Column({ name: 'target_date', type: 'date', nullable: true })
+  target_date: Date;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  frequency: string;
+
+  @CreateDateColumn({ name: 'created_at' })
   created_at: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updated_at: Date;
 }

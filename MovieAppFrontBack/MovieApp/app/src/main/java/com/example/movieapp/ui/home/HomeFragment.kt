@@ -161,20 +161,18 @@ class HomeFragment : Fragment() {
     // ===== UI UPDATES =====
 
     /**
-     * Aggiorna stats card permanente
+     * Aggiorna stats card permanente - SENZA enriched
      */
     private fun updateStatsCard(movies: List<com.example.movieapp.data.models.Movie>) {
         val total = movies.size
         val watched = movies.count { it.isWatched }
         val watchlist = movies.count { !it.isWatched }
-        val enriched = movies.count { it.tmdbId != null }
 
         binding.textTotalMovies.text = "$total"
         binding.textWatchedMovies.text = "$watched"
         binding.textWatchlistMovies.text = "$watchlist"
-        binding.textEnrichedMovies.text = "$enriched"
 
-        Log.d(TAG, "📊 Stats: $total film ($watched visti, $watchlist da vedere, $enriched enriched)")
+        Log.d(TAG, "📊 Stats: $total film ($watched visti, $watchlist da vedere)")
     }
 
     /**
@@ -248,11 +246,11 @@ class HomeFragment : Fragment() {
                 binding.progressBarImport.isIndeterminate = false
                 binding.progressBarImport.progress = 100
                 binding.textProgressImport.text = "${status.totalMovies} film importati"
+                enableImportButtons(true)
 
                 // Nasconde dopo 3 secondi
                 binding.layoutImportProgress.postDelayed({
                     binding.layoutImportProgress.isVisible = false
-                    enableImportButtons(true)
                 }, 3000)
             }
 
@@ -263,28 +261,22 @@ class HomeFragment : Fragment() {
                 binding.progressBarImport.isIndeterminate = false
                 binding.progressBarImport.progress = 0
                 binding.textProgressImport.text = status.message
-
-                Toast.makeText(requireContext(), "Errore: ${status.message}", Toast.LENGTH_LONG).show()
+                enableImportButtons(true)
 
                 // Nasconde dopo 5 secondi
                 binding.layoutImportProgress.postDelayed({
                     binding.layoutImportProgress.isVisible = false
-                    enableImportButtons(true)
                 }, 5000)
             }
         }
     }
 
     /**
-     * Aggiorna solo progress bar (chiamata da enrichmentProgress observer)
+     * Aggiorna progress bar enrichment
      */
     private fun updateProgressBar(processed: Int, total: Int) {
-        if (total == 0) return
-
-        val percentage = ((processed.toFloat() / total) * 100).toInt().coerceIn(0, 100)
-
-        // Aggiorna solo se layout visibile
-        if (binding.layoutImportProgress.isVisible) {
+        if (total > 0) {
+            val percentage = (processed * 100) / total
             binding.progressBarImport.progress = percentage
         }
     }
@@ -300,14 +292,21 @@ class HomeFragment : Fragment() {
         binding.buttonClearAll.isEnabled = enabled
     }
 
-    // ===== FILE SELECTION HELPERS =====
+    // ===== HELP DIALOGS =====
 
     private fun showImdbWatchedHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("📁 Importa IMDB Watched")
-            .setMessage("Seleziona il file ratings.csv esportato da IMDB")
+            .setTitle("📥 Import IMDB Watched")
+            .setMessage(
+                "Per esportare i tuoi film visti da IMDB:\n\n" +
+                        "1. Vai su imdb.com/list/ratings\n" +
+                        "2. Clicca sui 3 puntini in alto a destra\n" +
+                        "3. Seleziona 'Export'\n" +
+                        "4. Scarica il file CSV\n" +
+                        "5. Selezionalo qui"
+            )
             .setPositiveButton("Seleziona File") { _, _ ->
-                openFilePicker(imdbWatchedPicker)
+                openImdbWatchedPicker()
             }
             .setNegativeButton("Annulla", null)
             .show()
@@ -315,10 +314,17 @@ class HomeFragment : Fragment() {
 
     private fun showImdbWatchlistHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("📁 Importa IMDB Watchlist")
-            .setMessage("Seleziona il file watchlist.csv esportato da IMDB")
+            .setTitle("📥 Import IMDB Watchlist")
+            .setMessage(
+                "Per esportare la tua watchlist da IMDB:\n\n" +
+                        "1. Vai su imdb.com/list/watchlist\n" +
+                        "2. Clicca sui 3 puntini in alto a destra\n" +
+                        "3. Seleziona 'Export'\n" +
+                        "4. Scarica il file CSV\n" +
+                        "5. Selezionalo qui"
+            )
             .setPositiveButton("Seleziona File") { _, _ ->
-                openFilePicker(imdbWatchlistPicker)
+                openImdbWatchlistPicker()
             }
             .setNegativeButton("Annulla", null)
             .show()
@@ -326,10 +332,17 @@ class HomeFragment : Fragment() {
 
     private fun showLetterboxdWatchedHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("📁 Importa Letterboxd Watched")
-            .setMessage("Seleziona il file watched.csv esportato da Letterboxd")
+            .setTitle("📥 Import Letterboxd Watched")
+            .setMessage(
+                "Per esportare i tuoi film visti da Letterboxd:\n\n" +
+                        "1. Vai su letterboxd.com/settings/data\n" +
+                        "2. Clicca 'Export your data'\n" +
+                        "3. Riceverai un'email con il file ZIP\n" +
+                        "4. Estrai 'watched.csv'\n" +
+                        "5. Selezionalo qui"
+            )
             .setPositiveButton("Seleziona File") { _, _ ->
-                openFilePicker(letterboxdWatchedPicker)
+                openLetterboxdWatchedPicker()
             }
             .setNegativeButton("Annulla", null)
             .show()
@@ -337,22 +350,54 @@ class HomeFragment : Fragment() {
 
     private fun showLetterboxdWatchlistHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("📁 Importa Letterboxd Watchlist")
-            .setMessage("Seleziona il file watchlist.csv esportato da Letterboxd")
+            .setTitle("📥 Import Letterboxd Watchlist")
+            .setMessage(
+                "Per esportare la tua watchlist da Letterboxd:\n\n" +
+                        "1. Vai su letterboxd.com/settings/data\n" +
+                        "2. Clicca 'Export your data'\n" +
+                        "3. Riceverai un'email con il file ZIP\n" +
+                        "4. Estrai 'watchlist.csv'\n" +
+                        "5. Selezionalo qui"
+            )
             .setPositiveButton("Seleziona File") { _, _ ->
-                openFilePicker(letterboxdWatchlistPicker)
+                openLetterboxdWatchlistPicker()
             }
             .setNegativeButton("Annulla", null)
             .show()
     }
 
-    private fun openFilePicker(picker: androidx.activity.result.ActivityResultLauncher<Intent>) {
+    // ===== FILE PICKERS =====
+
+    private fun openImdbWatchedPicker() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "text/*"
             addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/csv", "text/comma-separated-values"))
         }
-        picker.launch(intent)
+        imdbWatchedPicker.launch(intent)
+    }
+
+    private fun openImdbWatchlistPicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "text/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        imdbWatchlistPicker.launch(intent)
+    }
+
+    private fun openLetterboxdWatchedPicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "text/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        letterboxdWatchedPicker.launch(intent)
+    }
+
+    private fun openLetterboxdWatchlistPicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "text/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        letterboxdWatchlistPicker.launch(intent)
     }
 
     // ===== FILE PROCESSING =====

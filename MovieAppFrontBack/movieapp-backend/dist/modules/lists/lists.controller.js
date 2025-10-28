@@ -14,73 +14,66 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ListsController = void 0;
 const common_1 = require("@nestjs/common");
-const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const lists_service_1 = require("./lists.service");
 const list_dto_1 = require("../../common/dto/list.dto");
 let ListsController = class ListsController {
     constructor(listsService) {
         this.listsService = listsService;
     }
-    async getMyLists(req) {
-        const userId = req.user?.userId;
+    async getPublicLists(search, sortBy, limit, userId) {
+        const parsedLimit = limit ? parseInt(limit, 10) : 20;
+        return this.listsService.getPublicLists({ search, sortBy });
+    }
+    async getMyLists(userId) {
         if (!userId) {
-            throw new common_1.HttpException('User ID non trovato', common_1.HttpStatus.UNAUTHORIZED);
+            throw new common_1.HttpException('userId richiesto', common_1.HttpStatus.BAD_REQUEST);
         }
         return this.listsService.getUserLists(userId);
     }
-    async getPublicLists(search, sortBy) {
-        return this.listsService.getPublicLists({ search, sortBy });
-    }
-    async getListById(id, req) {
-        const userId = req.user?.userId;
+    async getListById(id, userId) {
         return this.listsService.getListById(id, userId);
     }
-    async createList(createListDto, req) {
-        const userId = req.user?.userId;
+    async createList(createListDto) {
+        const userId = createListDto.user_id;
         if (!userId) {
-            throw new common_1.HttpException('User ID non trovato', common_1.HttpStatus.UNAUTHORIZED);
+            throw new common_1.HttpException('user_id richiesto', common_1.HttpStatus.BAD_REQUEST);
         }
         return this.listsService.createList(userId, createListDto);
     }
-    async updateList(id, updateListDto, req) {
-        const userId = req.user?.userId;
+    async updateList(id, updateListDto, userId) {
         if (!userId) {
-            throw new common_1.HttpException('User ID non trovato', common_1.HttpStatus.UNAUTHORIZED);
+            throw new common_1.HttpException('userId richiesto', common_1.HttpStatus.BAD_REQUEST);
         }
         return this.listsService.updateList(id, userId, updateListDto);
     }
-    async deleteList(id, req) {
-        const userId = req.user?.userId;
+    async deleteList(id, userId) {
         if (!userId) {
-            throw new common_1.HttpException('User ID non trovato', common_1.HttpStatus.UNAUTHORIZED);
+            throw new common_1.HttpException('userId richiesto', common_1.HttpStatus.BAD_REQUEST);
         }
         return this.listsService.deleteList(id, userId);
     }
-    async addMovieToList(listId, addMovieDto, req) {
-        const userId = req.user?.userId;
+    async addMovieToList(listId, addMovieDto, userId) {
         if (!userId) {
-            throw new common_1.HttpException('User ID non trovato', common_1.HttpStatus.UNAUTHORIZED);
+            throw new common_1.HttpException('userId richiesto', common_1.HttpStatus.BAD_REQUEST);
         }
         return this.listsService.addMovieToList(listId, userId, addMovieDto.movie_id);
     }
-    async removeMovieFromList(listId, movieId, req) {
-        const userId = req.user?.userId;
+    async removeMovieFromList(listId, movieId, userId) {
         if (!userId) {
-            throw new common_1.HttpException('User ID non trovato', common_1.HttpStatus.UNAUTHORIZED);
+            throw new common_1.HttpException('userId richiesto', common_1.HttpStatus.BAD_REQUEST);
         }
         return this.listsService.removeMovieFromList(listId, userId, movieId);
     }
-    async followList(listId, req) {
-        const userId = req.user?.userId;
+    async followList(listId, body) {
+        const userId = body.userId;
         if (!userId) {
-            throw new common_1.HttpException('User ID non trovato', common_1.HttpStatus.UNAUTHORIZED);
+            throw new common_1.HttpException('userId richiesto', common_1.HttpStatus.BAD_REQUEST);
         }
         return this.listsService.followList(listId, userId);
     }
-    async unfollowList(listId, req) {
-        const userId = req.user?.userId;
+    async unfollowList(listId, userId) {
         if (!userId) {
-            throw new common_1.HttpException('User ID non trovato', common_1.HttpStatus.UNAUTHORIZED);
+            throw new common_1.HttpException('userId richiesto', common_1.HttpStatus.BAD_REQUEST);
         }
         return this.listsService.unfollowList(listId, userId);
     }
@@ -90,75 +83,76 @@ let ListsController = class ListsController {
 };
 exports.ListsController = ListsController;
 __decorate([
-    (0, common_1.Get)('my'),
-    __param(0, (0, common_1.Request)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], ListsController.prototype, "getMyLists", null);
-__decorate([
     (0, common_1.Get)('public'),
     __param(0, (0, common_1.Query)('search')),
     __param(1, (0, common_1.Query)('sortBy')),
+    __param(2, (0, common_1.Query)('limit')),
+    __param(3, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "getPublicLists", null);
 __decorate([
+    (0, common_1.Get)('my'),
+    __param(0, (0, common_1.Query)('userId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ListsController.prototype, "getMyLists", null);
+__decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "getListById", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
-    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [list_dto_1.CreateListDto, Object]),
+    __metadata("design:paramtypes", [list_dto_1.CreateListDto]),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "createList", null);
 __decorate([
     (0, common_1.Put)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
-    __param(2, (0, common_1.Request)()),
+    __param(2, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, list_dto_1.UpdateListDto, Object]),
+    __metadata("design:paramtypes", [String, list_dto_1.UpdateListDto, String]),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "updateList", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "deleteList", null);
 __decorate([
     (0, common_1.Post)(':id/movies'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
-    __param(2, (0, common_1.Request)()),
+    __param(2, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, list_dto_1.AddMovieToListDto, Object]),
+    __metadata("design:paramtypes", [String, list_dto_1.AddMovieToListDto, String]),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "addMovieToList", null);
 __decorate([
     (0, common_1.Delete)(':id/movies/:movieId'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Param)('movieId')),
-    __param(2, (0, common_1.Request)()),
+    __param(2, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "removeMovieFromList", null);
 __decorate([
     (0, common_1.Post)(':id/follow'),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
@@ -166,9 +160,9 @@ __decorate([
 __decorate([
     (0, common_1.Delete)(':id/follow'),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "unfollowList", null);
 __decorate([
@@ -180,7 +174,6 @@ __decorate([
 ], ListsController.prototype, "getListFollowers", null);
 exports.ListsController = ListsController = __decorate([
     (0, common_1.Controller)('api/v1/lists'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __metadata("design:paramtypes", [lists_service_1.ListsService])
 ], ListsController);
 //# sourceMappingURL=lists.controller.js.map

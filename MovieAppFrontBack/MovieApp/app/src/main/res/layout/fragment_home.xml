@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FILE: app/src/main/res/layout/fragment_home.xml -->
-<!-- Layout Home con progress bar ottimizzata - MIGLIORATO -->
-
 <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -10,7 +7,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <androidx.core.widget.NestedScrollView
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true">
@@ -20,7 +17,7 @@
             android:layout_height="wrap_content"
             android:padding="16dp">
 
-            <!-- 🔥 BARRA PROGRESS IMPORT - Sempre in cima -->
+            <!-- Card Progress Import -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/layout_import_progress"
                 android:layout_width="match_parent"
@@ -28,8 +25,6 @@
                 android:visibility="gone"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="4dp"
-                app:strokeWidth="2dp"
-                app:strokeColor="?attr/colorPrimary"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -41,14 +36,13 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- Titolo -->
+                    <!-- Titolo Progress -->
                     <TextView
                         android:id="@+id/text_import_title"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
                         android:layout_marginBottom="12dp"
                         tools:text="✨ Enrichment TMDB..."/>
 
@@ -74,7 +68,7 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Card Statistiche Permanente -->
+            <!-- Card Statistiche Permanente - SOLO 3 STATS -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_stats_permanent"
                 android:layout_width="match_parent"
@@ -100,14 +94,14 @@
                         android:textStyle="bold"
                         android:layout_marginBottom="12dp"/>
 
-                    <!-- Grid Statistiche -->
+                    <!-- Grid Statistiche - SOLO 3 CELLE -->
                     <GridLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:columnCount="2"
-                        android:rowCount="2">
+                        android:columnCount="3"
+                        android:rowCount="1">
 
-                        <!-- Totale -->
+                        <!-- Totali -->
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -123,12 +117,12 @@
                                 android:textSize="24sp"
                                 android:textStyle="bold"
                                 android:textColor="?attr/colorPrimary"
-                                tools:text="142"/>
+                                tools:text="164"/>
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Film Totali"
+                                android:text="Totali"
                                 android:textSize="12sp"
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
@@ -149,7 +143,7 @@
                                 android:textSize="24sp"
                                 android:textStyle="bold"
                                 android:textColor="@android:color/holo_green_dark"
-                                tools:text="98"/>
+                                tools:text="100"/>
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -175,38 +169,12 @@
                                 android:textSize="24sp"
                                 android:textStyle="bold"
                                 android:textColor="@android:color/holo_orange_dark"
-                                tools:text="44"/>
+                                tools:text="64"/>
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Da Vedere"
-                                android:textSize="12sp"
-                                android:textColor="?android:attr/textColorSecondary"/>
-                        </LinearLayout>
-
-                        <!-- Enriched -->
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_columnWeight="1"
-                            android:orientation="vertical"
-                            android:padding="8dp"
-                            android:gravity="center">
-
-                            <TextView
-                                android:id="@+id/text_enriched_movies"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textSize="24sp"
-                                android:textStyle="bold"
-                                android:textColor="@android:color/holo_blue_dark"
-                                tools:text="120"/>
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Arricchiti"
                                 android:textSize="12sp"
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
@@ -253,15 +221,15 @@
 
             <!-- Sezione Letterboxd -->
             <TextView
-                android:id="@+id/text_letterboxd"
+                android:id="@+id/text_letterboxd_header"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
                 android:text="🎬 Letterboxd"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/button_import_imdb_watchlist"/>
+                android:layout_marginTop="24dp"
+                app:layout_constraintTop_toBottomOf="@id/button_import_imdb_watchlist"
+                app:layout_constraintStart_toStartOf="parent"/>
 
             <!-- Bottone Importa Letterboxd Watched -->
             <Button
@@ -273,7 +241,7 @@
                 android:textAllCaps="false"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/text_letterboxd"/>
+                app:layout_constraintTop_toBottomOf="@id/text_letterboxd_header"/>
 
             <!-- Bottone Importa Letterboxd Watchlist -->
             <Button
@@ -287,19 +255,33 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/button_import_letterboxd_watched"/>
 
+            <!-- Sezione Azioni -->
+            <TextView
+                android:id="@+id/text_actions_header"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⚙️ Azioni"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginTop="24dp"
+                app:layout_constraintTop_toBottomOf="@id/button_import_letterboxd_watchlist"
+                app:layout_constraintStart_toStartOf="parent"/>
+
             <!-- Bottone Clear All -->
             <Button
                 android:id="@+id/button_clear_all"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="32dp"
+                android:layout_marginTop="12dp"
                 android:text="🗑️ Elimina Tutti i Film"
                 android:textAllCaps="false"
                 android:backgroundTint="@android:color/holo_red_dark"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/button_import_letterboxd_watchlist"/>
+                app:layout_constraintTop_toBottomOf="@id/text_actions_header"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:layout_marginBottom="16dp"/>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
-    </androidx.core.widget.NestedScrollView>
+    </ScrollView>
 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

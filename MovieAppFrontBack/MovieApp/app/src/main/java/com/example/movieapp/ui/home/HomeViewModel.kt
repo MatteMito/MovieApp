@@ -374,8 +374,8 @@ class HomeViewModel : ViewModel() {
                     ApiService.apiInterface.deleteAllUserMovies(userId)
                 }
 
-                // Pulisci repository locale
-                movieRepository?.clearAllMovies()
+                // Pulisci repository locale - USA clearAll() non clearAllMovies()
+                movieRepository?.clearAll()
                 _movies.value = emptyList()
                 _message.value = "🗑️ Tutti i film eliminati"
                 Log.d(TAG, "✅ Clear completato")

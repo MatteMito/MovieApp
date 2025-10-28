@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MovieListEntity = void 0;
 const typeorm_1 = require("typeorm");
-const user_entity_1 = require("./user.entity");
 let MovieListEntity = class MovieListEntity {
 };
 exports.MovieListEntity = MovieListEntity;
@@ -20,58 +19,50 @@ __decorate([
     __metadata("design:type", String)
 ], MovieListEntity.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ name: 'user_id', type: 'uuid' }),
     __metadata("design:type", String)
 ], MovieListEntity.prototype, "user_id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.UserEntity, { onDelete: 'CASCADE' }),
-    (0, typeorm_1.JoinColumn)({ name: 'user_id' }),
-    __metadata("design:type", user_entity_1.UserEntity)
-], MovieListEntity.prototype, "user", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ length: 200 }),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 200 }),
     __metadata("design:type", String)
 ], MovieListEntity.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)('text', { nullable: true }),
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], MovieListEntity.prototype, "description", void 0);
 __decorate([
-    (0, typeorm_1.Column)('simple-array', { default: () => "'{}'" }),
+    (0, typeorm_1.Column)({ name: 'movie_ids', type: 'text', array: true, default: '{}' }),
     __metadata("design:type", Array)
 ], MovieListEntity.prototype, "movie_ids", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
-    __metadata("design:type", Date)
-], MovieListEntity.prototype, "target_date", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ length: 50, nullable: true }),
-    __metadata("design:type", String)
-], MovieListEntity.prototype, "frequency", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ default: false }),
+    (0, typeorm_1.Column)({ name: 'is_public', type: 'boolean', default: false }),
     __metadata("design:type", Boolean)
 ], MovieListEntity.prototype, "is_public", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ default: 0 }),
-    __metadata("design:type", Number)
-], MovieListEntity.prototype, "followers_count", void 0);
-__decorate([
-    (0, typeorm_1.Column)('simple-array', { default: () => "'{}'" }),
+    (0, typeorm_1.Column)({ name: 'follower_ids', type: 'text', array: true, default: '{}' }),
     __metadata("design:type", Array)
 ], MovieListEntity.prototype, "follower_ids", void 0);
 __decorate([
-    (0, typeorm_1.CreateDateColumn)(),
+    (0, typeorm_1.Column)({ name: 'followers_count', type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], MovieListEntity.prototype, "followers_count", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'target_date', type: 'date', nullable: true }),
+    __metadata("design:type", Date)
+], MovieListEntity.prototype, "target_date", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
+    __metadata("design:type", String)
+], MovieListEntity.prototype, "frequency", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)
 ], MovieListEntity.prototype, "created_at", void 0);
 __decorate([
-    (0, typeorm_1.UpdateDateColumn)(),
+    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
     __metadata("design:type", Date)
 ], MovieListEntity.prototype, "updated_at", void 0);
 exports.MovieListEntity = MovieListEntity = __decorate([
-    (0, typeorm_1.Entity)('movie_lists'),
-    (0, typeorm_1.Index)(['user_id']),
-    (0, typeorm_1.Index)(['is_public']),
-    (0, typeorm_1.Index)(['target_date'])
+    (0, typeorm_1.Entity)('movie_lists')
 ], MovieListEntity);
 //# sourceMappingURL=list.entity.js.map

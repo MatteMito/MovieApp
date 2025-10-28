@@ -21,6 +21,8 @@ const auth_module_1 = require("./modules/auth/auth.module");
 const analytics_module_1 = require("./modules/analytics/analytics.module");
 const lists_module_1 = require("./modules/lists/lists.module");
 const websocket_module_1 = require("./modules/websocket/websocket.module");
+const database_module_1 = require("./database/database.module");
+const tmdb_module_1 = require("./modules/tmdb/tmdb.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -66,8 +68,10 @@ exports.AppModule = AppModule = __decorate([
                 timeout: 30000,
                 maxRedirects: 5,
             }),
+            database_module_1.DatabaseModule,
             movies_module_1.MoviesModule,
             auth_module_1.AuthModule,
+            tmdb_module_1.TmdbModule,
             analytics_module_1.AnalyticsModule,
             lists_module_1.ListsModule,
             websocket_module_1.WebsocketModule,

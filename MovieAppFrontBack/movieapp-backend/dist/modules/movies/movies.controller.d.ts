@@ -23,10 +23,10 @@ export declare class MoviesController {
     }, headerUserId?: string): Promise<ApiResponse>;
     getUserMovies(userId: string, status?: 'watched' | 'watchlist', query?: string, genre?: string, year?: string, director?: string, minRating?: string, maxRating?: string, sortBy?: string, sortOrder?: 'ASC' | 'DESC', limit?: string, offset?: string): Promise<ApiResponse>;
     getUserStats(userId: string): Promise<ApiResponse>;
-    getAllMovies(): Promise<ApiResponse>;
     getMovieById(id: string): Promise<ApiResponse>;
-    deleteAllMovies(): Promise<ApiResponse>;
     searchMovies(query?: string, genre?: string, year?: string, director?: string, minRating?: string, maxRating?: string, watched?: string, sortBy?: string, sortOrder?: 'ASC' | 'DESC', limit?: string, offset?: string): Promise<ApiResponse>;
-    initializeApp(): Promise<ApiResponse>;
+    getAllMovies(userId?: string): Promise<ApiResponse>;
+    deleteAllMovies(userId?: string): Promise<ApiResponse>;
+    initializeApp(userId?: string): Promise<ApiResponse>;
 }
 export {};

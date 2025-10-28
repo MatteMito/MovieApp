@@ -1,5 +1,5 @@
 // FILE: app/src/main/java/com/example/movieapp/ui/social/SocialViewModel.kt
-// ViewModel per SocialFragment - REFACTORED
+// ViewModel per SocialFragment - COMPLETO
 
 package com.example.movieapp.ui.social
 
@@ -60,19 +60,34 @@ class SocialViewModel : ViewModel() {
                 _loading.value = true
                 _error.value = null
 
-                val response = ApiService.apiInterface.getMyLists(ApiService.getCurrentUserId() ?: "")
-                if (response.isSuccessful && response.body() != null) {
-                    val lists = response.body()!!
+                val userId = ApiService.getCurrentUserId()
+                if (userId == null) {
+                    _error.value = "Utente non autenticato"
+                    Log.e(TAG, "❌ userId NULL")
+                    _loading.value = false
+                    return@launch
+                }
+
+                Log.d(TAG, "📋 Carico liste per user: $userId")
+                val response = ApiService.apiInterface.getMyLists(userId)
+
+                Log.d(TAG, "📥 Response code: ${response.code()}")
+
+                if (response.isSuccessful) {
+                    val lists = response.body() ?: emptyList()
                     _myLists.value = lists
-                    applySearchFilter(currentSearchQuery) // Applica filtro corrente
+                    applySearchFilter(currentSearchQuery)
                     Log.d(TAG, "✅ Caricate ${lists.size} liste personali")
                 } else {
-                    _error.value = "Errore caricamento liste: ${response.code()}"
-                    Log.e(TAG, "❌ Errore: ${response.code()}")
+                    val errorMsg = "Errore caricamento liste: ${response.code()}"
+                    _error.value = errorMsg
+                    Log.e(TAG, "❌ $errorMsg")
+                    Log.e(TAG, "   Message: ${response.message()}")
+                    Log.e(TAG, "   ErrorBody: ${response.errorBody()?.string()}")
                 }
             } catch (e: Exception) {
                 _error.value = "Errore di rete: ${e.message}"
-                Log.e(TAG, "❌ Eccezione: ${e.message}", e)
+                Log.e(TAG, "❌ Eccezione loadMyLists", e)
             } finally {
                 _loading.value = false
             }
@@ -88,19 +103,28 @@ class SocialViewModel : ViewModel() {
                 _loading.value = true
                 _error.value = null
 
-                val response = ApiService.apiInterface.getPublicLists()
-                if (response.isSuccessful && response.body() != null) {
-                    val lists = response.body()!!
+                val userId = ApiService.getCurrentUserId()
+                Log.d(TAG, "🌍 Carico liste pubbliche (exclude: $userId)")
+
+                val response = ApiService.apiInterface.getPublicLists(20, userId)
+
+                Log.d(TAG, "📥 Response code: ${response.code()}")
+
+                if (response.isSuccessful) {
+                    val lists = response.body() ?: emptyList()
                     _publicLists.value = lists
-                    applySearchFilter(currentSearchQuery) // Applica filtro corrente
+                    applySearchFilter(currentSearchQuery)
                     Log.d(TAG, "✅ Caricate ${lists.size} liste pubbliche")
                 } else {
-                    _error.value = "Errore caricamento liste pubbliche: ${response.code()}"
-                    Log.e(TAG, "❌ Errore: ${response.code()}")
+                    val errorMsg = "Errore caricamento liste pubbliche: ${response.code()}"
+                    _error.value = errorMsg
+                    Log.e(TAG, "❌ $errorMsg")
+                    Log.e(TAG, "   Message: ${response.message()}")
+                    Log.e(TAG, "   ErrorBody: ${response.errorBody()?.string()}")
                 }
             } catch (e: Exception) {
                 _error.value = "Errore di rete: ${e.message}"
-                Log.e(TAG, "❌ Eccezione: ${e.message}", e)
+                Log.e(TAG, "❌ Eccezione loadPublicLists", e)
             } finally {
                 _loading.value = false
             }
@@ -145,17 +169,19 @@ class SocialViewModel : ViewModel() {
             }
         }
 
-        Log.d(TAG, "🔍 Ricerca '$currentSearchQuery': ${_filteredMyLists.value?.size} mie liste, ${_filteredPublicLists.value?.size} pubbliche")
+        Log.d(TAG, "🔍 Filtro applicato: '$currentSearchQuery'")
+        Log.d(TAG, "   Mie liste: ${_filteredMyLists.value?.size} / ${myListsData.size}")
+        Log.d(TAG, "   Pubbliche: ${_filteredPublicLists.value?.size} / ${publicListsData.size}")
     }
 
     /**
-     * Pulisci filtro ricerca
+     * Pulisci filtro di ricerca
      */
     fun clearSearchFilter() {
         applySearchFilter("")
     }
 
-    // ===== GESTIONE LISTE =====
+    // ===== AZIONI LISTE =====
 
     /**
      * Elimina lista
@@ -163,17 +189,25 @@ class SocialViewModel : ViewModel() {
     fun deleteList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
+                _loading.value = true
+
+                Log.d(TAG, "🗑️ Eliminazione lista: $listId")
                 val response = ApiService.apiInterface.deleteList(listId)
+
                 if (response.isSuccessful) {
-                    Log.d(TAG, "✅ Lista $listId eliminata")
+                    Log.d(TAG, "✅ Lista eliminata")
                     loadMyLists() // Ricarica liste
                     onSuccess()
                 } else {
-                    onError("Errore eliminazione: ${response.code()}")
+                    val errorMsg = "Errore eliminazione: ${response.code()}"
+                    Log.e(TAG, "❌ $errorMsg")
+                    onError(errorMsg)
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "❌ Eccezione deleteList", e)
                 onError("Errore: ${e.message}")
-                Log.e(TAG, "❌ Errore eliminazione: ${e.message}", e)
+            } finally {
+                _loading.value = false
             }
         }
     }
@@ -184,21 +218,36 @@ class SocialViewModel : ViewModel() {
     fun followList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                val response = ApiService.apiInterface.followList(listId, mapOf("userId" to ApiService.getCurrentUserId()!!))
+                _loading.value = true
+
+                val userId = ApiService.getCurrentUserId()
+                if (userId == null) {
+                    onError("Utente non autenticato")
+                    _loading.value = false
+                    return@launch
+                }
+
+                Log.d(TAG, "👥 Follow lista: $listId")
+                val request = mapOf("userId" to userId)
+                val response = ApiService.apiInterface.followList(listId, request)
+
                 if (response.isSuccessful) {
-                    Log.d(TAG, "✅ Lista $listId seguita")
+                    Log.d(TAG, "✅ Lista seguita")
+                    loadPublicLists() // Ricarica liste
                     onSuccess()
                 } else {
-                    onError("Errore: ${response.code()}")
+                    val errorMsg = "Errore follow: ${response.code()}"
+                    Log.e(TAG, "❌ $errorMsg")
+                    onError(errorMsg)
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "❌ Eccezione followList", e)
                 onError("Errore: ${e.message}")
-                Log.e(TAG, "❌ Errore follow: ${e.message}", e)
+            } finally {
+                _loading.value = false
             }
         }
     }
-
-    // ===== UTILITY =====
 
     /**
      * Reset errore
@@ -210,6 +259,6 @@ class SocialViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         context = null
-        Log.d(TAG, "ViewModel pulito")
+        Log.d(TAG, "SocialViewModel pulito")
     }
 }

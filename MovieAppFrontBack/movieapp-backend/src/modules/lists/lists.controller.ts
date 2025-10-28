@@ -17,35 +17,38 @@ import { ListsService } from './lists.service';
 import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dto/list.dto';
 
 @Controller('api/v1/lists')
-@UseGuards(JwtAuthGuard)
 export class ListsController {
   constructor(private readonly listsService: ListsService) {}
 
-  // ===== GESTIONE LISTE =====
+  // ===== ENDPOINT PUBBLICI (SENZA AUTH) =====
+
+  /**
+   * GET /api/v1/lists/public
+   * Ottieni tutte le liste pubbliche (SENZA AUTENTICAZIONE)
+   */
+  @Get('public')
+  async getPublicLists(
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('limit') limit?: string,
+    @Query('userId') userId?: string,
+  ) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 20;
+    return this.listsService.getPublicLists({ search, sortBy });
+  }
+
+  // ===== ENDPOINT AUTENTICATI =====
 
   /**
    * GET /api/v1/lists/my
    * Ottieni tutte le liste dell'utente autenticato
    */
   @Get('my')
-  async getMyLists(@Request() req) {
-    const userId = req.user?.userId;
+  async getMyLists(@Query('userId') userId: string) {
     if (!userId) {
-      throw new HttpException('User ID non trovato', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('userId richiesto', HttpStatus.BAD_REQUEST);
     }
     return this.listsService.getUserLists(userId);
-  }
-
-  /**
-   * GET /api/v1/lists/public
-   * Ottieni tutte le liste pubbliche (con filtri opzionali)
-   */
-  @Get('public')
-  async getPublicLists(
-    @Query('search') search?: string,
-    @Query('sortBy') sortBy?: string,
-  ) {
-    return this.listsService.getPublicLists({ search, sortBy });
   }
 
   /**
@@ -53,8 +56,7 @@ export class ListsController {
    * Ottieni dettagli lista specifica (con film)
    */
   @Get(':id')
-  async getListById(@Param('id') id: string, @Request() req) {
-    const userId = req.user?.userId;
+  async getListById(@Param('id') id: string, @Query('userId') userId?: string) {
     return this.listsService.getListById(id, userId);
   }
 
@@ -63,10 +65,10 @@ export class ListsController {
    * Crea nuova lista
    */
   @Post()
-  async createList(@Body() createListDto: CreateListDto, @Request() req) {
-    const userId = req.user?.userId;
+  async createList(@Body() createListDto: CreateListDto) {
+    const userId = createListDto.user_id;
     if (!userId) {
-      throw new HttpException('User ID non trovato', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('user_id richiesto', HttpStatus.BAD_REQUEST);
     }
     return this.listsService.createList(userId, createListDto);
   }
@@ -79,11 +81,10 @@ export class ListsController {
   async updateList(
     @Param('id') id: string,
     @Body() updateListDto: UpdateListDto,
-    @Request() req,
+    @Query('userId') userId?: string,
   ) {
-    const userId = req.user?.userId;
     if (!userId) {
-      throw new HttpException('User ID non trovato', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('userId richiesto', HttpStatus.BAD_REQUEST);
     }
     return this.listsService.updateList(id, userId, updateListDto);
   }
@@ -93,10 +94,9 @@ export class ListsController {
    * Elimina lista
    */
   @Delete(':id')
-  async deleteList(@Param('id') id: string, @Request() req) {
-    const userId = req.user?.userId;
+  async deleteList(@Param('id') id: string, @Query('userId') userId?: string) {
     if (!userId) {
-      throw new HttpException('User ID non trovato', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('userId richiesto', HttpStatus.BAD_REQUEST);
     }
     return this.listsService.deleteList(id, userId);
   }
@@ -111,11 +111,10 @@ export class ListsController {
   async addMovieToList(
     @Param('id') listId: string,
     @Body() addMovieDto: AddMovieToListDto,
-    @Request() req,
+    @Query('userId') userId?: string,
   ) {
-    const userId = req.user?.userId;
     if (!userId) {
-      throw new HttpException('User ID non trovato', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('userId richiesto', HttpStatus.BAD_REQUEST);
     }
     return this.listsService.addMovieToList(listId, userId, addMovieDto.movie_id);
   }
@@ -128,11 +127,10 @@ export class ListsController {
   async removeMovieFromList(
     @Param('id') listId: string,
     @Param('movieId') movieId: string,
-    @Request() req,
+    @Query('userId') userId?: string,
   ) {
-    const userId = req.user?.userId;
     if (!userId) {
-      throw new HttpException('User ID non trovato', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('userId richiesto', HttpStatus.BAD_REQUEST);
     }
     return this.listsService.removeMovieFromList(listId, userId, movieId);
   }
@@ -144,10 +142,13 @@ export class ListsController {
    * Segui una lista pubblica
    */
   @Post(':id/follow')
-  async followList(@Param('id') listId: string, @Request() req) {
-    const userId = req.user?.userId;
+  async followList(
+    @Param('id') listId: string,
+    @Body() body: { userId: string },
+  ) {
+    const userId = body.userId;
     if (!userId) {
-      throw new HttpException('User ID non trovato', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('userId richiesto', HttpStatus.BAD_REQUEST);
     }
     return this.listsService.followList(listId, userId);
   }
@@ -157,10 +158,12 @@ export class ListsController {
    * Smetti di seguire una lista
    */
   @Delete(':id/follow')
-  async unfollowList(@Param('id') listId: string, @Request() req) {
-    const userId = req.user?.userId;
+  async unfollowList(
+    @Param('id') listId: string,
+    @Query('userId') userId?: string,
+  ) {
     if (!userId) {
-      throw new HttpException('User ID non trovato', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('userId richiesto', HttpStatus.BAD_REQUEST);
     }
     return this.listsService.unfollowList(listId, userId);
   }

@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.movieapp.data.models.Movie
 import com.example.movieapp.data.models.MovieList
 import com.example.movieapp.data.network.ApiService
+import com.example.movieapp.data.network.AddMovieToListRequest
 import kotlinx.coroutines.launch
 
 class ListDetailViewModel : ViewModel() {
