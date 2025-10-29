@@ -13,9 +13,10 @@ import kotlinx.coroutines.withContext
 import android.content.Context
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.roundToInt
 
 /**
- * ViewModel per grafici e analytics - ✅ FILTRATO PER userId
+ * viewmodel per grafici e analytics
  */
 class NotificationsViewModel : ViewModel() {
     private val TAG = "NotificationsViewModel"
@@ -26,7 +27,7 @@ class NotificationsViewModel : ViewModel() {
     private val _chartsReady = MutableLiveData<Boolean>()
     val chartsReady: LiveData<Boolean> = _chartsReady
 
-    // Dati per grafici
+    //dati grafici esistenti
     private val _genresData = MutableLiveData<Map<String, Int>>()
     val genresData: LiveData<Map<String, Int>> = _genresData
 
@@ -51,7 +52,26 @@ class NotificationsViewModel : ViewModel() {
     private val _watchedByMonthData = MutableLiveData<Map<String, Int>>()
     val watchedByMonthData: LiveData<Map<String, Int>> = _watchedByMonthData
 
-    // Statistiche top per ogni grafico
+    //nuovi dati grafici
+    private val _averageRatingByGenre = MutableLiveData<Map<String, Double>>()
+    val averageRatingByGenre: LiveData<Map<String, Double>> = _averageRatingByGenre
+
+    private val _actorsData = MutableLiveData<Map<String, Int>>()
+    val actorsData: LiveData<Map<String, Int>> = _actorsData
+
+    private val _productionCompaniesData = MutableLiveData<Map<String, Int>>()
+    val productionCompaniesData: LiveData<Map<String, Int>> = _productionCompaniesData
+
+    private val _runtimeVsRatingData = MutableLiveData<List<Pair<Int, Double>>>()
+    val runtimeVsRatingData: LiveData<List<Pair<Int, Double>>> = _runtimeVsRatingData
+
+    private val _totalWatchTimeText = MutableLiveData<String>()
+    val totalWatchTimeText: LiveData<String> = _totalWatchTimeText
+
+    private val _genreCombinationsData = MutableLiveData<Map<String, Int>>()
+    val genreCombinationsData: LiveData<Map<String, Int>> = _genreCombinationsData
+
+    //statistiche top
     private val _topGenre = MutableLiveData<Pair<String, Int>>()
     val topGenre: LiveData<Pair<String, Int>> = _topGenre
 
@@ -67,7 +87,13 @@ class NotificationsViewModel : ViewModel() {
     private val _topDecade = MutableLiveData<Pair<String, Int>>()
     val topDecade: LiveData<Pair<String, Int>> = _topDecade
 
-    // Map per tenere traccia dei film per categoria (per i click)
+    private val _topActor = MutableLiveData<Pair<String, Int>>()
+    val topActor: LiveData<Pair<String, Int>> = _topActor
+
+    private val _topProductionCompany = MutableLiveData<Pair<String, Int>>()
+    val topProductionCompany: LiveData<Pair<String, Int>> = _topProductionCompany
+
+    //map per click
     private val genreMoviesMap = mutableMapOf<String, List<Movie>>()
     private val yearMoviesMap = mutableMapOf<Int, List<Movie>>()
     private val directorMoviesMap = mutableMapOf<String, List<Movie>>()
@@ -75,97 +101,89 @@ class NotificationsViewModel : ViewModel() {
     private val countryMoviesMap = mutableMapOf<String, List<Movie>>()
     private val decadeMoviesMap = mutableMapOf<String, List<Movie>>()
     private val runtimeMoviesMap = mutableMapOf<String, List<Movie>>()
+    private val actorMoviesMap = mutableMapOf<String, List<Movie>>()
+    private val companyMoviesMap = mutableMapOf<String, List<Movie>>()
 
     init {
         _chartsReady.value = false
-        Log.d(TAG, "NotificationsViewModel inizializzato")
+        Log.d(TAG, "notificationsviewmodel inizializzato")
     }
 
-    /**
-     * ✅ FIX: Carica film dal backend filtrati per userId
-     */
     fun initialize(context: Context) {
         loadMovies()
     }
 
-    /**
-     * ✅ FIX: Carica film dal backend per l'utente loggato
-     */
     private fun loadMovies() {
         viewModelScope.launch {
             try {
-                // ✅ Verifica autenticazione
                 if (!ApiService.isAuthenticated() || !ApiService.hasUserId()) {
-                    Log.w(TAG, "⚠️ Utente non autenticato - impossibile caricare statistiche")
+                    Log.w(TAG, "utente non autenticato")
                     _movies.value = emptyList()
                     _chartsReady.value = false
                     return@launch
                 }
 
                 val userId = ApiService.getCurrentUserId()!!
-                Log.d(TAG, "📊 Caricamento film per utente: $userId")
+                Log.d(TAG, "caricamento film per utente: $userId")
 
-                // ✅ Carica film dal backend (già filtrati per userId)
                 val result = ApiService.getUserStoredMovies()
 
                 if (result.isSuccess) {
                     val movies = result.getOrNull() ?: emptyList()
                     _movies.value = movies
 
-                    Log.d(TAG, "✅ Caricati ${movies.size} film per statistiche utente $userId")
+                    Log.d(TAG, "caricati ${movies.size} film")
 
                     if (movies.isNotEmpty()) {
                         generateAllCharts(movies)
                     } else {
-                        Log.d(TAG, "ℹ️ Nessun film trovato per questo utente")
                         _chartsReady.value = false
                     }
                 } else {
-                    Log.w(TAG, "⚠️ Errore caricamento film: ${result.exceptionOrNull()?.message}")
                     _movies.value = emptyList()
                     _chartsReady.value = false
                 }
 
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Errore caricamento film per statistiche", e)
+                Log.e(TAG, "errore caricamento", e)
                 _movies.value = emptyList()
                 _chartsReady.value = false
             }
         }
     }
 
-    /**
-     * Ricarica i dati (da chiamare dopo import/modifica)
-     */
     fun refreshData() {
-        Log.d(TAG, "🔄 Refresh dati statistiche")
+        Log.d(TAG, "refresh dati")
         loadMovies()
     }
 
-    /**
-     * Genera tutti i grafici in background
-     */
     private fun generateAllCharts(movies: List<Movie>) {
         viewModelScope.launch {
             try {
                 _chartsReady.value = false
 
-                Log.d(TAG, "📊 Generazione grafici per ${movies.size} film")
+                Log.d(TAG, "generazione grafici per ${movies.size} film")
 
                 withContext(Dispatchers.Default) {
-                    // Grafici esistenti
+                    //grafici esistenti
                     val genres = analyzeGenres(movies)
                     val years = analyzeYears(movies)
                     val directors = analyzeDirectors(movies)
                     val ratings = analyzeRatings(movies)
                     val countries = analyzeCountries(movies)
-
-                    // Nuovi grafici
                     val decades = analyzeDecades(movies)
                     val runtimeDist = analyzeRuntimeDistribution(movies)
                     val watchedByMonth = analyzeWatchedByMonth(movies)
 
-                    // Pubblica risultati
+                    //nuovi grafici
+                    val avgRatingByGenre = analyzeAverageRatingByGenre(movies)
+                    val actors = analyzeActors(movies)
+                    val companies = analyzeProductionCompanies(movies)
+                    val runtimeVsRating = analyzeRuntimeVsRating(movies)
+                    val totalWatchTime = calculateTotalWatchTime(movies)
+                    val genreCombinations = analyzeGenreCombinations(movies)
+
+                    //pubblica risultati
                     _genresData.postValue(genres)
                     _yearsData.postValue(years)
                     _directorsData.postValue(directors)
@@ -175,19 +193,28 @@ class NotificationsViewModel : ViewModel() {
                     _runtimeDistributionData.postValue(runtimeDist)
                     _watchedByMonthData.postValue(watchedByMonth)
 
-                    // Calcola top per ogni categoria
+                    _averageRatingByGenre.postValue(avgRatingByGenre)
+                    _actorsData.postValue(actors)
+                    _productionCompaniesData.postValue(companies)
+                    _runtimeVsRatingData.postValue(runtimeVsRating)
+                    _totalWatchTimeText.postValue(totalWatchTime)
+                    _genreCombinationsData.postValue(genreCombinations)
+
+                    //top
                     genres.maxByOrNull { it.value }?.let { _topGenre.postValue(it.key to it.value) }
                     years.maxByOrNull { it.value }?.let { _topYear.postValue(it.key to it.value) }
                     directors.maxByOrNull { it.value }?.let { _topDirector.postValue(it.key to it.value) }
                     countries.maxByOrNull { it.value }?.let { _topCountry.postValue(it.key to it.value) }
                     decades.maxByOrNull { it.value }?.let { _topDecade.postValue(it.key to it.value) }
+                    actors.maxByOrNull { it.value }?.let { _topActor.postValue(it.key to it.value) }
+                    companies.maxByOrNull { it.value }?.let { _topProductionCompany.postValue(it.key to it.value) }
                 }
 
                 _chartsReady.value = true
-                Log.d(TAG, "✅ Grafici generati con successo")
+                Log.d(TAG, "grafici generati con successo")
 
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Errore generazione grafici", e)
+                Log.e(TAG, "errore generazione grafici", e)
                 _chartsReady.value = false
             }
         }
@@ -201,15 +228,13 @@ class NotificationsViewModel : ViewModel() {
             movie.genres.forEach { genre ->
                 if (genre.isNotBlank()) {
                     genreCount[genre] = genreCount.getOrDefault(genre, 0) + 1
-
                     val currentList = genreMoviesMap[genre] ?: emptyList()
                     genreMoviesMap[genre] = currentList + movie
                 }
             }
         }
 
-        return genreCount
-            .entries
+        return genreCount.entries
             .sortedByDescending { it.value }
             .associate { it.key to it.value }
     }
@@ -221,14 +246,12 @@ class NotificationsViewModel : ViewModel() {
         movies.forEach { movie ->
             movie.year?.let { year ->
                 yearCount[year] = yearCount.getOrDefault(year, 0) + 1
-
                 val currentList = yearMoviesMap[year] ?: emptyList()
                 yearMoviesMap[year] = currentList + movie
             }
         }
 
-        return yearCount
-            .entries
+        return yearCount.entries
             .sortedBy { it.key }
             .associate { it.key to it.value }
     }
@@ -241,16 +264,15 @@ class NotificationsViewModel : ViewModel() {
             movie.director?.let { director ->
                 if (director.isNotBlank()) {
                     directorCount[director] = directorCount.getOrDefault(director, 0) + 1
-
                     val currentList = directorMoviesMap[director] ?: emptyList()
                     directorMoviesMap[director] = currentList + movie
                 }
             }
         }
 
-        return directorCount
-            .entries
+        return directorCount.entries
             .sortedByDescending { it.value }
+            .take(10)
             .associate { it.key to it.value }
     }
 
@@ -269,8 +291,7 @@ class NotificationsViewModel : ViewModel() {
             }
         }
 
-        return ratingCount
-            .entries
+        return ratingCount.entries
             .sortedByDescending { it.key }
             .associate { it.key to it.value }
     }
@@ -279,21 +300,36 @@ class NotificationsViewModel : ViewModel() {
         val countryCount = mutableMapOf<String, Int>()
         countryMoviesMap.clear()
 
-        movies.forEach { movie ->
-            movie.productionCountries.forEach { country ->
-                if (country.isNotBlank()) {
-                    countryCount[country] = countryCount.getOrDefault(country, 0) + 1
+        Log.d(TAG, "=== analisi paesi ===")
+        Log.d(TAG, "totale film: ${movies.size}")
 
-                    val currentList = countryMoviesMap[country] ?: emptyList()
-                    countryMoviesMap[country] = currentList + movie
+        var moviesWithCountries = 0
+
+        movies.forEach { movie ->
+            if (movie.productionCountries.isNotEmpty()) {
+                moviesWithCountries++
+
+                movie.productionCountries.forEach { country ->
+                    if (country.isNotBlank()) {
+                        countryCount[country] = countryCount.getOrDefault(country, 0) + 1
+
+                        val currentList = countryMoviesMap[country] ?: emptyList()
+                        countryMoviesMap[country] = currentList + movie
+                    }
                 }
             }
         }
 
-        return countryCount
-            .entries
+        Log.d(TAG, "film con paesi: $moviesWithCountries")
+        Log.d(TAG, "paesi unici: ${countryCount.size}")
+
+        if (countryCount.isEmpty()) {
+            Log.w(TAG, "nessun paese trovato")
+        }
+
+        return countryCount.entries
             .sortedByDescending { it.value }
-            .take(10)
+            .take(15)
             .associate { it.key to it.value }
     }
 
@@ -312,8 +348,7 @@ class NotificationsViewModel : ViewModel() {
             }
         }
 
-        return decadeCount
-            .entries
+        return decadeCount.entries
             .sortedBy { it.key }
             .associate { it.key to it.value }
     }
@@ -352,17 +387,115 @@ class NotificationsViewModel : ViewModel() {
                     monthCount[monthKey] = monthCount.getOrDefault(monthKey, 0) + 1
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Errore parsing data: ${movie.dateRated}")
+                Log.w(TAG, "errore parsing data: ${movie.dateRated}")
             }
         }
 
-        return monthCount
-            .entries
+        return monthCount.entries
             .sortedBy { it.key }
             .associate { it.key to it.value }
     }
 
-    // Funzioni per recuperare film per categoria (per i click)
+    private fun analyzeAverageRatingByGenre(movies: List<Movie>): Map<String, Double> {
+        val genreRatings = mutableMapOf<String, MutableList<Double>>()
+
+        movies.filter { it.userRating != null }.forEach { movie ->
+            movie.genres.forEach { genre ->
+                if (genre.isNotBlank()) {
+                    genreRatings.getOrPut(genre) { mutableListOf() }.add(movie.userRating!!)
+                }
+            }
+        }
+
+        return genreRatings.mapValues { (_, ratings) ->
+            ratings.average()
+        }.entries
+            .sortedByDescending { it.value }
+            .take(10)
+            .associate { it.key to it.value }
+    }
+
+    private fun analyzeActors(movies: List<Movie>): Map<String, Int> {
+        val actorCount = mutableMapOf<String, Int>()
+        actorMoviesMap.clear()
+
+        movies.forEach { movie ->
+            movie.cast.forEach { actor ->
+                if (actor.isNotBlank()) {
+                    actorCount[actor] = actorCount.getOrDefault(actor, 0) + 1
+                    val currentList = actorMoviesMap[actor] ?: emptyList()
+                    actorMoviesMap[actor] = currentList + movie
+                }
+            }
+        }
+
+        return actorCount.entries
+            .sortedByDescending { it.value }
+            .take(10)
+            .associate { it.key to it.value }
+    }
+
+    private fun analyzeProductionCompanies(movies: List<Movie>): Map<String, Int> {
+        val companyCount = mutableMapOf<String, Int>()
+        companyMoviesMap.clear()
+
+        movies.forEach { movie ->
+            movie.productionCompanies.forEach { company ->
+                if (company.isNotBlank()) {
+                    companyCount[company] = companyCount.getOrDefault(company, 0) + 1
+                    val currentList = companyMoviesMap[company] ?: emptyList()
+                    companyMoviesMap[company] = currentList + movie
+                }
+            }
+        }
+
+        return companyCount.entries
+            .sortedByDescending { it.value }
+            .take(10)
+            .associate { it.key to it.value }
+    }
+
+    private fun analyzeRuntimeVsRating(movies: List<Movie>): List<Pair<Int, Double>> {
+        return movies.filter {
+            it.runtime != null && it.userRating != null
+        }.map { movie ->
+            movie.runtime!! to movie.userRating!!
+        }
+    }
+
+    private fun calculateTotalWatchTime(movies: List<Movie>): String {
+        val watchedMovies = movies.filter { it.isWatched && it.runtime != null }
+        val totalMinutes = watchedMovies.sumOf { it.runtime!! }
+
+        val hours = totalMinutes / 60
+        val days = hours / 24
+
+        return when {
+            days > 0 -> "$days giorni e ${hours % 24} ore"
+            else -> "$hours ore"
+        }
+    }
+
+    private fun analyzeGenreCombinations(movies: List<Movie>): Map<String, Int> {
+        val combinationCount = mutableMapOf<String, Int>()
+
+        movies.forEach { movie ->
+            val genres = movie.genres.filter { it.isNotBlank() }.sorted()
+
+            for (i in genres.indices) {
+                for (j in i + 1 until genres.size) {
+                    val combination = "${genres[i]} + ${genres[j]}"
+                    combinationCount[combination] = combinationCount.getOrDefault(combination, 0) + 1
+                }
+            }
+        }
+
+        return combinationCount.entries
+            .sortedByDescending { it.value }
+            .take(10)
+            .associate { it.key to it.value }
+    }
+
     fun getMoviesByGenre(genre: String): List<Movie> = genreMoviesMap[genre] ?: emptyList()
     fun getMoviesByYear(year: Int): List<Movie> = yearMoviesMap[year] ?: emptyList()
     fun getMoviesByDirector(director: String): List<Movie> = directorMoviesMap[director] ?: emptyList()
@@ -370,4 +503,6 @@ class NotificationsViewModel : ViewModel() {
     fun getMoviesByCountry(country: String): List<Movie> = countryMoviesMap[country] ?: emptyList()
     fun getMoviesByDecade(decade: String): List<Movie> = decadeMoviesMap[decade] ?: emptyList()
     fun getMoviesByRuntime(runtime: String): List<Movie> = runtimeMoviesMap[runtime] ?: emptyList()
+    fun getMoviesByActor(actor: String): List<Movie> = actorMoviesMap[actor] ?: emptyList()
+    fun getMoviesByCompany(company: String): List<Movie> = companyMoviesMap[company] ?: emptyList()
 }

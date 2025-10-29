@@ -30,7 +30,12 @@ class HomeFragment : Fragment() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri -> processImdbWatchedFile(uri) }
+            result.data?.data?.let { uri ->
+                Log.d(TAG, "file selezionato: imdb watched")
+                processImdbWatchedFile(uri)
+            }
+        } else {
+            Log.d(TAG, "selezione file annullata")
         }
     }
 
@@ -38,7 +43,10 @@ class HomeFragment : Fragment() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri -> processImdbWatchlistFile(uri) }
+            result.data?.data?.let { uri ->
+                Log.d(TAG, "file selezionato: imdb watchlist")
+                processImdbWatchlistFile(uri)
+            }
         }
     }
 
@@ -46,7 +54,10 @@ class HomeFragment : Fragment() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri -> processLetterboxdWatchedFile(uri) }
+            result.data?.data?.let { uri ->
+                Log.d(TAG, "file selezionato: letterboxd watched")
+                processLetterboxdWatchedFile(uri)
+            }
         }
     }
 
@@ -54,7 +65,10 @@ class HomeFragment : Fragment() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri -> processLetterboxdWatchlistFile(uri) }
+            result.data?.data?.let { uri ->
+                Log.d(TAG, "file selezionato: letterboxd watchlist")
+                processLetterboxdWatchlistFile(uri)
+            }
         }
     }
 
@@ -75,22 +89,38 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupUI() {
-        binding.buttonImportImdbWatched.setOnClickListener { showImdbWatchedHelp() }
-        binding.buttonImportImdbWatchlist.setOnClickListener { showImdbWatchlistHelp() }
-        binding.buttonImportLetterboxdWatched.setOnClickListener { showLetterboxdWatchedHelp() }
-        binding.buttonImportLetterboxdWatchlist.setOnClickListener { showLetterboxdWatchlistHelp() }
-        binding.buttonClearAll.setOnClickListener { showClearAllConfirmation() }
+        binding.buttonImportImdbWatched.setOnClickListener {
+            Log.d(TAG, "click: import imdb watched")
+            showImdbWatchedHelp()
+        }
+        binding.buttonImportImdbWatchlist.setOnClickListener {
+            Log.d(TAG, "click: import imdb watchlist")
+            showImdbWatchlistHelp()
+        }
+        binding.buttonImportLetterboxdWatched.setOnClickListener {
+            Log.d(TAG, "click: import letterboxd watched")
+            showLetterboxdWatchedHelp()
+        }
+        binding.buttonImportLetterboxdWatchlist.setOnClickListener {
+            Log.d(TAG, "click: import letterboxd watchlist")
+            showLetterboxdWatchlistHelp()
+        }
+        binding.buttonClearAll.setOnClickListener {
+            Log.d(TAG, "click: clear all")
+            showClearAllConfirmation()
+        }
 
         binding.swipeRefresh.setOnRefreshListener {
-            Log.d(TAG, "refresh manuale")
+            Log.d(TAG, "swipe refresh")
             homeViewModel.refreshFromBackend()
         }
     }
 
     private fun setupObservers() {
-        //loading
+        //loading generale
         homeViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             binding.swipeRefresh.isRefreshing = isLoading
+            Log.d(TAG, "loading: $isLoading")
         }
 
         //movies
@@ -102,6 +132,7 @@ class HomeFragment : Fragment() {
         homeViewModel.message.observe(viewLifecycleOwner) { message ->
             if (message.isNotEmpty()) {
                 Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                Log.d(TAG, "message: $message")
             }
         }
 
@@ -109,11 +140,18 @@ class HomeFragment : Fragment() {
         homeViewModel.isImporting.observe(viewLifecycleOwner) { isImporting ->
             binding.progressBarImport.isVisible = isImporting
             enableImportButtons(!isImporting)
+
+            Log.d(TAG, "isImporting: $isImporting")
+
+            if (!isImporting) {
+                binding.progressBarImport.progress = 0
+            }
         }
 
         //progress percentuale
         homeViewModel.importProgress.observe(viewLifecycleOwner) { progress ->
             binding.progressBarImport.progress = progress
+            Log.d(TAG, "import progress: $progress%")
         }
     }
 
@@ -135,6 +173,8 @@ class HomeFragment : Fragment() {
         binding.buttonImportLetterboxdWatched.isEnabled = enabled
         binding.buttonImportLetterboxdWatchlist.isEnabled = enabled
         binding.buttonClearAll.isEnabled = enabled
+
+        Log.d(TAG, "bottoni ${if (enabled) "abilitati" else "disabilitati"}")
     }
 
     //help dialogs
@@ -176,7 +216,7 @@ class HomeFragment : Fragment() {
 
     //file pickers
     private fun openImdbWatchedPicker() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             type = "text/*"
             addCategory(Intent.CATEGORY_OPENABLE)
         }
@@ -184,7 +224,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun openImdbWatchlistPicker() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             type = "text/*"
             addCategory(Intent.CATEGORY_OPENABLE)
         }
@@ -192,7 +232,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun openLetterboxdWatchedPicker() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             type = "text/*"
             addCategory(Intent.CATEGORY_OPENABLE)
         }
@@ -200,81 +240,90 @@ class HomeFragment : Fragment() {
     }
 
     private fun openLetterboxdWatchlistPicker() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             type = "text/*"
             addCategory(Intent.CATEGORY_OPENABLE)
         }
         letterboxdWatchlistPicker.launch(intent)
     }
 
-    //file processing
+    //process files
     private fun processImdbWatchedFile(uri: Uri) {
         try {
-            val inputStream = requireContext().contentResolver.openInputStream(uri)
-            if (inputStream != null) {
-                homeViewModel.processImdbWatchedCsv(inputStream)
-            } else {
-                Toast.makeText(requireContext(), "impossibile leggere il file", Toast.LENGTH_SHORT).show()
+            Log.d(TAG, "processing imdb watched file: $uri")
+            requireContext().contentResolver.openInputStream(uri)?.use { stream ->
+                homeViewModel.processImdbWatchedCsv(stream)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "errore", e)
-            Toast.makeText(requireContext(), "errore: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "errore lettura file: ${e.message}", e)
+            Toast.makeText(requireContext(), "errore lettura file: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun processImdbWatchlistFile(uri: Uri) {
         try {
-            val inputStream = requireContext().contentResolver.openInputStream(uri)
-            if (inputStream != null) {
-                homeViewModel.processImdbWatchlistCsv(inputStream)
-            } else {
-                Toast.makeText(requireContext(), "impossibile leggere il file", Toast.LENGTH_SHORT).show()
+            Log.d(TAG, "processing imdb watchlist file: $uri")
+            requireContext().contentResolver.openInputStream(uri)?.use { stream ->
+                homeViewModel.processImdbWatchlistCsv(stream)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "errore", e)
-            Toast.makeText(requireContext(), "errore: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "errore lettura file: ${e.message}", e)
+            Toast.makeText(requireContext(), "errore lettura file: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun processLetterboxdWatchedFile(uri: Uri) {
         try {
-            val inputStream = requireContext().contentResolver.openInputStream(uri)
-            if (inputStream != null) {
-                homeViewModel.processLetterboxdWatchedCsv(inputStream)
-            } else {
-                Toast.makeText(requireContext(), "impossibile leggere il file", Toast.LENGTH_SHORT).show()
+            Log.d(TAG, "processing letterboxd watched file: $uri")
+            requireContext().contentResolver.openInputStream(uri)?.use { stream ->
+                homeViewModel.processLetterboxdWatchedCsv(stream)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "errore", e)
-            Toast.makeText(requireContext(), "errore: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "errore lettura file: ${e.message}", e)
+            Toast.makeText(requireContext(), "errore lettura file: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun processLetterboxdWatchlistFile(uri: Uri) {
         try {
-            val inputStream = requireContext().contentResolver.openInputStream(uri)
-            if (inputStream != null) {
-                homeViewModel.processLetterboxdWatchlistCsv(inputStream)
-            } else {
-                Toast.makeText(requireContext(), "impossibile leggere il file", Toast.LENGTH_SHORT).show()
+            Log.d(TAG, "processing letterboxd watchlist file: $uri")
+            requireContext().contentResolver.openInputStream(uri)?.use { stream ->
+                homeViewModel.processLetterboxdWatchlistCsv(stream)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "errore", e)
-            Toast.makeText(requireContext(), "errore: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "errore lettura file: ${e.message}", e)
+            Toast.makeText(requireContext(), "errore lettura file: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun showClearAllConfirmation() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("elimina tutti i film")
-            .setMessage("sei sicuro?")
-            .setPositiveButton("elimina") { _, _ -> homeViewModel.clearAllMovies() }
-            .setNegativeButton("annulla", null)
+            .setMessage("sei sicuro di voler eliminare tutti i film? questa azione non puo essere annullata")
+            .setPositiveButton("elimina") { _, _ ->
+                Log.d(TAG, "confermata eliminazione")
+                homeViewModel.clearAllMovies()
+            }
+            .setNegativeButton("annulla") { dialog, _ ->
+                Log.d(TAG, "eliminazione annullata")
+                dialog.dismiss()
+            }
             .show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d(TAG, "fragment resumed")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.d(TAG, "fragment paused")
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+        Log.d(TAG, "fragment destroyed")
     }
 }

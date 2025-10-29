@@ -16,6 +16,7 @@ import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.HorizontalBarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.charts.PieChart
+import com.github.mikephil.charting.charts.ScatterChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
@@ -24,7 +25,7 @@ import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import com.github.mikephil.charting.highlight.Highlight
 
 /**
- * fragment con 8 grafici interattivi per analisi cinematografica
+ * fragment con grafici interattivi
  */
 class NotificationsFragment : Fragment() {
 
@@ -35,23 +36,23 @@ class NotificationsFragment : Fragment() {
 
     private lateinit var notificationsViewModel: NotificationsViewModel
 
-    //colori vibranti per grafici
+    //colori vibranti
     private val chartColors = listOf(
-        Color.parseColor("#667eea"), //purple blue
-        Color.parseColor("#764ba2"), //deep purple
-        Color.parseColor("#f093fb"), //pink
-        Color.parseColor("#4facfe"), //sky blue
-        Color.parseColor("#00f2fe"), //cyan
-        Color.parseColor("#43e97b"), //green
-        Color.parseColor("#38f9d7"), //turquoise
-        Color.parseColor("#fa709a"), //rose
-        Color.parseColor("#fee140"), //yellow
-        Color.parseColor("#30cfd0"), //teal
-        Color.parseColor("#a8edea"), //light cyan
-        Color.parseColor("#fed6e3"), //light pink
-        Color.parseColor("#fbc2eb"), //lavender
-        Color.parseColor("#a6c1ee"), //light blue
-        Color.parseColor("#ffecd2")  //peach
+        Color.parseColor("#667eea"),
+        Color.parseColor("#764ba2"),
+        Color.parseColor("#f093fb"),
+        Color.parseColor("#4facfe"),
+        Color.parseColor("#00f2fe"),
+        Color.parseColor("#43e97b"),
+        Color.parseColor("#38f9d7"),
+        Color.parseColor("#fa709a"),
+        Color.parseColor("#fee140"),
+        Color.parseColor("#30cfd0"),
+        Color.parseColor("#a8edea"),
+        Color.parseColor("#fed6e3"),
+        Color.parseColor("#fbc2eb"),
+        Color.parseColor("#a6c1ee"),
+        Color.parseColor("#ffecd2")
     )
 
     override fun onCreateView(
@@ -63,8 +64,6 @@ class NotificationsFragment : Fragment() {
         _binding = FragmentNotificationsBinding.inflate(inflater, container, false)
 
         setupObservers()
-
-        //inizializza viewmodel
         notificationsViewModel.initialize(requireContext())
 
         Log.d(TAG, "notificationsfragment creato")
@@ -77,7 +76,7 @@ class NotificationsFragment : Fragment() {
             updateStatsCards(movies.size)
         }
 
-        //charts loading state
+        //charts loading
         notificationsViewModel.chartsReady.observe(viewLifecycleOwner) { ready ->
             if (ready) {
                 binding.cardChartsLoading.visibility = View.GONE
@@ -88,80 +87,90 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico generi
+        //grafici esistenti
         notificationsViewModel.genresData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) {
-                setupGenresPieChart(data)
-            }
+            if (data.isNotEmpty()) setupGenresPieChart(data)
         }
 
         notificationsViewModel.topGenre.observe(viewLifecycleOwner) { (genre, count) ->
-            binding.textTopGenre.text = "🎬 Genere preferito: $genre ($count film)"
+            binding.textTopGenre.text = "🎬 genere preferito: $genre ($count film)"
         }
 
-        //grafico anni
         notificationsViewModel.yearsData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) {
-                setupYearsBarChart(data)
-            }
+            if (data.isNotEmpty()) setupYearsBarChart(data)
         }
 
         notificationsViewModel.topYear.observe(viewLifecycleOwner) { (year, count) ->
-            binding.textTopYear.text = "📅 Anno con più film: $year ($count film)"
+            binding.textTopYear.text = "📅 anno con più film: $year ($count film)"
         }
 
-        //grafico registi
         notificationsViewModel.directorsData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) {
-                setupDirectorsBarChart(data)
-            }
+            if (data.isNotEmpty()) setupDirectorsBarChart(data)
         }
 
         notificationsViewModel.topDirector.observe(viewLifecycleOwner) { (director, count) ->
-            binding.textTopDirector.text = "🎥 Regista preferito: $director ($count film)"
+            binding.textTopDirector.text = "🎥 regista preferito: $director ($count film)"
         }
 
-        //grafico ratings
         notificationsViewModel.ratingsData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) {
-                setupRatingsBarChart(data)
-            }
+            if (data.isNotEmpty()) setupRatingsBarChart(data)
         }
 
-        //grafico paesi
         notificationsViewModel.countriesData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) {
-                setupCountriesBarChart(data)
-            }
+            if (data.isNotEmpty()) setupCountriesBarChart(data)
         }
 
         notificationsViewModel.topCountry.observe(viewLifecycleOwner) { (country, count) ->
-            binding.textTopCountry.text = "🌍 Paese principale: $country ($count film)"
+            binding.textTopCountry.text = "🌍 paese principale: $country ($count film)"
         }
 
-        //grafico decadi
         notificationsViewModel.decadesData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) {
-                setupDecadesBarChart(data)
-            }
+            if (data.isNotEmpty()) setupDecadesBarChart(data)
         }
 
         notificationsViewModel.topDecade.observe(viewLifecycleOwner) { (decade, count) ->
-            binding.textTopDecade.text = "📆 Decennio preferito: $decade ($count film)"
+            binding.textTopDecade.text = "📆 decennio preferito: $decade ($count film)"
         }
 
-        //grafico durata
         notificationsViewModel.runtimeDistributionData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) {
-                setupRuntimeBarChart(data)
-            }
+            if (data.isNotEmpty()) setupRuntimeBarChart(data)
         }
 
-        //grafico timeline watched
         notificationsViewModel.watchedByMonthData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) {
-                setupWatchedTimelineChart(data)
-            }
+            if (data.isNotEmpty()) setupWatchedTimelineChart(data)
+        }
+
+        //nuovi grafici
+        notificationsViewModel.totalWatchTimeText.observe(viewLifecycleOwner) { text ->
+            binding.textTotalWatchTime.text = "⏱️ tempo totale di visione: $text"
+        }
+
+        notificationsViewModel.averageRatingByGenre.observe(viewLifecycleOwner) { data ->
+            if (data.isNotEmpty()) setupAverageRatingByGenreChart(data)
+        }
+
+        notificationsViewModel.actorsData.observe(viewLifecycleOwner) { data ->
+            if (data.isNotEmpty()) setupActorsBarChart(data)
+        }
+
+        notificationsViewModel.topActor.observe(viewLifecycleOwner) { (actor, count) ->
+            binding.textTopActor.text = "🌟 attore preferito: $actor ($count film)"
+        }
+
+        notificationsViewModel.productionCompaniesData.observe(viewLifecycleOwner) { data ->
+            if (data.isNotEmpty()) setupProductionCompaniesChart(data)
+        }
+
+        notificationsViewModel.topProductionCompany.observe(viewLifecycleOwner) { (company, count) ->
+            binding.textTopCompany.text = "🏢 studio preferito: $company ($count film)"
+        }
+
+        notificationsViewModel.runtimeVsRatingData.observe(viewLifecycleOwner) { data ->
+            if (data.isNotEmpty()) setupRuntimeVsRatingScatter(data)
+        }
+
+        notificationsViewModel.genreCombinationsData.observe(viewLifecycleOwner) { data ->
+            if (data.isNotEmpty()) setupGenreCombinationsChart(data)
         }
     }
 
@@ -176,9 +185,7 @@ class NotificationsFragment : Fragment() {
         binding.textWatchlistMovies.text = watchlist.toString()
     }
 
-    /**
-     * grafico 1: pie chart generi - CON CLICK
-     */
+    //grafici esistenti
     private fun setupGenresPieChart(data: Map<String, Int>) {
         val entries = data.map { PieEntry(it.value.toFloat(), it.key) }
 
@@ -189,7 +196,7 @@ class NotificationsFragment : Fragment() {
             sliceSpace = 2f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString() // Rimuovi decimali
+                    return value.toInt().toString()
                 }
             }
         }
@@ -204,18 +211,16 @@ class NotificationsFragment : Fragment() {
             setDrawEntryLabels(false)
             animateY(1000, Easing.EaseInOutQuad)
 
-            // Aggiungi listener per click
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is PieEntry) {
                         val genre = e.label
                         showMoviesDialog(
-                            title = "Film del genere: $genre",
+                            title = "film del genere: $genre",
                             movies = notificationsViewModel.getMoviesByGenre(genre)
                         )
                     }
                 }
-
                 override fun onNothingSelected() {}
             })
 
@@ -223,20 +228,17 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    /**
-     * grafico 2: bar chart anni - SCROLLABILE CON CLICK
-     */
     private fun setupYearsBarChart(data: Map<Int, Int>) {
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
-        val dataSet = BarDataSet(entries, "Film").apply {
+        val dataSet = BarDataSet(entries, "film").apply {
             color = chartColors[0]
             valueTextSize = 10f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString() // Rimuovi decimali
+                    return value.toInt().toString()
                 }
             }
         }
@@ -245,7 +247,6 @@ class NotificationsFragment : Fragment() {
             this.data = BarData(dataSet)
             description.isEnabled = false
 
-            // Rendi scrollabile
             setVisibleXRangeMaximum(10f)
             moveViewToX(data.size.toFloat())
 
@@ -267,41 +268,36 @@ class NotificationsFragment : Fragment() {
             axisRight.isEnabled = false
             legend.isEnabled = false
 
-            // Aggiungi listener per click
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is BarEntry) {
                         val yearsList = data.keys.toList()
                         val year = yearsList[e.x.toInt()]
                         showMoviesDialog(
-                            title = "Film del $year",
+                            title = "film del $year",
                             movies = notificationsViewModel.getMoviesByYear(year)
                         )
                     }
                 }
-
                 override fun onNothingSelected() {}
             })
 
-            animateY(1000)
+            animateX(1000)
             invalidate()
         }
     }
 
-    /**
-     * grafico 3: bar chart registi - SCROLLABILE CON CLICK
-     */
     private fun setupDirectorsBarChart(data: Map<String, Int>) {
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
-        val dataSet = BarDataSet(entries, "Film").apply {
-            color = chartColors[3]
+        val dataSet = BarDataSet(entries, "film").apply {
+            color = chartColors[1]
             valueTextSize = 10f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString() // Rimuovi decimali
+                    return value.toInt().toString()
                 }
             }
         }
@@ -310,19 +306,12 @@ class NotificationsFragment : Fragment() {
             this.data = BarData(dataSet)
             description.isEnabled = false
 
-            // Rendi scrollabile
-            setVisibleXRangeMaximum(10f)
-
             xAxis.apply {
-                valueFormatter = IndexAxisValueFormatter(
-                    data.keys.map {
-                        if (it.length > 15) it.substring(0, 15) + "..." else it
-                    }
-                )
+                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
                 labelRotationAngle = -45f
-                textSize = 9f
+                textSize = 8f
             }
             axisLeft.apply {
                 axisMinimum = 0f
@@ -335,43 +324,36 @@ class NotificationsFragment : Fragment() {
             axisRight.isEnabled = false
             legend.isEnabled = false
 
-            // Aggiungi listener per click
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is BarEntry) {
                         val directorsList = data.keys.toList()
                         val director = directorsList[e.x.toInt()]
                         showMoviesDialog(
-                            title = "Film di $director",
+                            title = "film di $director",
                             movies = notificationsViewModel.getMoviesByDirector(director)
                         )
                     }
                 }
-
                 override fun onNothingSelected() {}
             })
 
-            animateY(1000)
+            animateX(1000)
             invalidate()
         }
     }
 
-    /**
-     * grafico 4: bar chart ratings - SCROLLABILE CON CLICK
-     */
     private fun setupRatingsBarChart(data: Map<String, Int>) {
-        val entries = data.entries
-            .sortedBy { it.key.toInt() }
-            .mapIndexed { index, entry ->
-                BarEntry(index.toFloat(), entry.value.toFloat())
-            }
+        val entries = data.entries.mapIndexed { index, entry ->
+            BarEntry(index.toFloat(), entry.value.toFloat())
+        }
 
-        val dataSet = BarDataSet(entries, "Film").apply {
-            color = chartColors[7]
-            valueTextSize = 10f
+        val dataSet = BarDataSet(entries, "film").apply {
+            color = chartColors[2]
+            valueTextSize = 11f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString() // Rimuovi decimali
+                    return value.toInt().toString()
                 }
             }
         }
@@ -380,13 +362,8 @@ class NotificationsFragment : Fragment() {
             this.data = BarData(dataSet)
             description.isEnabled = false
 
-            // Rendi scrollabile
-            setVisibleXRangeMaximum(8f)
-
             xAxis.apply {
-                valueFormatter = IndexAxisValueFormatter(
-                    data.keys.sortedBy { it.toInt() }.map { "⭐$it" }
-                )
+                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
                 textSize = 10f
@@ -402,41 +379,39 @@ class NotificationsFragment : Fragment() {
             axisRight.isEnabled = false
             legend.isEnabled = false
 
-            // Aggiungi listener per click
-            setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
-                override fun onValueSelected(e: Entry?, h: Highlight?) {
-                    if (e is BarEntry) {
-                        val ratingsList = data.keys.sortedBy { it.toInt() }
-                        val rating = ratingsList[e.x.toInt()].toInt()
-                        showMoviesDialog(
-                            title = "Film con ⭐$rating stelle",
-                            movies = notificationsViewModel.getMoviesByRating(rating)
-                        )
-                    }
-                }
-
-                override fun onNothingSelected() {}
-            })
-
             animateY(1000)
             invalidate()
         }
     }
 
-    /**
-     * grafico 5: bar chart paesi - SCROLLABILE CON CLICK
-     */
     private fun setupCountriesBarChart(data: Map<String, Int>) {
-        val entries = data.entries.mapIndexed { index, entry ->
+        Log.d(TAG, "=== setup grafico paesi ===")
+        Log.d(TAG, "paesi ricevuti: ${data.size}")
+
+        if (data.isEmpty()) {
+            Log.w(TAG, "nessun dato per grafico paesi")
+            binding.textTopCountry.text = "🌍 nessun paese disponibile"
+            binding.chartCountries.visibility = View.GONE
+            return
+        }
+
+        binding.chartCountries.visibility = View.VISIBLE
+
+        val sortedData = data.entries
+            .sortedByDescending { it.value }
+            .take(15)
+
+        val entries = sortedData.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
-        val dataSet = BarDataSet(entries, "Film").apply {
+        val dataSet = BarDataSet(entries, "film").apply {
             color = chartColors[5]
-            valueTextSize = 10f
+            valueTextSize = 11f
+            valueTextColor = Color.WHITE
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString() // Rimuovi decimali
+                    return value.toInt().toString()
                 }
             }
         }
@@ -445,35 +420,41 @@ class NotificationsFragment : Fragment() {
             this.data = BarData(dataSet)
             description.isEnabled = false
 
-            // Rendi scrollabile
-            setVisibleXRangeMaximum(8f)
+            if (sortedData.size > 8) {
+                setVisibleXRangeMaximum(8f)
+                moveViewToX(0f)
+            }
 
             xAxis.apply {
-                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
+                valueFormatter = IndexAxisValueFormatter(sortedData.map { it.key })
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
                 labelRotationAngle = -45f
                 textSize = 9f
+                setDrawGridLines(false)
             }
+
             axisLeft.apply {
                 axisMinimum = 0f
+                granularity = 1f
                 valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
                         return value.toInt().toString()
                     }
                 }
+                setDrawGridLines(true)
+                gridColor = Color.parseColor("#E0E0E0")
             }
+
             axisRight.isEnabled = false
             legend.isEnabled = false
 
-            // Aggiungi listener per click
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is BarEntry) {
-                        val countriesList = data.keys.toList()
-                        val country = countriesList[e.x.toInt()]
+                        val country = sortedData[e.x.toInt()].key
                         showMoviesDialog(
-                            title = "Film da $country",
+                            title = "film da $country",
                             movies = notificationsViewModel.getMoviesByCountry(country)
                         )
                     }
@@ -485,22 +466,21 @@ class NotificationsFragment : Fragment() {
             animateY(1000)
             invalidate()
         }
+
+        Log.d(TAG, "grafico paesi creato")
     }
 
-    /**
-     * grafico 6: bar chart decadi - SCROLLABILE CON CLICK
-     */
     private fun setupDecadesBarChart(data: Map<String, Int>) {
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
-        val dataSet = BarDataSet(entries, "Film").apply {
-            color = chartColors[1]
-            valueTextSize = 10f
+        val dataSet = BarDataSet(entries, "film").apply {
+            color = chartColors[4]
+            valueTextSize = 11f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString() // Rimuovi decimali
+                    return value.toInt().toString()
                 }
             }
         }
@@ -508,9 +488,6 @@ class NotificationsFragment : Fragment() {
         binding.chartDecades.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
-
-            // Rendi scrollabile
-            setVisibleXRangeMaximum(8f)
 
             xAxis.apply {
                 valueFormatter = IndexAxisValueFormatter(data.keys.toList())
@@ -529,41 +506,36 @@ class NotificationsFragment : Fragment() {
             axisRight.isEnabled = false
             legend.isEnabled = false
 
-            // Aggiungi listener per click
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is BarEntry) {
                         val decadesList = data.keys.toList()
                         val decade = decadesList[e.x.toInt()]
                         showMoviesDialog(
-                            title = "Film degli anni $decade",
+                            title = "film degli anni $decade",
                             movies = notificationsViewModel.getMoviesByDecade(decade)
                         )
                     }
                 }
-
                 override fun onNothingSelected() {}
             })
 
-            animateY(1000)
+            animateX(1000)
             invalidate()
         }
     }
 
-    /**
-     * grafico 7: bar chart durata - SCROLLABILE CON CLICK
-     */
     private fun setupRuntimeBarChart(data: Map<String, Int>) {
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
-        val dataSet = BarDataSet(entries, "Film").apply {
-            color = chartColors[4]
-            valueTextSize = 10f
+        val dataSet = BarDataSet(entries, "film").apply {
+            color = chartColors[5]
+            valueTextSize = 11f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString() // Rimuovi decimali
+                    return value.toInt().toString()
                 }
             }
         }
@@ -576,8 +548,7 @@ class NotificationsFragment : Fragment() {
                 valueFormatter = IndexAxisValueFormatter(data.keys.toList())
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
-                labelRotationAngle = -30f
-                textSize = 9f
+                textSize = 10f
             }
             axisLeft.apply {
                 axisMinimum = 0f
@@ -590,19 +561,17 @@ class NotificationsFragment : Fragment() {
             axisRight.isEnabled = false
             legend.isEnabled = false
 
-            // Aggiungi listener per click
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is BarEntry) {
                         val runtimeList = data.keys.toList()
                         val runtime = runtimeList[e.x.toInt()]
                         showMoviesDialog(
-                            title = "Film di durata $runtime",
+                            title = "film di durata $runtime",
                             movies = notificationsViewModel.getMoviesByRuntime(runtime)
                         )
                     }
                 }
-
                 override fun onNothingSelected() {}
             })
 
@@ -611,26 +580,22 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    /**
-     * grafico 8: line chart timeline watched - SCROLLABILE
-     */
     private fun setupWatchedTimelineChart(data: Map<String, Int>) {
         val entries = data.entries.mapIndexed { index, entry ->
             Entry(index.toFloat(), entry.value.toFloat())
         }
 
-        val dataSet = LineDataSet(entries, "Film visti").apply {
-            color = chartColors[5]
-            setCircleColor(chartColors[5])
-            lineWidth = 3f
-            circleRadius = 5f
+        val dataSet = LineDataSet(entries, "film visti").apply {
+            color = chartColors[6]
+            setCircleColor(chartColors[6])
+            lineWidth = 2f
+            circleRadius = 4f
             setDrawValues(true)
-            valueTextSize = 10f
+            valueTextSize = 9f
             mode = LineDataSet.Mode.CUBIC_BEZIER
-            cubicIntensity = 0.2f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString() // Rimuovi decimali
+                    return value.toInt().toString()
                 }
             }
         }
@@ -639,21 +604,20 @@ class NotificationsFragment : Fragment() {
             this.data = LineData(dataSet)
             description.isEnabled = false
 
-            // Rendi scrollabile
-            setVisibleXRangeMaximum(12f)
-            moveViewToX(data.size.toFloat())
-
             xAxis.apply {
                 valueFormatter = IndexAxisValueFormatter(
                     data.keys.map {
-                        //converti "2024-01" in "Gen 24"
                         try {
                             val parts = it.split("-")
-                            val year = parts[0].substring(2)
-                            val monthNames = listOf("Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
-                                "Lug", "Ago", "Set", "Ott", "Nov", "Dic")
-                            val month = monthNames[parts[1].toInt() - 1]
-                            "$month $year"
+                            val year = parts[0]
+                            val month = parts[1].toInt()
+                            val monthName = when (month) {
+                                1 -> "gen"; 2 -> "feb"; 3 -> "mar"; 4 -> "apr"
+                                5 -> "mag"; 6 -> "giu"; 7 -> "lug"; 8 -> "ago"
+                                9 -> "set"; 10 -> "ott"; 11 -> "nov"; 12 -> "dic"
+                                else -> month.toString()
+                            }
+                            "$monthName $year"
                         } catch (e: Exception) {
                             it
                         }
@@ -679,15 +643,246 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    /**
-     * Dialog per mostrare lista film
-     */
+    //nuovi grafici
+    private fun setupAverageRatingByGenreChart(data: Map<String, Double>) {
+        val entries = data.entries.mapIndexed { index, entry ->
+            BarEntry(index.toFloat(), entry.value.toFloat())
+        }
+
+        val dataSet = BarDataSet(entries, "valutazione media").apply {
+            color = chartColors[7]
+            valueTextSize = 10f
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return String.format("%.1f", value)
+                }
+            }
+        }
+
+        binding.chartAverageRatingByGenre.apply {
+            this.data = BarData(dataSet)
+            description.isEnabled = false
+
+            xAxis.apply {
+                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
+                position = XAxis.XAxisPosition.BOTTOM
+                granularity = 1f
+                labelRotationAngle = -45f
+                textSize = 9f
+            }
+            axisLeft.apply {
+                axisMinimum = 0f
+                axisMaximum = 10f
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return String.format("%.1f", value)
+                    }
+                }
+            }
+            axisRight.isEnabled = false
+            legend.textSize = 10f
+
+            animateY(1000)
+            invalidate()
+        }
+    }
+
+    private fun setupActorsBarChart(data: Map<String, Int>) {
+        val entries = data.entries.mapIndexed { index, entry ->
+            BarEntry(index.toFloat(), entry.value.toFloat())
+        }
+
+        val dataSet = BarDataSet(entries, "film").apply {
+            color = chartColors[8]
+            valueTextSize = 10f
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return value.toInt().toString()
+                }
+            }
+        }
+
+        binding.chartActors.apply {
+            this.data = BarData(dataSet)
+            description.isEnabled = false
+
+            xAxis.apply {
+                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
+                position = XAxis.XAxisPosition.BOTTOM
+                granularity = 1f
+                labelRotationAngle = -45f
+                textSize = 8f
+            }
+            axisLeft.apply {
+                axisMinimum = 0f
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return value.toInt().toString()
+                    }
+                }
+            }
+            axisRight.isEnabled = false
+            legend.isEnabled = false
+
+            setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
+                override fun onValueSelected(e: Entry?, h: Highlight?) {
+                    if (e is BarEntry) {
+                        val actorsList = data.keys.toList()
+                        val actor = actorsList[e.x.toInt()]
+                        showMoviesDialog(
+                            title = "film con $actor",
+                            movies = notificationsViewModel.getMoviesByActor(actor)
+                        )
+                    }
+                }
+                override fun onNothingSelected() {}
+            })
+
+            animateX(1000)
+            invalidate()
+        }
+    }
+
+    private fun setupProductionCompaniesChart(data: Map<String, Int>) {
+        val entries = data.entries.mapIndexed { index, entry ->
+            BarEntry(index.toFloat(), entry.value.toFloat())
+        }
+
+        val dataSet = BarDataSet(entries, "film").apply {
+            color = chartColors[9]
+            valueTextSize = 10f
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return value.toInt().toString()
+                }
+            }
+        }
+
+        binding.chartProductionCompanies.apply {
+            this.data = BarData(dataSet)
+            description.isEnabled = false
+
+            xAxis.apply {
+                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
+                position = XAxis.XAxisPosition.BOTTOM
+                granularity = 1f
+                labelRotationAngle = -45f
+                textSize = 8f
+            }
+            axisLeft.apply {
+                axisMinimum = 0f
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return value.toInt().toString()
+                    }
+                }
+            }
+            axisRight.isEnabled = false
+            legend.isEnabled = false
+
+            setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
+                override fun onValueSelected(e: Entry?, h: Highlight?) {
+                    if (e is BarEntry) {
+                        val companiesList = data.keys.toList()
+                        val company = companiesList[e.x.toInt()]
+                        showMoviesDialog(
+                            title = "film di $company",
+                            movies = notificationsViewModel.getMoviesByCompany(company)
+                        )
+                    }
+                }
+                override fun onNothingSelected() {}
+            })
+
+            animateX(1000)
+            invalidate()
+        }
+    }
+
+    private fun setupRuntimeVsRatingScatter(data: List<Pair<Int, Double>>) {
+        val entries = data.map { (runtime, rating) ->
+            Entry(runtime.toFloat(), rating.toFloat())
+        }
+
+        val dataSet = ScatterDataSet(entries, "film").apply {
+            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
+            color = chartColors[10]
+            scatterShapeSize = 12f
+            setDrawValues(false)
+        }
+
+        binding.chartRuntimeVsRating.apply {
+            this.data = ScatterData(dataSet)
+            description.text = "durata vs valutazione"
+            description.textSize = 11f
+
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                textSize = 10f
+                axisMinimum = 0f
+                granularity = 20f
+            }
+            axisLeft.apply {
+                textSize = 10f
+                axisMinimum = 0f
+                axisMaximum = 10f
+            }
+            axisRight.isEnabled = false
+            legend.textSize = 10f
+
+            animateXY(1000, 1000)
+            invalidate()
+        }
+    }
+
+    private fun setupGenreCombinationsChart(data: Map<String, Int>) {
+        val entries = data.entries.mapIndexed { index, entry ->
+            BarEntry(index.toFloat(), entry.value.toFloat())
+        }
+
+        val dataSet = BarDataSet(entries, "film").apply {
+            color = chartColors[11]
+            valueTextSize = 10f
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return value.toInt().toString()
+                }
+            }
+        }
+
+        binding.chartGenreCombinations.apply {
+            this.data = BarData(dataSet)
+            description.isEnabled = false
+
+            xAxis.apply {
+                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
+                position = XAxis.XAxisPosition.BOTTOM
+                granularity = 1f
+                labelRotationAngle = -45f
+                textSize = 7f
+            }
+            axisLeft.apply {
+                axisMinimum = 0f
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return value.toInt().toString()
+                    }
+                }
+            }
+            axisRight.isEnabled = false
+            legend.isEnabled = false
+
+            animateY(1000)
+            invalidate()
+        }
+    }
+
     private fun showMoviesDialog(title: String, movies: List<com.example.movieapp.data.models.Movie>) {
         if (movies.isEmpty()) {
             AlertDialog.Builder(requireContext())
                 .setTitle(title)
-                .setMessage("Nessun film trovato in questa categoria.")
-                .setPositiveButton("OK", null)
+                .setMessage("nessun film trovato")
+                .setPositiveButton("ok", null)
                 .show()
             return
         }
@@ -701,14 +896,14 @@ class NotificationsFragment : Fragment() {
         AlertDialog.Builder(requireContext())
             .setTitle("$title - ${movies.size} film")
             .setItems(movieTitles, null)
-            .setPositiveButton("Chiudi", null)
+            .setPositiveButton("chiudi", null)
             .show()
     }
 
     override fun onResume() {
         super.onResume()
         notificationsViewModel.refreshData()
-        Log.d(TAG, "Fragment resumed - dati statistiche ricaricati")
+        Log.d(TAG, "fragment resumed")
     }
 
     override fun onDestroyView() {
