@@ -19,7 +19,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- card statistiche - STILE UNIFORME -->
+            <!-- card statistiche con progress bar -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -48,7 +48,8 @@
                         android:layout_height="wrap_content"
                         android:columnCount="3"
                         android:rowCount="1"
-                        android:alignmentMode="alignBounds">
+                        android:alignmentMode="alignBounds"
+                        android:layout_marginBottom="16dp">
 
                         <LinearLayout
                             android:layout_width="0dp"
@@ -120,11 +121,42 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Da vedere"
+                                android:text="Da Vedere"
                                 android:textSize="12sp"
                                 android:textColor="@color/text_secondary"/>
                         </LinearLayout>
                     </GridLayout>
+
+                    <!-- progress bar con percentuale -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp">
+
+                        <ProgressBar
+                            android:id="@+id/progress_stats"
+                            style="@android:style/Widget.ProgressBar.Horizontal"
+                            android:layout_width="0dp"
+                            android:layout_height="8dp"
+                            android:layout_weight="1"
+                            android:max="100"
+                            android:progress="0"
+                            android:progressTint="@color/success_green"
+                            android:progressBackgroundTint="@color/background_light"/>
+
+                        <TextView
+                            android:id="@+id/text_progress_percentage"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0% completato"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_secondary"
+                            android:layout_marginStart="12dp"/>
+                    </LinearLayout>
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
@@ -132,17 +164,16 @@
             <!-- progress bar import -->
             <ProgressBar
                 android:id="@+id/progress_bar_import"
-                style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                style="@android:style/Widget.ProgressBar.Horizontal"
                 android:layout_width="match_parent"
-                android:layout_height="8dp"
-                android:visibility="gone"
+                android:layout_height="4dp"
+                android:layout_marginBottom="16dp"
                 android:max="100"
                 android:progress="0"
-                android:layout_marginBottom="16dp"
-                tools:visibility="visible"
-                tools:progress="45"/>
+                android:visibility="gone"
+                android:progressTint="@color/primary_blue"/>
 
-            <!-- card importa - STILE UNIFORME -->
+            <!-- import buttons -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -160,135 +191,75 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📥 Importa Film"
-                        android:textSize="18sp"
+                        android:text="📥 Import da IMDB"
+                        android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="@color/text_primary"
-                        android:layout_marginBottom="16dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Da IMDb"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary_blue"
                         android:layout_marginBottom="12dp"/>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginBottom="20dp">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_import_imdb_watched"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginEnd="8dp"
-                            android:text="Film visti"
-                            android:textSize="13sp"
-                            app:icon="@drawable/ic_upload"
-                            app:iconGravity="textStart"
-                            style="@style/Widget.Material3.Button.TonalButton"/>
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_import_imdb_watchlist"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="8dp"
-                            android:text="Da vedere"
-                            android:textSize="13sp"
-                            app:icon="@drawable/ic_upload"
-                            app:iconGravity="textStart"
-                            style="@style/Widget.Material3.Button.TonalButton"/>
-                    </LinearLayout>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Da Letterboxd"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary_blue"
-                        android:layout_marginBottom="12dp"/>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_import_letterboxd_watched"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginEnd="8dp"
-                            android:text="Film visti"
-                            android:textSize="13sp"
-                            app:icon="@drawable/ic_upload"
-                            app:iconGravity="textStart"
-                            style="@style/Widget.Material3.Button.TonalButton"/>
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_import_letterboxd_watchlist"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="8dp"
-                            android:text="Da vedere"
-                            android:textSize="13sp"
-                            app:icon="@drawable/ic_upload"
-                            app:iconGravity="textStart"
-                            style="@style/Widget.Material3.Button.TonalButton"/>
-                    </LinearLayout>
-
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-            <!-- card azioni - STILE UNIFORME -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
-                app:cardBackgroundColor="@color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="⚙️ Azioni"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_primary"
-                        android:layout_marginBottom="16dp"/>
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/button_clear_all"
+                        android:id="@+id/button_import_imdb_watched"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Elimina tutti i film"
-                        android:textSize="14sp"
-                        app:icon="@drawable/ic_delete"
-                        app:iconGravity="textStart"
-                        app:backgroundTint="@color/error_red"
+                        android:text="Film Visti"
+                        android:textAllCaps="false"
                         app:cornerRadius="12dp"
-                        style="@style/Widget.Material3.Button"/>
+                        app:icon="@drawable/ic_upload"
+                        android:layout_marginBottom="8dp"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_import_imdb_watchlist"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Da Vedere"
+                        android:textAllCaps="false"
+                        app:cornerRadius="12dp"
+                        app:icon="@drawable/ic_upload"
+                        android:layout_marginBottom="16dp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📥 Import da Letterboxd"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginBottom="12dp"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_import_letterboxd_watched"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Film Visti"
+                        android:textAllCaps="false"
+                        app:cornerRadius="12dp"
+                        app:icon="@drawable/ic_upload"
+                        android:layout_marginBottom="8dp"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_import_letterboxd_watchlist"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Da Vedere"
+                        android:textAllCaps="false"
+                        app:cornerRadius="12dp"
+                        app:icon="@drawable/ic_upload"/>
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- clear all button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_clear_all"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🗑️ Elimina Tutti i Film"
+                android:textAllCaps="false"
+                app:cornerRadius="12dp"
+                app:strokeColor="@color/error_red"
+                app:strokeWidth="2dp"
+                style="@style/Widget.Material3.Button.OutlinedButton"/>
+
         </LinearLayout>
-
     </androidx.core.widget.NestedScrollView>
-
 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

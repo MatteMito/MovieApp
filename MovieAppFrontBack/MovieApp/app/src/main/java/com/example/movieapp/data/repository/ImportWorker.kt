@@ -15,8 +15,8 @@ import com.example.movieapp.data.network.NotificationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
 import java.io.File
 
 /**
@@ -198,34 +198,43 @@ class ImportWorker(
                 val timeout = 15 * 60 * 1000L //15 minuti
 
                 //osserva websocket updates
-                val job = CoroutineScope(Dispatchers.IO).launch {
-                    webSocketService.enrichmentUpdates.collect { update ->
-                        if (update != null) {
-                            val progress = 40 + ((update.processed.toFloat() / update.total) * 55).toInt()
+                coroutineScope {
+                    val job = launch {
+                        webSocketService.enrichmentUpdates.collect { update ->
+                            if (update != null) {
+                                val progress = 40 + ((update.processed.toFloat() / update.total) * 55).toInt()
 
-                            if (progress > lastProgress) {
-                                lastProgress = progress
-                                val message = "enrichment ${update.processed}/${update.total}: ${update.currentMovie}"
+                                if (progress > lastProgress) {
+                                    lastProgress = progress
+                                    val message = "enrichment ${update.processed}/${update.total}: ${update.currentMovie}"
 
-                                setForeground(createForegroundInfo(progress, message))
-                                setProgressAsync(workDataOf(KEY_PROGRESS to progress))
+                                    setForeground(createForegroundInfo(progress, message))
+                                    setProgressAsync(workDataOf(KEY_PROGRESS to progress))
 
-                                Log.d(TAG, message)
-                            }
+                                    Log.d(TAG, message)
+                                }
 
-                            if (update.processed >= update.total) {
-                                completed = true
+                                if (update.processed >= update.total) {
+                                    completed = true
+                                }
                             }
                         }
                     }
+
+                    //attendi completamento o timeout
+                    while (!completed && (System.currentTimeMillis() - startTime) < timeout) {
+                        delay(500)
+                    }
+
+                    job.cancel()
                 }
 
-                //attendi completamento o timeout
-                while (!completed && (System.currentTimeMillis() - startTime) < timeout) {
-                    delay(500)
+                //se timeout raggiunto, il backend sta ancora lavorando
+                if (!completed) {
+                    Log.w(TAG, "timeout raggiunto ma enrichment continua in background")
+                    //non e un errore, ritorna success
+                    return@withContext true
                 }
-
-                job.cancel()
 
                 completed
 

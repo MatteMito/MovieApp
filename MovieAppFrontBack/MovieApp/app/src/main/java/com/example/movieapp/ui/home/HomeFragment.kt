@@ -199,7 +199,16 @@ class HomeFragment : Fragment() {
         binding.textWatchedMovies.text = watched.toString()
         binding.textWatchlistMovies.text = watchlist.toString()
 
-        Log.d(TAG, "stats aggiornate: ${movies.size} film totali")
+        // calcola e aggiorna la percentuale di completamento
+        val percentage = if (movies.isNotEmpty()) {
+            (watched.toFloat() / movies.size * 100).toInt()
+        } else {
+            0
+        }
+        binding.progressStats.progress = percentage
+        binding.textProgressPercentage.text = "$percentage% completato"
+
+        Log.d(TAG, "stats aggiornate: ${movies.size} film totali, $watched visti ($percentage%)")
     }
 
     /**
@@ -278,37 +287,65 @@ class HomeFragment : Fragment() {
     //help dialogs
     private fun showImdbWatchedHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("import imdb watched")
-            .setMessage("1. vai su imdb.com/list/ratings\n2. esporta come csv\n3. seleziona il file")
-            .setPositiveButton("seleziona") { _, _ -> openImdbWatchedPicker() }
-            .setNegativeButton("annulla", null)
+            .setTitle("Import IMDB Watched")
+            .setMessage("Come esportare i tuoi film visti da IMDB:\n\n" +
+                    "1. Vai su www.imdb.com e fai login\n" +
+                    "2. Clicca sul tuo nome in alto a destra\n" +
+                    "3. Seleziona 'Your Ratings'\n" +
+                    "4. Clicca sui 3 puntini (⋯) in alto a destra\n" +
+                    "5. Seleziona 'Export'\n" +
+                    "6. Salva il file ratings.csv\n" +
+                    "7. Seleziona quel file qui sotto")
+            .setPositiveButton("Seleziona File") { _, _ -> openImdbWatchedPicker() }
+            .setNegativeButton("Annulla", null)
             .show()
     }
 
     private fun showImdbWatchlistHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("import imdb watchlist")
-            .setMessage("1. vai su imdb.com/list/watchlist\n2. esporta come csv\n3. seleziona il file")
-            .setPositiveButton("seleziona") { _, _ -> openImdbWatchlistPicker() }
-            .setNegativeButton("annulla", null)
+            .setTitle("Import IMDB Watchlist")
+            .setMessage("Come esportare la tua watchlist da IMDB:\n\n" +
+                    "1. Vai su www.imdb.com e fai login\n" +
+                    "2. Clicca sul tuo nome in alto a destra\n" +
+                    "3. Seleziona 'Your Watchlist'\n" +
+                    "4. Clicca sui 3 puntini (⋯) in alto a destra\n" +
+                    "5. Seleziona 'Export'\n" +
+                    "6. Salva il file watchlist.csv\n" +
+                    "7. Seleziona quel file qui sotto")
+            .setPositiveButton("Seleziona File") { _, _ -> openImdbWatchlistPicker() }
+            .setNegativeButton("Annulla", null)
             .show()
     }
 
     private fun showLetterboxdWatchedHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("import letterboxd watched")
-            .setMessage("1. vai su letterboxd.com/settings/data\n2. export data\n3. estrai watched.csv\n4. selezionalo")
-            .setPositiveButton("seleziona") { _, _ -> openLetterboxdWatchedPicker() }
-            .setNegativeButton("annulla", null)
+            .setTitle("Import Letterboxd Watched")
+            .setMessage("Come esportare i tuoi film da Letterboxd:\n\n" +
+                    "1. Vai su letterboxd.com e fai login\n" +
+                    "2. Clicca sul tuo profilo in alto a destra\n" +
+                    "3. Vai su 'Settings' → 'Import & Export'\n" +
+                    "4. Clicca su 'Export Your Data'\n" +
+                    "5. Riceverai una email con un link\n" +
+                    "6. Scarica il file ZIP ed estrailo\n" +
+                    "7. Seleziona 'watched.csv' qui sotto")
+            .setPositiveButton("Seleziona File") { _, _ -> openLetterboxdWatchedPicker() }
+            .setNegativeButton("Annulla", null)
             .show()
     }
 
     private fun showLetterboxdWatchlistHelp() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("import letterboxd watchlist")
-            .setMessage("1. vai su letterboxd.com/settings/data\n2. export data\n3. estrai watchlist.csv\n4. selezionalo")
-            .setPositiveButton("seleziona") { _, _ -> openLetterboxdWatchlistPicker() }
-            .setNegativeButton("annulla", null)
+            .setTitle("Import Letterboxd Watchlist")
+            .setMessage("Come esportare la tua watchlist da Letterboxd:\n\n" +
+                    "1. Vai su letterboxd.com e fai login\n" +
+                    "2. Clicca sul tuo profilo in alto a destra\n" +
+                    "3. Vai su 'Settings' → 'Import & Export'\n" +
+                    "4. Clicca su 'Export Your Data'\n" +
+                    "5. Riceverai una email con un link\n" +
+                    "6. Scarica il file ZIP ed estrailo\n" +
+                    "7. Seleziona 'watchlist.csv' qui sotto")
+            .setPositiveButton("Seleziona File") { _, _ -> openLetterboxdWatchlistPicker() }
+            .setNegativeButton("Annulla", null)
             .show()
     }
 

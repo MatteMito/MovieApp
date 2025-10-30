@@ -81,7 +81,7 @@ class HomeViewModel : ViewModel() {
                 if (success) {
                     val movies = movieRepository?.movies?.value ?: emptyList()
                     _movies.value = movies
-                    _message.value = "dati aggiornati: ${movies.size} film"
+                    //rimosso toast fastidioso
                     Log.d(TAG, "refresh completato: ${movies.size} film")
                 } else {
                     _message.value = "errore refresh"
@@ -172,7 +172,7 @@ class HomeViewModel : ViewModel() {
                 observeWorkProgress(workManager, workRequest.id.toString())
 
                 withContext(Dispatchers.Main) {
-                    _message.value = "import avviato in background"
+                    //rimosso toast "import avviato"
                     _isImporting.value = true
                 }
 
