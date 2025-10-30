@@ -74,16 +74,32 @@ class NotificationsFragment : Fragment() {
         //stats cards
         notificationsViewModel.movies.observe(viewLifecycleOwner) { movies ->
             updateStatsCards(movies.size)
+
+            //gestione visualizzazione quando non ci sono film
+            if (movies.isEmpty()) {
+                showEmptyState()
+            } else {
+                hideEmptyState()
+            }
         }
 
         //charts loading
         notificationsViewModel.chartsReady.observe(viewLifecycleOwner) { ready ->
-            if (ready) {
+            val movies = notificationsViewModel.movies.value ?: emptyList()
+
+            if (movies.isEmpty()) {
+                //nessun film: mostra messaggio vuoto
+                showEmptyState()
+            } else if (ready) {
+                //film presenti e grafici pronti
                 binding.cardChartsLoading.visibility = View.GONE
                 binding.cardCharts.visibility = View.VISIBLE
+                hideEmptyState()
             } else {
+                //film presenti ma grafici in caricamento
                 binding.cardChartsLoading.visibility = View.VISIBLE
                 binding.cardCharts.visibility = View.GONE
+                hideEmptyState()
             }
         }
 
@@ -101,7 +117,7 @@ class NotificationsFragment : Fragment() {
         }
 
         notificationsViewModel.topYear.observe(viewLifecycleOwner) { (year, count) ->
-            binding.textTopYear.text = "📅 anno con più film: $year ($count film)"
+            binding.textTopYear.text = "📅 anno preferito: $year ($count film)"
         }
 
         notificationsViewModel.directorsData.observe(viewLifecycleOwner) { data ->
@@ -113,15 +129,15 @@ class NotificationsFragment : Fragment() {
         }
 
         notificationsViewModel.ratingsData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) setupRatingsBarChart(data)
+            if (data.isNotEmpty()) setupRatingsPieChart(data)
         }
 
         notificationsViewModel.countriesData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) setupCountriesBarChart(data)
+            if (data.isNotEmpty()) setupCountriesChart(data)
         }
 
         notificationsViewModel.topCountry.observe(viewLifecycleOwner) { (country, count) ->
-            binding.textTopCountry.text = "🌍 paese principale: $country ($count film)"
+            binding.textTopCountry.text = "🌍 paese preferito: $country ($count film)"
         }
 
         notificationsViewModel.decadesData.observe(viewLifecycleOwner) { data ->
@@ -129,24 +145,28 @@ class NotificationsFragment : Fragment() {
         }
 
         notificationsViewModel.topDecade.observe(viewLifecycleOwner) { (decade, count) ->
-            binding.textTopDecade.text = "📆 decennio preferito: $decade ($count film)"
+            binding.textTopDecade.text = "📆 decade preferita: $decade ($count film)"
         }
 
         notificationsViewModel.runtimeDistributionData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) setupRuntimeBarChart(data)
+            if (data.isNotEmpty()) setupRuntimeDistributionChart(data)
         }
 
         notificationsViewModel.watchedByMonthData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) setupWatchedTimelineChart(data)
         }
 
-        //nuovi grafici
+        //nuovi grafici - fix conversione Double -> Float
         notificationsViewModel.totalWatchTimeText.observe(viewLifecycleOwner) { text ->
             binding.textTotalWatchTime.text = "⏱️ tempo totale di visione: $text"
         }
 
         notificationsViewModel.averageRatingByGenre.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) setupAverageRatingByGenreChart(data)
+            if (data.isNotEmpty()) {
+                //converte da Double a Float
+                val floatData = data.mapValues { it.value.toFloat() }
+                setupAverageRatingByGenreChart(floatData)
+            }
         }
 
         notificationsViewModel.actorsData.observe(viewLifecycleOwner) { data ->
@@ -166,7 +186,11 @@ class NotificationsFragment : Fragment() {
         }
 
         notificationsViewModel.runtimeVsRatingData.observe(viewLifecycleOwner) { data ->
-            if (data.isNotEmpty()) setupRuntimeVsRatingScatter(data)
+            if (data.isNotEmpty()) {
+                //converte da Double a Float
+                val floatData = data.map { it.first to it.second.toFloat() }
+                setupRuntimeVsRatingScatter(floatData)
+            }
         }
 
         notificationsViewModel.genreCombinationsData.observe(viewLifecycleOwner) { data ->
@@ -174,18 +198,44 @@ class NotificationsFragment : Fragment() {
         }
     }
 
+    /**
+     * mostra stato vuoto quando non ci sono film
+     */
+    private fun showEmptyState() {
+        binding.progressBar.visibility = View.GONE
+        binding.textNoData.visibility = View.VISIBLE
+        binding.cardCharts.visibility = View.GONE
+        binding.cardChartsLoading.visibility = View.GONE
+        binding.statsCard.visibility = View.VISIBLE
+    }
+
+    /**
+     * nasconde stato vuoto quando ci sono film
+     */
+    private fun hideEmptyState() {
+        binding.progressBar.visibility = View.GONE
+        binding.textNoData.visibility = View.GONE
+    }
+
     private fun updateStatsCards(movieCount: Int) {
         val movies = notificationsViewModel.movies.value ?: emptyList()
 
-        val watched = movies.count { it.isWatched }
-        val watchlist = movies.count { !it.isWatched }
+        val watchedCount = movies.count { it.isWatched }
+        val watchlistCount = movies.count { !it.isWatched }
+
+        val totalWatchTimeMinutes = movies
+            .filter { it.isWatched && it.runtime != null }
+            .sumOf { it.runtime ?: 0 }
+        val totalWatchTimeHours = (totalWatchTimeMinutes / 60.0)
 
         binding.textTotalMovies.text = movieCount.toString()
-        binding.textWatchedMovies.text = watched.toString()
-        binding.textWatchlistMovies.text = watchlist.toString()
+        binding.textWatchedMovies.text = watchedCount.toString()
+        binding.textWatchlistMovies.text = watchlistCount.toString()
+        binding.textWatchHours.text = String.format("%.0f", totalWatchTimeHours)
     }
 
-    //grafici esistenti
+    //tutti i metodi setup grafici
+
     private fun setupGenresPieChart(data: Map<String, Int>) {
         val entries = data.map { PieEntry(it.value.toFloat(), it.key) }
 
@@ -343,14 +393,14 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    private fun setupRatingsBarChart(data: Map<String, Int>) {
-        val entries = data.entries.mapIndexed { index, entry ->
-            BarEntry(index.toFloat(), entry.value.toFloat())
-        }
+    private fun setupRatingsPieChart(data: Map<String, Int>) {
+        val entries = data.map { PieEntry(it.value.toFloat(), it.key) }
 
-        val dataSet = BarDataSet(entries, "film").apply {
-            color = chartColors[2]
-            valueTextSize = 11f
+        val dataSet = PieDataSet(entries, "").apply {
+            colors = chartColors
+            valueTextSize = 12f
+            valueTextColor = Color.WHITE
+            sliceSpace = 2f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return value.toInt().toString()
@@ -359,56 +409,23 @@ class NotificationsFragment : Fragment() {
         }
 
         binding.chartRatings.apply {
-            this.data = BarData(dataSet)
+            this.data = PieData(dataSet)
             description.isEnabled = false
-
-            xAxis.apply {
-                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
-                position = XAxis.XAxisPosition.BOTTOM
-                granularity = 1f
-                textSize = 10f
-            }
-            axisLeft.apply {
-                axisMinimum = 0f
-                valueFormatter = object : ValueFormatter() {
-                    override fun getFormattedValue(value: Float): String {
-                        return value.toInt().toString()
-                    }
-                }
-            }
-            axisRight.isEnabled = false
-            legend.isEnabled = false
-
-            animateY(1000)
+            legend.textSize = 10f
+            setDrawEntryLabels(false)
+            animateY(1000, Easing.EaseInOutQuad)
             invalidate()
         }
     }
 
-    private fun setupCountriesBarChart(data: Map<String, Int>) {
-        Log.d(TAG, "=== setup grafico paesi ===")
-        Log.d(TAG, "paesi ricevuti: ${data.size}")
-
-        if (data.isEmpty()) {
-            Log.w(TAG, "nessun dato per grafico paesi")
-            binding.textTopCountry.text = "🌍 nessun paese disponibile"
-            binding.chartCountries.visibility = View.GONE
-            return
-        }
-
-        binding.chartCountries.visibility = View.VISIBLE
-
-        val sortedData = data.entries
-            .sortedByDescending { it.value }
-            .take(15)
-
-        val entries = sortedData.mapIndexed { index, entry ->
+    private fun setupCountriesChart(data: Map<String, Int>) {
+        val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
         val dataSet = BarDataSet(entries, "film").apply {
             color = chartColors[5]
             valueTextSize = 11f
-            valueTextColor = Color.WHITE
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return value.toInt().toString()
@@ -420,54 +437,27 @@ class NotificationsFragment : Fragment() {
             this.data = BarData(dataSet)
             description.isEnabled = false
 
-            if (sortedData.size > 8) {
-                setVisibleXRangeMaximum(8f)
-                moveViewToX(0f)
-            }
-
             xAxis.apply {
-                valueFormatter = IndexAxisValueFormatter(sortedData.map { it.key })
+                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
                 labelRotationAngle = -45f
                 textSize = 9f
-                setDrawGridLines(false)
             }
-
             axisLeft.apply {
                 axisMinimum = 0f
-                granularity = 1f
                 valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
                         return value.toInt().toString()
                     }
                 }
-                setDrawGridLines(true)
-                gridColor = Color.parseColor("#E0E0E0")
             }
-
             axisRight.isEnabled = false
             legend.isEnabled = false
 
-            setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
-                override fun onValueSelected(e: Entry?, h: Highlight?) {
-                    if (e is BarEntry) {
-                        val country = sortedData[e.x.toInt()].key
-                        showMoviesDialog(
-                            title = "film da $country",
-                            movies = notificationsViewModel.getMoviesByCountry(country)
-                        )
-                    }
-                }
-
-                override fun onNothingSelected() {}
-            })
-
-            animateY(1000)
+            animateX(1000)
             invalidate()
         }
-
-        Log.d(TAG, "grafico paesi creato")
     }
 
     private fun setupDecadesBarChart(data: Map<String, Int>) {
@@ -525,7 +515,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    private fun setupRuntimeBarChart(data: Map<String, Int>) {
+    private fun setupRuntimeDistributionChart(data: Map<String, Int>) {
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
@@ -561,20 +551,6 @@ class NotificationsFragment : Fragment() {
             axisRight.isEnabled = false
             legend.isEnabled = false
 
-            setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
-                override fun onValueSelected(e: Entry?, h: Highlight?) {
-                    if (e is BarEntry) {
-                        val runtimeList = data.keys.toList()
-                        val runtime = runtimeList[e.x.toInt()]
-                        showMoviesDialog(
-                            title = "film di durata $runtime",
-                            movies = notificationsViewModel.getMoviesByRuntime(runtime)
-                        )
-                    }
-                }
-                override fun onNothingSelected() {}
-            })
-
             animateY(1000)
             invalidate()
         }
@@ -605,28 +581,11 @@ class NotificationsFragment : Fragment() {
             description.isEnabled = false
 
             xAxis.apply {
-                valueFormatter = IndexAxisValueFormatter(
-                    data.keys.map {
-                        try {
-                            val parts = it.split("-")
-                            val year = parts[0]
-                            val month = parts[1].toInt()
-                            val monthName = when (month) {
-                                1 -> "gen"; 2 -> "feb"; 3 -> "mar"; 4 -> "apr"
-                                5 -> "mag"; 6 -> "giu"; 7 -> "lug"; 8 -> "ago"
-                                9 -> "set"; 10 -> "ott"; 11 -> "nov"; 12 -> "dic"
-                                else -> month.toString()
-                            }
-                            "$monthName $year"
-                        } catch (e: Exception) {
-                            it
-                        }
-                    }
-                )
+                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
                 labelRotationAngle = -45f
-                textSize = 9f
+                textSize = 7f
             }
             axisLeft.apply {
                 axisMinimum = 0f
@@ -637,16 +596,16 @@ class NotificationsFragment : Fragment() {
                 }
             }
             axisRight.isEnabled = false
-            legend.textSize = 11f
-            animateX(1000)
+            legend.isEnabled = false
+
+            animateY(1000)
             invalidate()
         }
     }
 
-    //nuovi grafici
-    private fun setupAverageRatingByGenreChart(data: Map<String, Double>) {
+    private fun setupAverageRatingByGenreChart(data: Map<String, Float>) {
         val entries = data.entries.mapIndexed { index, entry ->
-            BarEntry(index.toFloat(), entry.value.toFloat())
+            BarEntry(index.toFloat(), entry.value)
         }
 
         val dataSet = BarDataSet(entries, "valutazione media").apply {
@@ -668,19 +627,19 @@ class NotificationsFragment : Fragment() {
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
                 labelRotationAngle = -45f
-                textSize = 9f
+                textSize = 8f
             }
             axisLeft.apply {
                 axisMinimum = 0f
                 axisMaximum = 10f
                 valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
-                        return String.format("%.1f", value)
+                        return value.toInt().toString()
                     }
                 }
             }
             axisRight.isEnabled = false
-            legend.textSize = 10f
+            legend.isEnabled = false
 
             animateY(1000)
             invalidate()
@@ -799,9 +758,9 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    private fun setupRuntimeVsRatingScatter(data: List<Pair<Int, Double>>) {
+    private fun setupRuntimeVsRatingScatter(data: List<Pair<Int, Float>>) {
         val entries = data.map { (runtime, rating) ->
-            Entry(runtime.toFloat(), rating.toFloat())
+            Entry(runtime.toFloat(), rating)
         }
 
         val dataSet = ScatterDataSet(entries, "film").apply {

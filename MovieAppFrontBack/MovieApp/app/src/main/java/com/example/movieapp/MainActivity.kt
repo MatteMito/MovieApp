@@ -9,6 +9,7 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.setupWithNavController
 import com.example.movieapp.databinding.ActivityMainBinding
 import com.example.movieapp.config.AppConfig
+import com.example.movieapp.config.LanguageManager
 import com.example.movieapp.data.network.ApiService
 import com.example.movieapp.ui.auth.LoginActivity
 import kotlinx.coroutines.CoroutineScope
@@ -27,6 +28,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        //applica lingua salvata all'avvio
+        LanguageManager.applyLanguage(this)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -55,7 +59,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * mostra menu account con opzioni
+     * mostra menu account con opzioni migrate e visibili
      */
     private fun showAccountMenu() {
         val currentUser = ApiService.getCurrentUser()
@@ -63,17 +67,22 @@ class MainActivity : AppCompatActivity() {
         val displayName = when {
             currentUser != null && !currentUser.username.isNullOrBlank() -> currentUser.username
             currentUser != null -> currentUser.email.substringBefore("@")
-            else -> "Utente"
+            else -> getString(R.string.account)
         }
 
-        val options = arrayOf("Info Account", "Logout")
+        val options = arrayOf(
+            getString(R.string.account_info),
+            getString(R.string.language),
+            getString(R.string.logout)
+        )
 
         MaterialAlertDialogBuilder(this)
-            .setTitle("Ciao $displayName!")
+            .setTitle(getString(R.string.hello_user, displayName))
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> showAccountInfo()
-                    1 -> showLogoutDialog()
+                    1 -> showLanguageDialog()
+                    2 -> showLogoutDialog()
                 }
             }
             .show()
@@ -92,30 +101,60 @@ class MainActivity : AppCompatActivity() {
             }
 
             val info = buildString {
-                appendLine("Il tuo account:")
+                appendLine(getString(R.string.your_account))
                 appendLine()
 
                 if (!currentUser.username.isNullOrBlank()) {
-                    appendLine("Nome: ${currentUser.username}")
+                    appendLine("${getString(R.string.name)} ${currentUser.username}")
                 }
 
-                appendLine("Email: ${currentUser.email}")
+                appendLine("${getString(R.string.email)} ${currentUser.email}")
                 appendLine()
-                appendLine("Versione app: ${AppConfig.APP_VERSION}")
+                appendLine("${getString(R.string.app_version_label)} ${AppConfig.APP_VERSION}")
             }
 
             MaterialAlertDialogBuilder(this)
-                .setTitle("Ciao $displayName!")
+                .setTitle(getString(R.string.hello_user, displayName))
                 .setMessage(info)
-                .setPositiveButton("OK", null)
+                .setPositiveButton(getString(R.string.ok), null)
                 .show()
         } else {
             MaterialAlertDialogBuilder(this)
-                .setTitle("Account")
+                .setTitle(getString(R.string.account))
                 .setMessage("Nessun account attivo.\n\nEffettua il login per continuare.")
-                .setPositiveButton("OK", null)
+                .setPositiveButton(getString(R.string.ok), null)
                 .show()
         }
+    }
+
+    /**
+     * mostra dialog selezione lingua
+     */
+    private fun showLanguageDialog() {
+        val languages = LanguageManager.SUPPORTED_LANGUAGES.values.toTypedArray()
+        val languageCodes = LanguageManager.SUPPORTED_LANGUAGES.keys.toTypedArray()
+
+        //ottieni lingua corrente salvata
+        val currentLanguage = LanguageManager.getSavedLanguage(this)
+        val currentIndex = languageCodes.indexOf(currentLanguage).takeIf { it >= 0 } ?: 0
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.select_language))
+            .setSingleChoiceItems(languages, currentIndex) { dialog, which ->
+                val selectedLanguage = languageCodes[which]
+                changeLanguage(selectedLanguage)
+                dialog.dismiss()
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    /**
+     * cambia lingua applicazione e salva la scelta
+     */
+    private fun changeLanguage(languageCode: String) {
+        LanguageManager.applyLanguage(this, languageCode)
+        Log.d(TAG, "lingua cambiata in: $languageCode")
     }
 
     /**
@@ -130,19 +169,15 @@ class MainActivity : AppCompatActivity() {
             else -> "il tuo account"
         }
 
-        val message = buildString {
-            appendLine("Vuoi disconnetterti da $displayName?")
-            appendLine()
-            appendLine("I tuoi film rimarranno salvati.")
-        }
+        val message = getString(R.string.logout_confirm_message)
 
         MaterialAlertDialogBuilder(this)
-            .setTitle("Disconnessione")
+            .setTitle(getString(R.string.logout_confirm_title))
             .setMessage(message)
-            .setPositiveButton("Disconnetti") { _, _ ->
+            .setPositiveButton(getString(R.string.logout_button)) { _, _ ->
                 performLogout()
             }
-            .setNegativeButton("Annulla", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 

@@ -30,6 +30,8 @@
         <activity
             android:name=".ui.auth.LoginActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|keyboardHidden"
             android:theme="@style/Theme.MovieApp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -41,6 +43,8 @@
         <activity
             android:name=".ui.auth.RegisterActivity"
             android:exported="false"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|keyboardHidden"
             android:theme="@style/Theme.MovieApp" />
 
         <!-- mainactivity - dopo login -->

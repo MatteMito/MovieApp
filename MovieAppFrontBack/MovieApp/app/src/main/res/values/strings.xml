@@ -23,6 +23,8 @@
     <string name="error">Qualcosa è andato storto</string>
     <string name="no_data">Nessun dato disponibile</string>
     <string name="no_movies">Ancora nessun film</string>
+    <string name="no_movies_imported">Nessun film importato</string>
+    <string name="import_movies_to_see_stats">Importa i tuoi film per visualizzare le statistiche</string>
 
     <!-- STATS -->
     <string name="total_movies">Totale</string>
@@ -57,10 +59,20 @@
     <string name="content_description_dashboard">Informazioni</string>
     <string name="content_description_charts">Grafici e statistiche</string>
 
-    <!-- ACCOUNT -->
+    <!-- ACCOUNT MENU -->
+    <string name="hello_user">Ciao %s!</string>
     <string name="account">Account</string>
-    <string name="logout">Esci</string>
+    <string name="account_info">Info Account</string>
+    <string name="logout">Logout</string>
+    <string name="language">Lingua</string>
+    <string name="select_language">Seleziona lingua</string>
     <string name="logout_confirm_title">Disconnessione</string>
     <string name="logout_confirm_message">Vuoi disconnetterti?\n\nI tuoi film rimarranno salvati.</string>
     <string name="logout_button">Disconnetti</string>
+
+    <!-- ACCOUNT INFO DIALOG -->
+    <string name="your_account">Il tuo account:</string>
+    <string name="name">Nome:</string>
+    <string name="email">Email:</string>
+    <string name="app_version_label">Versione app:</string>
 </resources>

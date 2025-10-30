@@ -1,0 +1,78 @@
+<resources>
+    <!-- APP INFO -->
+    <string name="app_name">MovieApp</string>
+    <string name="app_version">1.0.0</string>
+
+    <!-- NAVIGATION TITLES -->
+    <string name="title_home">Startseite</string>
+    <string name="title_lists">Listen</string>
+    <string name="title_notifications">Statistiken</string>
+
+    <!-- HOME SCREEN -->
+    <string name="import_imdb_watched">Gesehene Filme importieren</string>
+    <string name="import_imdb_watchlist">Filme zum Ansehen importieren</string>
+    <string name="import_letterboxd_watched">Gesehene Filme importieren</string>
+    <string name="import_letterboxd_watchlist">Filme zum Ansehen importieren</string>
+    <string name="clear_all">Alle Filme löschen</string>
+
+    <!-- MESSAGES -->
+    <string name="loading">Wird geladen…</string>
+    <string name="processing">Ihre Filme werden verarbeitet…</string>
+    <string name="enriching">Informationen werden abgerufen…</string>
+    <string name="success">Fertig!</string>
+    <string name="error">Etwas ist schiefgelaufen</string>
+    <string name="no_data">Keine Daten verfügbar</string>
+    <string name="no_movies">Noch keine Filme</string>
+    <string name="no_movies_imported">Keine Filme importiert</string>
+    <string name="import_movies_to_see_stats">Importieren Sie Ihre Filme, um Statistiken anzuzeigen</string>
+
+    <!-- STATS -->
+    <string name="total_movies">Gesamt</string>
+    <string name="watched_movies">Gesehen</string>
+    <string name="watchlist_movies">Zu sehen</string>
+    <string name="enriched_movies">Mit Details</string>
+    <string name="watch_hours">Stunden Filme</string>
+
+    <!-- CHARTS -->
+    <string name="genres_chart">Ihre Lieblingsgenres</string>
+    <string name="years_chart">Filme nach Jahr</string>
+    <string name="directors_chart">Meistgesehene Regisseure</string>
+
+    <!-- DIALOGS -->
+    <string name="confirm">Bestätigen</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="ok">OK</string>
+    <string name="delete">Löschen</string>
+    <string name="select_file">Datei auswählen</string>
+
+    <!-- HELP -->
+    <string name="imdb_help_title">So exportieren Sie von IMDb</string>
+    <string name="letterboxd_help_title">So exportieren Sie von Letterboxd</string>
+
+    <!-- BACKEND -->
+    <string name="backend_connected">Verbunden</string>
+    <string name="backend_disconnected">Nicht verbunden</string>
+    <string name="backend_error">Verbindungsfehler</string>
+
+    <!-- ACCESSIBILITY -->
+    <string name="content_description_home">Hauptbildschirm</string>
+    <string name="content_description_dashboard">Informationen</string>
+    <string name="content_description_charts">Diagramme und Statistiken</string>
+
+    <!-- ACCOUNT MENU -->
+    <string name="hello_user">Hallo %s!</string>
+    <string name="account">Konto</string>
+    <string name="account_info">Konto-Info</string>
+    <string name="logout">Abmelden</string>
+    <string name="language">Sprache</string>
+    <string name="select_language">Sprache auswählen</string>
+    <string name="logout_confirm_title">Abmeldung</string>
+    <string name="logout_confirm_message">Möchten Sie sich abmelden?\n\nIhre Filme bleiben gespeichert.</string>
+    <string name="logout_button">Abmelden</string>
+
+    <!-- ACCOUNT INFO DIALOG -->
+    <string name="your_account">Ihr Konto:</string>
+    <string name="name">Name:</string>
+    <string name="email">E-Mail:</string>
+    <string name="app_version_label">App-Version:</string>
+</resources>
