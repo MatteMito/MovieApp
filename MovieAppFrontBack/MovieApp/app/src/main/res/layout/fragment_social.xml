@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/background_light">
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipe_refresh"
@@ -20,179 +20,188 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                <!-- Header con gradiente -->
-                <LinearLayout
+                <!-- card tabs - STILE UNIFORME -->
+                <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:background="@drawable/gradient_primary"
-                    android:padding="20dp"
-                    android:elevation="4dp">
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/white">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <com.google.android.material.tabs.TabLayout
+                        android:id="@+id/tab_layout"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="📝 Le Tue Liste"
-                        android:textSize="24sp"
-                        android:textStyle="bold"
-                        android:textColor="@android:color/white"
-                        android:layout_marginBottom="4dp"/>
+                        android:background="@android:color/transparent"
+                        app:tabMode="fixed"
+                        app:tabGravity="fill"
+                        app:tabTextColor="@color/text_secondary"
+                        app:tabSelectedTextColor="@color/primary_blue"
+                        app:tabIndicatorColor="@color/primary_blue"
+                        app:tabIndicatorHeight="3dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Crea e condividi le tue collezioni di film"
-                        android:textSize="14sp"
-                        android:textColor="@android:color/white"
-                        android:alpha="0.9"/>
-                </LinearLayout>
+                        <com.google.android.material.tabs.TabItem
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Le Mie Liste"/>
 
-                <!-- Tab Layout -->
-                <com.google.android.material.tabs.TabLayout
-                    android:id="@+id/tab_layout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="?attr/colorSurface"
-                    app:tabMode="fixed"
-                    app:tabGravity="fill"
-                    app:tabTextColor="?android:attr/textColorSecondary"
-                    app:tabSelectedTextColor="?attr/colorPrimary"
-                    app:tabIndicatorColor="?attr/colorPrimary">
+                        <com.google.android.material.tabs.TabItem
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Liste Pubbliche"/>
+                    </com.google.android.material.tabs.TabLayout>
 
-                    <com.google.android.material.tabs.TabItem
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Le Mie Liste" />
+                </androidx.cardview.widget.CardView>
 
-                    <com.google.android.material.tabs.TabItem
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Liste Pubbliche" />
-                </com.google.android.material.tabs.TabLayout>
-
-                <!-- 🔥 SearchView - Appare SOLO quando ci sono liste -->
-                <LinearLayout
+                <!-- card searchview - STILE UNIFORME -->
+                <androidx.cardview.widget.CardView
                     android:id="@+id/search_filter_container"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="8dp"
-                    android:background="?attr/colorSurface"
-                    android:elevation="2dp"
+                    android:layout_marginBottom="16dp"
                     android:visibility="gone"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/white"
                     tools:visibility="visible">
 
                     <androidx.appcompat.widget.SearchView
                         android:id="@+id/search_view"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_margin="8dp"
                         app:queryHint="🔍 Cerca lista..."
-                        app:iconifiedByDefault="false"
-                        android:background="@android:drawable/editbox_background"/>
-                </LinearLayout>
+                        app:iconifiedByDefault="false"/>
 
-                <!-- RecyclerView Le Mie Liste -->
+                </androidx.cardview.widget.CardView>
+
+                <!-- recyclerview le mie liste -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recycler_my_lists"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:padding="8dp"
                     android:clipToPadding="false"
                     android:visibility="gone"
                     tools:listitem="@layout/item_social_list"
                     tools:itemCount="3"
                     tools:visibility="visible"/>
 
-                <!-- RecyclerView Liste Pubbliche -->
+                <!-- recyclerview liste pubbliche -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recycler_public_lists"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:padding="8dp"
                     android:clipToPadding="false"
                     android:visibility="gone"
                     tools:listitem="@layout/item_social_list"
                     tools:itemCount="2"/>
 
-                <!-- Empty State Le Mie Liste -->
-                <LinearLayout
+                <!-- empty state le mie liste - STILE UNIFORME -->
+                <androidx.cardview.widget.CardView
                     android:id="@+id/empty_state_my_lists"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:padding="48dp"
                     android:visibility="gone"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/white"
                     tools:visibility="gone">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="📋"
-                        android:textSize="64sp"
-                        android:layout_marginBottom="16dp"/>
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="48dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Nessuna lista creata"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="8dp"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📋"
+                            android:textSize="64sp"
+                            android:layout_marginBottom="16dp"/>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Crea la tua prima collezione di film!"
-                        android:textSize="14sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="16dp"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Nessuna lista creata"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary"
+                            android:layout_marginBottom="8dp"/>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/button_create_first"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Crea Lista"
-                        app:icon="@drawable/ic_add"/>
-                </LinearLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Crea la tua prima collezione di film!"
+                            android:textSize="14sp"
+                            android:textColor="@color/text_secondary"
+                            android:gravity="center"
+                            android:layout_marginBottom="16dp"/>
 
-                <!-- Empty State Liste Pubbliche -->
-                <LinearLayout
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_create_first"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Crea Lista"
+                            app:icon="@drawable/ic_add"
+                            app:backgroundTint="@color/primary_blue"
+                            app:cornerRadius="12dp"/>
+
+                    </LinearLayout>
+
+                </androidx.cardview.widget.CardView>
+
+                <!-- empty state liste pubbliche - STILE UNIFORME -->
+                <androidx.cardview.widget.CardView
                     android:id="@+id/empty_state_public_lists"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:padding="48dp"
-                    android:visibility="gone">
+                    android:visibility="gone"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/white">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="🌍"
-                        android:textSize="64sp"
-                        android:layout_marginBottom="16dp"/>
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="48dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Nessuna lista pubblica"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="8dp"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🌐"
+                            android:textSize="64sp"
+                            android:layout_marginBottom="16dp"/>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Le liste pubbliche degli utenti appariranno qui"
-                        android:textSize="14sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:gravity="center"/>
-                </LinearLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Nessuna lista pubblica"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary"
+                            android:layout_marginBottom="8dp"/>
 
-                <!-- Stato Non Autenticato -->
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Le liste pubbliche degli utenti appariranno qui"
+                            android:textSize="14sp"
+                            android:textColor="@color/text_secondary"
+                            android:gravity="center"/>
+
+                    </LinearLayout>
+
+                </androidx.cardview.widget.CardView>
+
+                <!-- stato non autenticato -->
                 <TextView
                     android:id="@+id/text_not_authenticated"
                     android:layout_width="match_parent"
@@ -200,20 +209,25 @@
                     android:padding="32dp"
                     android:gravity="center"
                     android:textSize="16sp"
+                    android:textColor="@color/text_secondary"
                     android:visibility="gone"
                     tools:text="⚠️ Effettua il login per accedere alle liste"/>
+
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-    <!-- FAB Crea Lista -->
+    <!-- fab crea lista -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_create_list"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
+        android:layout_margin="24dp"
         app:srcCompat="@drawable/ic_add"
+        app:backgroundTint="@color/primary_blue"
+        app:tint="@color/white"
+        app:elevation="6dp"
         android:contentDescription="Crea nuova lista"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -26,11 +26,10 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
 
-        <!-- LoginActivity - LAUNCHER (Prima schermata) -->
+        <!-- loginactivity - launcher (prima schermata) -->
         <activity
             android:name=".ui.auth.LoginActivity"
             android:exported="true"
-            android:label="Login"
             android:theme="@style/Theme.MovieApp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -38,14 +37,13 @@
             </intent-filter>
         </activity>
 
-        <!-- RegisterActivity -->
+        <!-- registeractivity -->
         <activity
             android:name=".ui.auth.RegisterActivity"
             android:exported="false"
-            android:label="Registrazione"
             android:theme="@style/Theme.MovieApp" />
 
-        <!-- MainActivity - Dopo login -->
+        <!-- mainactivity - dopo login -->
         <activity
             android:name=".MainActivity"
             android:exported="false"
@@ -53,7 +51,7 @@
             android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
-        <!-- FileProvider per CSV files -->
+        <!-- fileprovider per csv files -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

@@ -14,9 +14,9 @@ import com.example.movieapp.data.network.ApiService
 import kotlinx.coroutines.launch
 
 /**
- * Activity di Registrazione
+ * activity di registrazione
  *
- * Utilizza ApiService per registrazione
+ * utilizza apiservice per registrazione
  */
 class RegisterActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRegisterBinding
@@ -92,25 +92,29 @@ class RegisterActivity : AppCompatActivity() {
             binding.buttonRegister.isEnabled = true
 
             if (result.isSuccess) {
-                Log.d(TAG, "✅ Registrazione completata con successo")
+                Log.d(TAG, "registrazione completata con successo")
 
-                // 🆕 IMPORTANTE: Reinizializza ApiService per caricare i dati utente
+                //reinizializza apiservice per caricare i dati utente
                 ApiService.initialize(applicationContext)
 
-                // 🔍 Verifica che l'utente sia stato caricato
+                //verifica che l'utente sia stato caricato
                 val userId = ApiService.getCurrentUserId()
-                Log.d(TAG, "🔍 Dopo re-init: userId = $userId")
+                Log.d(TAG, "dopo re-init: userId = $userId")
 
                 if (userId != null) {
-                    Toast.makeText(this@RegisterActivity, "Account creato!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@RegisterActivity,
+                        "Account creato con successo!",
+                        Toast.LENGTH_SHORT
+                    ).show()
 
-                    // Naviga alla MainActivity
+                    //naviga alla mainactivity
                     val intent = Intent(this@RegisterActivity, MainActivity::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     startActivity(intent)
                     finish()
                 } else {
-                    Log.e(TAG, "❌ UserId ancora NULL dopo re-init!")
+                    Log.e(TAG, "userid ancora null dopo re-init")
                     Toast.makeText(
                         this@RegisterActivity,
                         "Errore caricamento dati utente",
@@ -120,7 +124,7 @@ class RegisterActivity : AppCompatActivity() {
             } else {
                 val error = result.exceptionOrNull()?.message ?: "Errore registrazione"
                 Toast.makeText(this@RegisterActivity, error, Toast.LENGTH_LONG).show()
-                Log.e(TAG, "❌ Registrazione fallita: $error")
+                Log.e(TAG, "registrazione fallita: $error")
             }
         }
     }

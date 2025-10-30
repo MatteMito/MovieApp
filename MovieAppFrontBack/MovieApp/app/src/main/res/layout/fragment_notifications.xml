@@ -1,618 +1,294 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<androidx.core.widget.NestedScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
-    tools:context=".ui.notifications.NotificationsFragment">
+    android:background="@color/background_light"
+    android:fillViewport="true">
 
-    <ScrollView
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <!-- card statistiche - STILE UNIFORME -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/stats_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="16dp">
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@color/white">
 
-            <!-- STATS CARDS -->
             <LinearLayout
-                android:id="@+id/layout_stats_cards"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:weightSum="3"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent">
+                android:orientation="vertical"
+                android:padding="20dp">
 
-                <!-- Card Totale -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="0dp"
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_margin="4dp"
-                    app:cardElevation="4dp"
-                    app:cardCornerRadius="12dp">
+                    android:text="📊 Riepilogo"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="16dp"/>
+
+                <GridLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:columnCount="3"
+                    android:rowCount="1"
+                    android:alignmentMode="alignBounds">
 
                     <LinearLayout
-                        android:layout_width="match_parent"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
                         android:orientation="vertical"
-                        android:padding="16dp"
-                        android:gravity="center">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="totale"
-                            android:textSize="12sp"
-                            android:textColor="?android:attr/textColorSecondary"/>
+                        android:gravity="center"
+                        android:padding="12dp">
 
                         <TextView
                             android:id="@+id/text_total_movies"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textSize="32sp"
+                            android:textSize="28sp"
                             android:textStyle="bold"
-                            android:textColor="?attr/colorPrimary"
-                            android:layout_marginTop="8dp"/>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Card Visti -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_margin="4dp"
-                    app:cardElevation="4dp"
-                    app:cardCornerRadius="12dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp"
-                        android:gravity="center">
+                            android:textColor="@color/primary_blue"/>
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="visti"
+                            android:text="Totali"
                             android:textSize="12sp"
-                            android:textColor="?android:attr/textColorSecondary"/>
+                            android:textColor="@color/text_secondary"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="12dp">
 
                         <TextView
                             android:id="@+id/text_watched_movies"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textSize="32sp"
+                            android:textSize="28sp"
                             android:textStyle="bold"
-                            android:textColor="#4CAF50"
-                            android:layout_marginTop="8dp"/>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Card Watchlist -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_margin="4dp"
-                    app:cardElevation="4dp"
-                    app:cardCornerRadius="12dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp"
-                        android:gravity="center">
+                            android:textColor="@color/success_green"/>
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="da vedere"
+                            android:text="Visti"
                             android:textSize="12sp"
-                            android:textColor="?android:attr/textColorSecondary"/>
+                            android:textColor="@color/text_secondary"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="12dp">
 
                         <TextView
-                            android:id="@+id/text_watchlist_movies"
+                            android:id="@+id/text_watch_hours"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textSize="32sp"
+                            android:textSize="28sp"
                             android:textStyle="bold"
-                            android:textColor="#FF9800"
-                            android:layout_marginTop="8dp"/>
+                            android:textColor="@color/warning_orange"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Ore"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_secondary"/>
                     </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
+                </GridLayout>
+
             </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
-            <!-- CHARTS LOADING CARD -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/card_charts_loading"
-                android:layout_width="0dp"
+        <!-- progress bar -->
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="visible"
+            android:indeterminateTint="@color/primary_blue"
+            android:layout_marginVertical="32dp"/>
+
+        <!-- messaggio vuoto - STILE UNIFORME -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/text_no_data"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@color/white">
+
+            <TextView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:layout_constraintTop_toBottomOf="@id/layout_stats_cards"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                android:layout_marginTop="16dp"
-                app:cardElevation="4dp"
-                app:cardCornerRadius="12dp"
-                android:visibility="gone">
+                android:text="📊 Importa i tuoi film per vedere le statistiche"
+                android:textSize="16sp"
+                android:textColor="@color/text_secondary"
+                android:textAlignment="center"
+                android:padding="32dp"/>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="32dp"
-                    android:gravity="center">
+        </androidx.cardview.widget.CardView>
 
-                    <ProgressBar
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:indeterminate="true"/>
+        <!-- card loading (nascosta ma necessaria per kotlin) -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/card_charts_loading"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"/>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="sto preparando i grafici..."
-                        android:textSize="14sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginTop="16dp"/>
+        <!-- textview nascosti ma necessari per kotlin -->
+        <TextView android:id="@+id/text_watchlist_movies" android:layout_width="0dp" android:layout_height="0dp"/>
+        <TextView android:id="@+id/text_top_country" android:layout_width="0dp" android:layout_height="0dp"/>
+        <TextView android:id="@+id/text_top_decade" android:layout_width="0dp" android:layout_height="0dp"/>
+        <TextView android:id="@+id/text_total_watch_time" android:layout_width="0dp" android:layout_height="0dp"/>
+        <TextView android:id="@+id/text_top_actor" android:layout_width="0dp" android:layout_height="0dp"/>
+        <TextView android:id="@+id/text_top_company" android:layout_width="0dp" android:layout_height="0dp"/>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="analisi dei tuoi film in corso"
-                        android:textSize="12sp"
-                        android:textColor="?android:attr/textColorTertiary"
-                        android:layout_marginTop="4dp"/>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+        <!-- container grafici - STILE UNIFORME -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/card_charts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@color/white">
 
-            <!-- CHARTS CARD -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/card_charts"
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:layout_constraintTop_toBottomOf="@id/layout_stats_cards"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                android:layout_marginTop="16dp"
-                app:cardElevation="4dp"
-                app:cardCornerRadius="12dp"
-                android:visibility="gone">
+                android:orientation="vertical"
+                android:padding="20dp">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <!-- chart generi -->
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
+                    android:text="🎬 Generi Preferiti"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="8dp"/>
 
-                    <!-- TEMPO TOTALE VISIONE -->
-                    <TextView
-                        android:id="@+id/text_total_watch_time"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="tempo totale di visione: calcolo..."
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="24dp"/>
+                <TextView
+                    android:id="@+id/text_top_genre"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Genere preferito: Caricamento..."
+                    android:textSize="13sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="12dp"/>
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
+                <com.github.mikephil.charting.charts.PieChart
+                    android:id="@+id/chart_genres"
+                    android:layout_width="match_parent"
+                    android:layout_height="320dp"
+                    android:layout_marginBottom="32dp"/>
 
-                    <!-- GRAFICO 1: PIE CHART - GENERI -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="generi preferiti"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/text_hint"
+                    android:layout_marginBottom="24dp"/>
 
-                    <TextView
-                        android:id="@+id/text_top_genre"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="genere preferito: caricamento..."
-                        android:textSize="13sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
+                <!-- chart anni -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📅 Film per Anno"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="8dp"/>
 
-                    <com.github.mikephil.charting.charts.PieChart
-                        android:id="@+id/chart_genres"
-                        android:layout_width="match_parent"
-                        android:layout_height="320dp"
-                        android:layout_marginBottom="32dp"/>
+                <TextView
+                    android:id="@+id/text_top_year"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Anno preferito: Caricamento..."
+                    android:textSize="13sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="12dp"/>
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
+                <com.github.mikephil.charting.charts.BarChart
+                    android:id="@+id/chart_years"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp"
+                    android:layout_marginBottom="32dp"/>
 
-                    <!-- GRAFICO: PUNTEGGIO MEDIO PER GENERE -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="punteggio medio per genere"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/text_hint"
+                    android:layout_marginBottom="24dp"/>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="quanto valuti in media ogni genere"
-                        android:textSize="12sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
+                <!-- chart registi -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🎥 Registi Preferiti"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="8dp"/>
 
-                    <com.github.mikephil.charting.charts.BarChart
-                        android:id="@+id/chart_average_rating_by_genre"
-                        android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginBottom="32dp"/>
+                <TextView
+                    android:id="@+id/text_top_director"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Regista preferito: Caricamento..."
+                    android:textSize="13sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="12dp"/>
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
+                <com.github.mikephil.charting.charts.HorizontalBarChart
+                    android:id="@+id/chart_directors"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp"
+                    android:layout_marginBottom="32dp"/>
 
-                    <!-- GRAFICO: COMBINAZIONI GENERI -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="combinazioni di generi piu frequenti"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
+                <!-- tutti gli altri chart nascosti ma con ID per kotlin -->
+                <com.github.mikephil.charting.charts.BarChart android:id="@+id/chart_ratings" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
+                <com.github.mikephil.charting.charts.BarChart android:id="@+id/chart_countries" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
+                <com.github.mikephil.charting.charts.BarChart android:id="@+id/chart_decades" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
+                <com.github.mikephil.charting.charts.BarChart android:id="@+id/chart_runtime" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
+                <com.github.mikephil.charting.charts.LineChart android:id="@+id/chart_watched_timeline" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
+                <com.github.mikephil.charting.charts.BarChart android:id="@+id/chart_average_rating_by_genre" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
+                <com.github.mikephil.charting.charts.HorizontalBarChart android:id="@+id/chart_actors" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
+                <com.github.mikephil.charting.charts.HorizontalBarChart android:id="@+id/chart_production_companies" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
+                <com.github.mikephil.charting.charts.ScatterChart android:id="@+id/chart_runtime_vs_rating" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
+                <com.github.mikephil.charting.charts.BarChart android:id="@+id/chart_genre_combinations" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="coppie di generi che guardi piu spesso"
-                        android:textSize="12sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
-                    <com.github.mikephil.charting.charts.BarChart
-                        android:id="@+id/chart_genre_combinations"
-                        android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginBottom="32dp"/>
+    </LinearLayout>
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
-
-                    <!-- GRAFICO 2: BAR CHART - ANNI -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="film per anno"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:id="@+id/text_top_year"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="anno con piu film: caricamento..."
-                        android:textSize="13sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.github.mikephil.charting.charts.BarChart
-                        android:id="@+id/chart_years"
-                        android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginBottom="32dp"/>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
-
-                    <!-- GRAFICO: DECENNI -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="film per decennio"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:id="@+id/text_top_decade"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="decennio preferito: caricamento..."
-                        android:textSize="13sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.github.mikephil.charting.charts.BarChart
-                        android:id="@+id/chart_decades"
-                        android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginBottom="32dp"/>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
-
-                    <!-- GRAFICO 3: BAR CHART - REGISTI -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="registi piu visti"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:id="@+id/text_top_director"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="regista preferito: caricamento..."
-                        android:textSize="13sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.github.mikephil.charting.charts.BarChart
-                        android:id="@+id/chart_directors"
-                        android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginBottom="32dp"/>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
-
-                    <!-- GRAFICO: ATTORI PIU VISTI -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="attori piu visti"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:id="@+id/text_top_actor"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="attore preferito: caricamento..."
-                        android:textSize="13sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.github.mikephil.charting.charts.BarChart
-                        android:id="@+id/chart_actors"
-                        android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginBottom="32dp"/>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
-
-                    <!-- GRAFICO: STUDI DI PRODUZIONE -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="studi di produzione principali"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:id="@+id/text_top_company"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="studio preferito: caricamento..."
-                        android:textSize="13sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.github.mikephil.charting.charts.BarChart
-                        android:id="@+id/chart_production_companies"
-                        android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginBottom="32dp"/>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
-
-                    <!-- GRAFICO 4: BAR CHART - RATINGS -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="le tue valutazioni"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="distribuzione dei tuoi voti"
-                        android:textSize="12sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.github.mikephil.charting.charts.BarChart
-                        android:id="@+id/chart_ratings"
-                        android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginBottom="32dp"/>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
-
-                    <!-- GRAFICO: DURATA VS VALUTAZIONE -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="durata vs la tua valutazione"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="preferisci i film lunghi o corti?"
-                        android:textSize="12sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.github.mikephil.charting.charts.ScatterChart
-                        android:id="@+id/chart_runtime_vs_rating"
-                        android:layout_width="match_parent"
-                        android:layout_height="300dp"
-                        android:layout_marginBottom="32dp"/>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
-
-                    <!-- GRAFICO: PAESI -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="paesi di produzione"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:id="@+id/text_top_country"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="paese principale: caricamento..."
-                        android:textSize="13sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.github.mikephil.charting.charts.BarChart
-                        android:id="@+id/chart_countries"
-                        android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginBottom="32dp"/>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
-
-                    <!-- GRAFICO: DURATA -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="distribuzione durata film"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="film corti, medi o lunghi?"
-                        android:textSize="12sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.github.mikephil.charting.charts.BarChart
-                        android:id="@+id/chart_runtime"
-                        android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginBottom="32dp"/>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="?android:attr/listDivider"
-                        android:layout_marginBottom="24dp"/>
-
-                    <!-- GRAFICO: TIMELINE -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="timeline film visti"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="quando guardi piu film?"
-                        android:textSize="12sp"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.github.mikephil.charting.charts.LineChart
-                        android:id="@+id/chart_watched_timeline"
-                        android:layout_width="match_parent"
-                        android:layout_height="280dp"
-                        android:layout_marginBottom="16dp"/>
-
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </ScrollView>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.core.widget.NestedScrollView>

@@ -3,19 +3,14 @@ package com.example.movieapp
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.view.Menu
-import android.view.MenuItem
-import com.google.android.material.bottomnavigation.BottomNavigationView
+import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
-import androidx.navigation.ui.AppBarConfiguration
-import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.example.movieapp.databinding.ActivityMainBinding
 import com.example.movieapp.config.AppConfig
 import com.example.movieapp.data.network.ApiService
 import com.example.movieapp.ui.auth.LoginActivity
-// ❌ RIMOSSO: import com.example.movieapp.data.cache.CacheService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -23,10 +18,7 @@ import kotlinx.coroutines.withContext
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
- * Main Activity con bottom navigation - SEMPLIFICATA
- *
- * ❌ RIMOSSO: Inizializzazione CacheService (non serve più!)
- * ✅ Il database backend è già la cache
+ * main activity con bottom navigation e logo nella toolbar
  */
 class MainActivity : AppCompatActivity() {
 
@@ -39,76 +31,61 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        //setup toolbar
-        setSupportActionBar(binding.toolbar)
-
-        //setup navigation
-        val navView: BottomNavigationView = binding.navView
-        val navController = findNavController(R.id.nav_host_fragment_activity_main)
-
-        //top level destinations
-        val appBarConfiguration = AppBarConfiguration(
-            setOf(
-                R.id.navigation_home,
-                R.id.navigation_dashboard,
-                R.id.navigation_notifications
-            )
-        )
-
-        setupActionBarWithNavController(navController, appBarConfiguration)
-        navView.setupWithNavController(navController)
-
-        //aggiorna titolo toolbar per ogni destinazione
-        navController.addOnDestinationChangedListener { _, destination, _ ->
-            binding.toolbar.title = when (destination.id) {
-                R.id.navigation_home -> "🎬 MovieApp"
-                R.id.navigation_dashboard -> "📊 Info"
-                R.id.navigation_notifications -> "📈 Statistiche"
-                else -> getString(R.string.app_name)
-            }
-        }
-
-        //inizializza servizi app
+        //inizializza servizi
         initializeServices()
 
-        Log.d(TAG, "=== movieapp v${AppConfig.APP_VERSION} avviata ===")
-        Log.d(TAG, "backend: ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT}")
-        Log.d(TAG, "💾 architettura semplificata: database = cache")
+        //setup navigation
+        val navController = findNavController(R.id.nav_host_fragment_activity_main)
+        binding.navView.setupWithNavController(navController)
+
+        //setup menu click nella toolbar
+        setupToolbarMenu()
+
+        Log.d(TAG, "mainactivity creata con successo")
     }
 
     /**
-     * crea menu nella toolbar con opzioni account e logout
+     * setup menu nella toolbar
      */
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
-
-    /**
-     * gestisce click su menu items
-     */
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_account -> {
-                showAccountInfo()
-                true
-            }
-            R.id.action_logout -> {
-                showLogoutDialog()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+    private fun setupToolbarMenu() {
+        val menuIcon = findViewById<ImageView>(R.id.toolbar_menu)
+        menuIcon?.setOnClickListener {
+            showAccountMenu()
         }
     }
 
     /**
-     * mostra informazioni account utente in modo semplice
+     * mostra menu account con opzioni
+     */
+    private fun showAccountMenu() {
+        val currentUser = ApiService.getCurrentUser()
+
+        val displayName = when {
+            currentUser != null && !currentUser.username.isNullOrBlank() -> currentUser.username
+            currentUser != null -> currentUser.email.substringBefore("@")
+            else -> "Utente"
+        }
+
+        val options = arrayOf("Info Account", "Logout")
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Ciao $displayName!")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showAccountInfo()
+                    1 -> showLogoutDialog()
+                }
+            }
+            .show()
+    }
+
+    /**
+     * mostra informazioni account utente
      */
     private fun showAccountInfo() {
         val currentUser = ApiService.getCurrentUser()
 
         if (currentUser != null) {
-            //determina nome visualizzato
             val displayName = when {
                 !currentUser.username.isNullOrBlank() -> currentUser.username
                 else -> currentUser.email.substringBefore("@")
@@ -118,12 +95,10 @@ class MainActivity : AppCompatActivity() {
                 appendLine("Il tuo account:")
                 appendLine()
 
-                //username se presente
                 if (!currentUser.username.isNullOrBlank()) {
                     appendLine("Nome: ${currentUser.username}")
                 }
 
-                //email
                 appendLine("Email: ${currentUser.email}")
                 appendLine()
                 appendLine("Versione app: ${AppConfig.APP_VERSION}")
@@ -135,7 +110,6 @@ class MainActivity : AppCompatActivity() {
                 .setPositiveButton("OK", null)
                 .show()
         } else {
-            //fallback se non c'e' utente loggato
             MaterialAlertDialogBuilder(this)
                 .setTitle("Account")
                 .setMessage("Nessun account attivo.\n\nEffettua il login per continuare.")
@@ -150,7 +124,6 @@ class MainActivity : AppCompatActivity() {
     private fun showLogoutDialog() {
         val currentUser = ApiService.getCurrentUser()
 
-        //determina nome visualizzato per dialog
         val displayName = when {
             currentUser != null && !currentUser.username.isNullOrBlank() -> currentUser.username
             currentUser != null -> currentUser.email.substringBefore("@")
@@ -175,16 +148,12 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * esegue logout completo
-     * pulisce token jwt e user info
-     * torna a loginactivity
      */
     private fun performLogout() {
         Log.d(TAG, "logout in corso...")
 
-        //logout da apiservice - pulisce token e user
         ApiService.logout()
 
-        //naviga a loginactivity
         val intent = Intent(this, LoginActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
@@ -194,27 +163,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * inizializza tutti i servizi critici - SEMPLIFICATO
-     *
-     * ❌ RIMOSSO: CacheService (non serve più!)
-     * ✅ Il database PostgreSQL backend è già la cache
+     * inizializza tutti i servizi critici
      */
     private fun initializeServices() {
         try {
             Log.d(TAG, "inizializzazione servizi...")
 
-            //api service
             ApiService.initialize(applicationContext)
-            Log.d(TAG, "✅ apiservice inizializzato")
+            Log.d(TAG, "apiservice inizializzato")
 
-            // ❌ RIMOSSO: CacheService.getInstance(applicationContext).init(applicationContext)
-            // Non serve più! Il database è già la cache.
-            Log.d(TAG, "💾 cache = database backend (nessuna duplicazione)")
-
-            //test backend connectivity
             testBackendConnection()
 
-            Log.d(TAG, "✅ tutti i servizi inizializzati (architettura semplificata)")
+            Log.d(TAG, "tutti i servizi inizializzati")
 
         } catch (e: Exception) {
             Log.e(TAG, "errore inizializzazione servizi", e)
@@ -231,9 +191,9 @@ class MainActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     if (isConnected) {
-                        Log.i(TAG, "✅ backend ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT} raggiungibile")
+                        Log.i(TAG, "backend ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT} raggiungibile")
                     } else {
-                        Log.w(TAG, "⚠️ backend ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT} non raggiungibile")
+                        Log.w(TAG, "backend ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT} non raggiungibile")
                     }
                 }
             } catch (e: Exception) {

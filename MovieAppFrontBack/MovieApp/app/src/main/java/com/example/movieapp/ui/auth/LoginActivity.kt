@@ -14,9 +14,9 @@ import com.example.movieapp.data.network.ApiService
 import kotlinx.coroutines.launch
 
 /**
- * Activity di Login
+ * activity di login
  *
- * Utilizza ApiService per autenticazione
+ * utilizza apiservice per autenticazione
  */
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
@@ -81,25 +81,25 @@ class LoginActivity : AppCompatActivity() {
             binding.buttonLogin.isEnabled = true
 
             if (result.isSuccess) {
-                Log.d(TAG, "✅ Login completato con successo")
+                Log.d(TAG, "login completato con successo")
 
-                // 🆕 IMPORTANTE: Reinizializza ApiService per caricare i dati utente
+                //reinizializza apiservice per caricare i dati utente
                 ApiService.initialize(applicationContext)
 
-                // 🔍 Verifica che l'utente sia stato caricato
+                //verifica che l'utente sia stato caricato
                 val userId = ApiService.getCurrentUserId()
-                Log.d(TAG, "🔍 Dopo re-init: userId = $userId")
+                Log.d(TAG, "dopo re-init: userId = $userId")
 
                 if (userId != null) {
                     Toast.makeText(this@LoginActivity, "Benvenuto!", Toast.LENGTH_SHORT).show()
 
-                    // Naviga alla MainActivity
+                    //naviga alla mainactivity
                     val intent = Intent(this@LoginActivity, MainActivity::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     startActivity(intent)
                     finish()
                 } else {
-                    Log.e(TAG, "❌ UserId ancora NULL dopo re-init!")
+                    Log.e(TAG, "userid ancora null dopo re-init")
                     Toast.makeText(
                         this@LoginActivity,
                         "Errore caricamento dati utente",
@@ -109,7 +109,7 @@ class LoginActivity : AppCompatActivity() {
             } else {
                 val error = result.exceptionOrNull()?.message ?: "Errore login"
                 Toast.makeText(this@LoginActivity, error, Toast.LENGTH_LONG).show()
-                Log.e(TAG, "❌ Login fallito: $error")
+                Log.e(TAG, "login fallito: $error")
             }
         }
     }
