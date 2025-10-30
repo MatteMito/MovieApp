@@ -6,25 +6,34 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.example.movieapp.data.models.Movie
 import com.example.movieapp.data.network.ApiService
 import com.example.movieapp.data.network.WebSocketService
-import com.example.movieapp.data.parser.CsvProcessor
 import com.example.movieapp.data.repository.MovieRepository
+import com.example.movieapp.data.repository.CsvType
+import com.example.movieapp.data.repository.ImportWorker
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
 import java.io.InputStream
 
+/**
+ * viewmodel per home con import in background tramite workmanager
+ */
 class HomeViewModel : ViewModel() {
 
     private val TAG = "HomeViewModel"
 
     private var applicationContext: Context? = null
     private var movieRepository: MovieRepository? = null
-    private val csvProcessor = CsvProcessor()
     private val webSocketService = WebSocketService.getInstance()
 
     private val _movies = MutableLiveData<List<Movie>>()
@@ -55,8 +64,14 @@ class HomeViewModel : ViewModel() {
 
             Log.d(TAG, "inizializzazione completata: ${movies.size} film")
         }
+
+        //osserva progress websocket
+        observeWebSocketProgress()
     }
 
+    /**
+     * refresh dati dal backend
+     */
     fun refreshFromBackend() {
         viewModelScope.launch {
             try {
@@ -66,7 +81,7 @@ class HomeViewModel : ViewModel() {
                 if (success) {
                     val movies = movieRepository?.movies?.value ?: emptyList()
                     _movies.value = movies
-                    _message.value = "dati aggiornati"
+                    _message.value = "dati aggiornati: ${movies.size} film"
                     Log.d(TAG, "refresh completato: ${movies.size} film")
                 } else {
                     _message.value = "errore refresh"
@@ -81,230 +96,165 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    /**
+     * processa csv imdb watched
+     */
     fun processImdbWatchedCsv(inputStream: InputStream) {
-        processCsv(inputStream, CsvType.IMDB_WATCHED)
+        startBackgroundImport(inputStream, CsvType.IMDB_WATCHED, "IMDB Watched")
     }
 
+    /**
+     * processa csv imdb watchlist
+     */
     fun processImdbWatchlistCsv(inputStream: InputStream) {
-        processCsv(inputStream, CsvType.IMDB_WATCHLIST)
+        startBackgroundImport(inputStream, CsvType.IMDB_WATCHLIST, "IMDB Watchlist")
     }
 
+    /**
+     * processa csv letterboxd watched
+     */
     fun processLetterboxdWatchedCsv(inputStream: InputStream) {
-        processCsv(inputStream, CsvType.LETTERBOXD_WATCHED)
+        startBackgroundImport(inputStream, CsvType.LETTERBOXD_WATCHED, "Letterboxd Watched")
     }
 
+    /**
+     * processa csv letterboxd watchlist
+     */
     fun processLetterboxdWatchlistCsv(inputStream: InputStream) {
-        processCsv(inputStream, CsvType.LETTERBOXD_WATCHLIST)
+        startBackgroundImport(inputStream, CsvType.LETTERBOXD_WATCHLIST, "Letterboxd Watchlist")
     }
 
-    private fun processCsv(inputStream: InputStream, csvType: CsvType) = viewModelScope.launch {
-        try {
-            withContext(Dispatchers.Main) {
-                _isImporting.value = true
-                _importProgress.value = 0
+    /**
+     * avvia import in background con workmanager
+     */
+    private fun startBackgroundImport(inputStream: InputStream, csvType: CsvType, typeName: String) {
+        viewModelScope.launch {
+            try {
+                val context = applicationContext ?: return@launch
+
+                Log.d(TAG, "=== avvio import background: $typeName ===")
+
+                //salva file temporaneo
+                val tempFile = File(context.cacheDir, "import_${System.currentTimeMillis()}.csv")
+                tempFile.outputStream().use { output ->
+                    inputStream.copyTo(output)
+                }
+
+                Log.d(TAG, "file salvato: ${tempFile.absolutePath}")
+
+                //crea work request
+                val inputData = Data.Builder()
+                    .putString(ImportWorker.KEY_FILE_PATH, tempFile.absolutePath)
+                    .putString(ImportWorker.KEY_CSV_TYPE, csvType.name)
+                    .build()
+
+                val constraints = Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+
+                val workRequest = OneTimeWorkRequestBuilder<ImportWorker>()
+                    .setInputData(inputData)
+                    .setConstraints(constraints)
+                    .addTag("movie_import")
+                    .build()
+
+                //enqueue work
+                val workManager = WorkManager.getInstance(context)
+                workManager.enqueueUniqueWork(
+                    "movie_import",
+                    ExistingWorkPolicy.REPLACE,
+                    workRequest
+                )
+
+                Log.d(TAG, "work enqueued: ${workRequest.id}")
+
+                //osserva progress
+                observeWorkProgress(workManager, workRequest.id.toString())
+
+                withContext(Dispatchers.Main) {
+                    _message.value = "import avviato in background"
+                    _isImporting.value = true
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "errore avvio import: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    _message.value = "errore: ${e.message}"
+                }
             }
+        }
+    }
 
-            Log.d(TAG, "=== inizio import $csvType ===")
+    /**
+     * osserva progress del worker
+     */
+    private fun observeWorkProgress(workManager: WorkManager, workId: String) {
+        viewModelScope.launch(Dispatchers.Main) {
+            workManager.getWorkInfoByIdLiveData(java.util.UUID.fromString(workId))
+                .observeForever { workInfo ->
+                    if (workInfo != null) {
+                        when (workInfo.state) {
+                            WorkInfo.State.RUNNING -> {
+                                val progress = workInfo.progress.getInt(ImportWorker.KEY_PROGRESS, 0)
+                                _importProgress.value = progress
+                                Log.d(TAG, "work progress: $progress%")
+                            }
+                            WorkInfo.State.SUCCEEDED -> {
+                                _isImporting.value = false
+                                _importProgress.value = 100
 
-            //step 1: parsing csv (0-15%)
-            withContext(Dispatchers.Main) {
-                _importProgress.value = 5
-            }
+                                //refresh per aggiornare ui
+                                refreshFromBackend()
 
-            val movies = withContext(Dispatchers.IO) {
-                try {
-                    when (csvType) {
-                        CsvType.IMDB_WATCHED -> csvProcessor.parseImdbWatchedCsv(inputStream).movies
-                        CsvType.IMDB_WATCHLIST -> csvProcessor.parseImdbWatchlistCsv(inputStream).movies
-                        CsvType.LETTERBOXD_WATCHED -> csvProcessor.parseLetterboxdWatchedCsv(inputStream).movies
-                        CsvType.LETTERBOXD_WATCHLIST -> csvProcessor.parseLetterboxdWatchlistCsv(inputStream).movies
+                                Log.d(TAG, "work completato con successo")
+                            }
+                            WorkInfo.State.FAILED -> {
+                                _isImporting.value = false
+                                _importProgress.value = 0
+                                _message.value = "import fallito"
+                                Log.e(TAG, "work fallito")
+                            }
+                            WorkInfo.State.CANCELLED -> {
+                                _isImporting.value = false
+                                _importProgress.value = 0
+                                _message.value = "import annullato"
+                                Log.w(TAG, "work annullato")
+                            }
+                            else -> {
+                                //enqueued, blocked
+                                Log.d(TAG, "work state: ${workInfo.state}")
+                            }
+                        }
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "errore parsing csv: ${e.message}", e)
-                    emptyList()
                 }
-            }
+        }
+    }
 
-            if (movies.isEmpty()) {
-                withContext(Dispatchers.Main) {
-                    _message.value = "nessun film trovato nel file"
-                    _isImporting.value = false
-                    _importProgress.value = 0
+    /**
+     * osserva progress websocket real-time
+     */
+    private fun observeWebSocketProgress() {
+        viewModelScope.launch {
+            webSocketService.enrichmentUpdates.collect { update ->
+                if (update != null && _isImporting.value == true) {
+                    //calcola progress: 40-95% per enrichment
+                    val currentProgress = _importProgress.value ?: 40
+                    if (currentProgress >= 40 && currentProgress < 95) {
+                        val enrichmentProgress = ((update.processed.toFloat() / update.total.toFloat()) * 55f).toInt()
+                        val totalProgress = 40 + enrichmentProgress
+
+                        _importProgress.value = totalProgress
+
+                        Log.d(TAG, "websocket progress: ${update.processed}/${update.total} (${totalProgress}%)")
+                    }
                 }
-                return@launch
-            }
-
-            Log.d(TAG, "parsing completato: ${movies.size} film")
-
-            withContext(Dispatchers.Main) {
-                _importProgress.value = 15
-            }
-
-            //step 2: connetti websocket (15-20%)
-            try {
-                webSocketService.connect()
-                delay(1500)
-
-                withContext(Dispatchers.Main) {
-                    _importProgress.value = 20
-                }
-
-                Log.d(TAG, "websocket connesso")
-            } catch (e: Exception) {
-                Log.w(TAG, "websocket non disponibile, continuo senza progress real-time")
-            }
-
-            //step 3: upload batch (20-50%)
-            Log.d(TAG, "upload ${movies.size} film...")
-
-            val isWatched = (csvType == CsvType.IMDB_WATCHED || csvType == CsvType.LETTERBOXD_WATCHED)
-            val watchlistMovies = if (!isWatched) movies else emptyList()
-            val watchedMovies = if (isWatched) movies else emptyList()
-
-            withContext(Dispatchers.Main) {
-                _importProgress.value = 30
-            }
-
-            val uploadSuccess = uploadMoviesBatch(watchlistMovies, watchedMovies)
-
-            if (!uploadSuccess) {
-                withContext(Dispatchers.Main) {
-                    _message.value = "errore durante upload"
-                    _isImporting.value = false
-                    _importProgress.value = 0
-                }
-                return@launch
-            }
-
-            withContext(Dispatchers.Main) {
-                _importProgress.value = 50
-            }
-
-            Log.d(TAG, "upload completato, inizio enrichment...")
-
-            //step 4: monitora enrichment (50-90%)
-            val enrichmentSuccess = monitorEnrichmentWithTimeout(movies.size)
-
-            withContext(Dispatchers.Main) {
-                _importProgress.value = 90
-            }
-
-            //step 5: refresh finale (90-100%)
-            Log.d(TAG, "refresh finale...")
-            delay(2000)
-
-            val refreshSuccess = movieRepository?.refreshFromBackend() ?: false
-
-            if (refreshSuccess) {
-                val finalMovies = movieRepository?.movies?.value ?: emptyList()
-
-                withContext(Dispatchers.Main) {
-                    _movies.value = finalMovies
-                    _importProgress.value = 100
-                    _message.value = "import completato: ${finalMovies.size} film"
-                    Log.d(TAG, "import completato con successo")
-                }
-            } else {
-                withContext(Dispatchers.Main) {
-                    _message.value = "import completato ma refresh fallito"
-                    Log.w(TAG, "refresh finale fallito")
-                }
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "errore import: ${e.message}", e)
-            withContext(Dispatchers.Main) {
-                _message.value = "errore: ${e.message}"
-            }
-        } finally {
-            withContext(Dispatchers.Main) {
-                _isImporting.value = false
-                delay(1000)
-                _importProgress.value = 0
             }
         }
     }
 
-    private suspend fun uploadMoviesBatch(watchlist: List<Movie>, watched: List<Movie>): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                Log.d(TAG, "batch upload: ${watchlist.size} watchlist + ${watched.size} watched")
-
-                val result = ApiService.batchUpload(watchlist, watched)
-
-                if (result.isSuccess) {
-                    Log.d(TAG, "batch upload completato")
-                    true
-                } else {
-                    Log.e(TAG, "batch upload fallito: ${result.exceptionOrNull()?.message}")
-                    false
-                }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "errore batch upload: ${e.message}", e)
-                false
-            }
-        }
-    }
-
-    private suspend fun monitorEnrichmentWithTimeout(totalMovies: Int): Boolean {
-        //timeout di 15 minuti per enrichment
-        val result = withTimeoutOrNull(15 * 60 * 1000L) {
-            monitorEnrichment(totalMovies)
-        }
-
-        return result ?: run {
-            Log.w(TAG, "timeout enrichment dopo 15 minuti")
-            false
-        }
-    }
-
-    private suspend fun monitorEnrichment(totalMovies: Int): Boolean {
-        Log.d(TAG, "monitoring enrichment per $totalMovies film")
-
-        var lastProcessed = 0
-        var stuckCount = 0
-        val maxStuckCount = 40
-
-        repeat(300) { iteration ->
-            delay(1000)
-
-            val update = webSocketService.enrichmentUpdates.value
-
-            if (update != null && update.processed > lastProcessed) {
-                lastProcessed = update.processed
-                stuckCount = 0
-
-                //calcola progress 50-90%
-                val enrichmentProgress = 50 + ((update.processed * 40) / update.total)
-                withContext(Dispatchers.Main) {
-                    _importProgress.value = enrichmentProgress
-                }
-
-                Log.d(TAG, "progress: ${update.processed}/${update.total} (${update.percentage}%)")
-
-                if (update.type == "completed") {
-                    Log.d(TAG, "enrichment completato!")
-                    return true
-                }
-            } else {
-                stuckCount++
-                if (stuckCount >= maxStuckCount) {
-                    Log.w(TAG, "nessun aggiornamento per ${maxStuckCount}s, esco")
-                    return false
-                }
-            }
-
-            //log ogni 30 secondi
-            if (iteration % 30 == 0) {
-                Log.d(TAG, "attesa enrichment... (${iteration}s, processed: $lastProcessed)")
-            }
-        }
-
-        Log.w(TAG, "timeout monitoring (5 minuti)")
-        return false
-    }
-
+    /**
+     * elimina tutti i film
+     */
     fun clearAllMovies() {
         viewModelScope.launch {
             try {
@@ -354,11 +304,4 @@ class HomeViewModel : ViewModel() {
             }
         }
     }
-}
-
-enum class CsvType {
-    IMDB_WATCHED,
-    IMDB_WATCHLIST,
-    LETTERBOXD_WATCHED,
-    LETTERBOXD_WATCHLIST
 }

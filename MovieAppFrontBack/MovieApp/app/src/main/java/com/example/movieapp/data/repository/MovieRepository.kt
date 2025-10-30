@@ -13,7 +13,7 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.*
 
 /**
- * repository centralizzato per gestione film con auto-sync backend dopo ogni operazione
+ * repository centralizzato per gestione film con auto-sync backend
  */
 class MovieRepository private constructor(private val context: Context) {
 
@@ -79,77 +79,98 @@ class MovieRepository private constructor(private val context: Context) {
                         Log.d(TAG, "backend: ${backendMovies.size} film")
                         Log.d(TAG, "room: ${localMovies.size} film")
 
-                        //usa dataset più completo
+                        //usa dataset piu completo
                         val useBackend = backendMovies.size > localMovies.size ||
                                 backendMovies.count { it.tmdbId != null } > localMovies.count { it.tmdbId != null }
 
                         if (useBackend) {
-                            Log.d(TAG, "✓ uso dati backend (più completi)")
-
+                            Log.d(TAG, "uso backend (piu completo)")
                             moviesList.clear()
                             moviesList.addAll(backendMovies)
-
                             withContext(Dispatchers.Main) {
                                 _movies.value = moviesList.toList()
                             }
-
                             saveMoviesToRoomDatabase()
-
-                            val enrichedCount = backendMovies.count { it.tmdbId != null }
-                            Log.d(TAG, "✅ caricati ${backendMovies.size} film dal backend")
-                            Log.d(TAG, "   arricchiti: $enrichedCount (${(enrichedCount * 100) / backendMovies.size}%)")
-
-                            return@withContext true
                         } else {
-                            Log.d(TAG, "✓ uso dati room (più recenti)")
+                            Log.d(TAG, "uso room (gia aggiornato)")
                         }
+
+                        true
                     } else {
-                        Log.d(TAG, "backend non disponibile - uso solo room")
+                        Log.d(TAG, "backend vuoto, uso room")
+                        localSuccess
                     }
+                } else {
+                    Log.d(TAG, "auto-sync disabilitato")
+                    localSuccess
                 }
 
-                localSuccess
-
             } catch (e: Exception) {
-                Log.e(TAG, "errore caricamento database: ${e.message}", e)
+                Log.e(TAG, "errore caricamento: ${e.message}", e)
                 false
             }
         }
     }
 
     /**
-     * carica da storage locale
+     * forza refresh esplicito dal backend - fix per "errore refresh"
      */
-    private fun loadMoviesFromLocalStorage(): Boolean {
-        return try {
-            val moviesJson = sharedPrefs.getString("room_movies", null)
-            val lastSaved = sharedPrefs.getLong("room_last_saved", 0)
-            val backendVersion = sharedPrefs.getString("backend_version", "unknown")
+    suspend fun refreshFromBackend(): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "=== refresh forzato dal backend ===")
 
-            if (moviesJson != null && lastSaved > 0) {
-                val type = object : TypeToken<List<Movie>>() {}.type
-                val loadedMovies: List<Movie> = gson.fromJson(moviesJson, type)
+                //prova a ottenere film dal backend
+                val backendMovies = syncWithBackendDatabase()
 
-                moviesList.clear()
-                moviesList.addAll(loadedMovies)
-                _movies.value = moviesList.toList()
+                if (backendMovies.isNotEmpty()) {
+                    //aggiorna memoria
+                    moviesList.clear()
+                    moviesList.addAll(backendMovies)
 
-                val daysSince = (System.currentTimeMillis() - lastSaved) / (1000 * 60 * 60 * 24)
-                val enrichedCount = loadedMovies.count { it.tmdbId != null }
+                    //aggiorna livedata
+                    withContext(Dispatchers.Main) {
+                        _movies.value = moviesList.toList()
+                    }
 
-                Log.d(TAG, "caricati ${loadedMovies.size} film da room")
-                Log.d(TAG, "arricchiti: $enrichedCount (${(enrichedCount.toDouble() / loadedMovies.size * 100).toInt()}%)")
-                Log.d(TAG, "ultimo save: $daysSince giorni fa")
-                Log.d(TAG, "backend version: $backendVersion")
+                    //salva in room
+                    saveMoviesToRoomDatabase()
 
-                true
-            } else {
-                Log.d(TAG, "nessun film in room")
+                    val enrichedCount = backendMovies.count { it.tmdbId != null }
+                    Log.d(TAG, "refresh completato: ${backendMovies.size} film")
+                    Log.d(TAG, "arricchiti: $enrichedCount")
+
+                    true
+                } else {
+                    //backend vuoto ma non e un errore se utente non ha film
+                    Log.w(TAG, "backend vuoto o non raggiungibile")
+
+                    //prova a testare connessione
+                    val isReachable = try {
+                        ApiService.testConnection()
+                    } catch (e: Exception) {
+                        false
+                    }
+
+                    if (isReachable) {
+                        //backend raggiungibile ma vuoto = success
+                        Log.d(TAG, "backend raggiungibile ma vuoto (ok)")
+                        moviesList.clear()
+                        withContext(Dispatchers.Main) {
+                            _movies.value = emptyList()
+                        }
+                        saveMoviesToRoomDatabase()
+                        true
+                    } else {
+                        //backend non raggiungibile = error
+                        Log.e(TAG, "backend non raggiungibile")
+                        false
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "errore refresh backend: ${e.message}", e)
                 false
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "errore caricamento room: ${e.message}", e)
-            false
         }
     }
 
@@ -183,7 +204,7 @@ class MovieRepository private constructor(private val context: Context) {
                     //verifica non arricchiti
                     val notEnriched = backendMovies.filter { it.tmdbId == null }
                     if (notEnriched.isNotEmpty()) {
-                        Log.w(TAG, "⚠️ ${notEnriched.size} film senza tmdb id")
+                        Log.w(TAG, "${notEnriched.size} film senza tmdb id")
                     }
 
                     backendMovies
@@ -203,317 +224,66 @@ class MovieRepository private constructor(private val context: Context) {
     }
 
     /**
-     * ✅ NUOVO: Forza refresh esplicito dal backend
+     * carica da room local storage
      */
-    suspend fun refreshFromBackend(): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                Log.d(TAG, "🔄 Refresh forzato dal backend...")
+    private fun loadMoviesFromLocalStorage(): Boolean {
+        return try {
+            val moviesJson = sharedPrefs.getString("movies_list", null)
+            val lastSaved = sharedPrefs.getLong("last_saved", 0)
+            val backendVersion = sharedPrefs.getString("backend_version", "unknown")
 
-                val backendMovies = syncWithBackendDatabase()
+            if (moviesJson != null && lastSaved > 0) {
+                val type = object : TypeToken<List<Movie>>() {}.type
+                val loadedMovies: List<Movie> = gson.fromJson(moviesJson, type)
 
-                if (backendMovies.isNotEmpty()) {
-                    moviesList.clear()
-                    moviesList.addAll(backendMovies)
+                moviesList.clear()
+                moviesList.addAll(loadedMovies)
+                _movies.value = moviesList.toList()
 
-                    withContext(Dispatchers.Main) {
-                        _movies.value = moviesList.toList()
-                    }
+                val daysSince = (System.currentTimeMillis() - lastSaved) / (1000 * 60 * 60 * 24)
+                val enrichedCount = loadedMovies.count { it.tmdbId != null }
 
-                    saveMoviesToRoomDatabase()
+                Log.d(TAG, "caricati ${loadedMovies.size} film da room")
+                Log.d(TAG, "arricchiti: $enrichedCount (${(enrichedCount.toDouble() / loadedMovies.size * 100).toInt()}%)")
+                Log.d(TAG, "ultimo save: $daysSince giorni fa")
+                Log.d(TAG, "backend version: $backendVersion")
 
-                    val enrichedCount = backendMovies.count { it.tmdbId != null }
-                    Log.d(TAG, "✅ Refresh completato: ${backendMovies.size} film")
-                    Log.d(TAG, "   Arricchiti: $enrichedCount")
-
-                    true
-                } else {
-                    Log.w(TAG, "⚠️ Backend returned empty list")
-                    false
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Errore refresh backend", e)
+                true
+            } else {
+                Log.d(TAG, "nessun film in room")
                 false
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "errore caricamento room: ${e.message}", e)
+            false
         }
     }
 
     /**
-     * salva in room con metadata da appconfig
+     * salva in room con metadata
      */
     private fun saveMoviesToRoomDatabase() {
         try {
             val moviesJson = gson.toJson(moviesList)
-            val enrichedCount = moviesList.count { it.tmdbId != null }
-            val watchedCount = moviesList.count { it.isWatched }
-
             sharedPrefs.edit()
-                .putString("room_movies", moviesJson)
-                .putLong("room_last_saved", System.currentTimeMillis())
+                .putString("movies_list", moviesJson)
+                .putLong("last_saved", System.currentTimeMillis())
                 .putString("backend_version", AppConfig.APP_VERSION)
-                .putString("backend_host", AppConfig.BACKEND_HOST)
-                .putInt("backend_port", AppConfig.BACKEND_PORT)
-                .putInt("enriched_count", enrichedCount)
-                .putInt("watched_count", watchedCount)
-                .putString("database_type", AppConfig.DATABASE_TYPE)
                 .apply()
 
-            Log.d(TAG, "room aggiornato: ${moviesList.size} film")
-            Log.d(TAG, "stats: $enrichedCount arricchiti, $watchedCount visti")
-
+            Log.d(TAG, "salvati ${moviesList.size} film in room")
         } catch (e: Exception) {
             Log.e(TAG, "errore salvataggio room: ${e.message}", e)
         }
     }
 
     /**
-     * aggiunge film evitando duplicati con auto-sync
-     */
-    fun addMovies(newMovies: List<Movie>) {
-        if (newMovies.isEmpty()) {
-            Log.d(TAG, "nessun film da aggiungere")
-            return
-        }
-
-        val uniqueNewMovies = newMovies.filter { newMovie ->
-            moviesList.none { existing -> existing.id == newMovie.id }
-        }
-
-        if (uniqueNewMovies.isNotEmpty()) {
-            moviesList.addAll(uniqueNewMovies)
-            _movies.value = moviesList.toList()
-
-            //salva in room
-            repositoryScope.launch {
-                saveMoviesToRoomDatabase()
-            }
-
-            val enrichedNew = uniqueNewMovies.count { it.tmdbId != null }
-            Log.d(TAG, "aggiunti ${uniqueNewMovies.size} film unici")
-            Log.d(TAG, "duplicati ignorati: ${newMovies.size - uniqueNewMovies.size}")
-            Log.d(TAG, "nuovi arricchiti: $enrichedNew")
-            Log.d(TAG, "totale: ${moviesList.size} film")
-
-            logEnrichmentStatus(uniqueNewMovies)
-        } else {
-            Log.d(TAG, "tutti i ${newMovies.size} film sono duplicati")
-        }
-    }
-
-    /**
-     * sostituisce film esistenti con auto-sync
-     */
-    fun replaceMovies(updatedMovies: List<Movie>) {
-        if (updatedMovies.isEmpty()) {
-            Log.d(TAG, "nessun film da sostituire")
-            return
-        }
-
-        var replacedCount = 0
-        var addedCount = 0
-
-        updatedMovies.forEach { updatedMovie ->
-            val index = moviesList.indexOfFirst { it.id == updatedMovie.id }
-            if (index != -1) {
-                moviesList[index] = updatedMovie
-                replacedCount++
-            } else {
-                moviesList.add(updatedMovie)
-                addedCount++
-            }
-        }
-
-        _movies.value = moviesList.toList()
-
-        repositoryScope.launch {
-            saveMoviesToRoomDatabase()
-        }
-
-        val enrichedUpdated = updatedMovies.count { it.tmdbId != null }
-        Log.d(TAG, "=== replace completato ===")
-        Log.d(TAG, "sostituiti: $replacedCount")
-        Log.d(TAG, "aggiunti: $addedCount")
-        Log.d(TAG, "arricchiti: $enrichedUpdated/${updatedMovies.size}")
-
-        logEnrichmentStatus(updatedMovies)
-    }
-
-    /**
-     * sostituisce tutto
-     */
-    fun replaceAll(newMovies: List<Movie>) {
-        val previousSize = moviesList.size
-        moviesList.clear()
-        moviesList.addAll(newMovies)
-        _movies.value = moviesList.toList()
-
-        repositoryScope.launch {
-            saveMoviesToRoomDatabase()
-        }
-
-        val enrichedCount = newMovies.count { it.tmdbId != null }
-        Log.d(TAG, "=== replace all ===")
-        Log.d(TAG, "precedenti: $previousSize")
-        Log.d(TAG, "nuovi: ${newMovies.size}")
-        Log.d(TAG, "arricchiti: $enrichedCount")
-
-        logEnrichmentStatus(newMovies)
-    }
-
-    /**
-     * log enrichment status
-     */
-    private fun logEnrichmentStatus(movies: List<Movie>) {
-        val enriched = movies.count { it.tmdbId != null }
-        val notEnriched = movies.size - enriched
-        val watched = movies.count { it.isWatched }
-
-        Log.d(TAG, "=== enrichment status ===")
-        Log.d(TAG, "processati: ${movies.size}")
-        Log.d(TAG, "con tmdb: $enriched (${(enriched.toDouble() / movies.size * 100).toInt()}%)")
-        Log.d(TAG, "senza tmdb: $notEnriched")
-        Log.d(TAG, "visti: $watched")
-
-        //esempi arricchiti
-        movies.filter { it.tmdbId != null }.take(3).forEach { movie ->
-            Log.d(TAG, "✓ ${movie.title} - tmdb: ${movie.tmdbId}")
-            Log.d(TAG, "  generi: ${movie.genres.joinToString(", ").ifEmpty { "n/a" }}")
-        }
-
-        //esempi non arricchiti
-        movies.filter { it.tmdbId == null }.take(2).forEach { movie ->
-            Log.d(TAG, "✗ ${movie.title} - non arricchito")
-        }
-    }
-    //getter con filtri
-
-    fun getAllMovies(): List<Movie> = moviesList.toList()
-
-    fun getWatchlist(): List<Movie> {
-        val watchlist = moviesList.filter { !it.isWatched }
-        Log.d(TAG, "watchlist: ${watchlist.size} film")
-        return watchlist
-    }
-
-    fun getWatched(): List<Movie> {
-        val watched = moviesList.filter { it.isWatched }
-        Log.d(TAG, "watched: ${watched.size} film")
-        return watched
-    }
-
-    fun getMoviesBySource(source: DataSource): List<Movie> {
-        val bySource = moviesList.filter { it.source == source }
-        Log.d(TAG, "source $source: ${bySource.size} film")
-        return bySource
-    }
-
-    fun getEnrichedMovies(): List<Movie> {
-        val enriched = moviesList.filter { it.tmdbId != null }
-        Log.d(TAG, "enriched: ${enriched.size} film")
-        return enriched
-    }
-
-    /**
-     * statistiche con appconfig
-     */
-    fun getStats(): Map<String, Int> {
-        val stats = mapOf(
-            "total" to moviesList.size,
-            "watched" to getWatched().size,
-            "watchlist" to getWatchlist().size,
-            "imdb" to moviesList.count { it.source == DataSource.IMDB },
-            "letterboxd" to moviesList.count { it.source == DataSource.LETTERBOXD },
-            "enriched" to getEnrichedMovies().size,
-            "with_rating" to moviesList.count { it.userRating != null },
-            "with_poster" to moviesList.count { it.posterUrl != null },
-            "recent_movies" to moviesList.count { it.year != null && it.year >= 2020 }
-        )
-
-        Log.d(TAG, "stats: $stats")
-        return stats
-    }
-
-    /**
-     * dettagli enrichment con appconfig
-     */
-    fun getEnrichmentDetails(): String {
-        val enriched = getEnrichedMovies()
-        val unenriched = moviesList.filter { it.tmdbId == null }
-        val backendVersion = sharedPrefs.getString("backend_version", "unknown")
-        val lastSaved = sharedPrefs.getLong("room_last_saved", 0)
-
-        return buildString {
-            appendLine("=== dettagli enrichment ===")
-            appendLine("database: ${AppConfig.DATABASE_TYPE}")
-            appendLine("backend: ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT}")
-            appendLine("version: $backendVersion")
-            appendLine("ultimo sync: ${if (lastSaved > 0) java.util.Date(lastSaved) else "mai"}")
-            appendLine()
-            appendLine("film totali: ${moviesList.size}")
-            appendLine("arricchiti: ${enriched.size}")
-            appendLine("non arricchiti: ${unenriched.size}")
-            appendLine("tasso: ${if (moviesList.isNotEmpty()) (enriched.size * 100) / moviesList.size else 0}%")
-            appendLine()
-            if (enriched.isNotEmpty()) {
-                appendLine("esempi arricchiti:")
-                enriched.take(3).forEach { movie ->
-                    appendLine("• ${movie.title} (${movie.year})")
-                    appendLine("  tmdb: ${movie.tmdbId}")
-                    appendLine("  generi: ${movie.genres.joinToString(", ").ifEmpty { "n/a" }}")
-                }
-                appendLine()
-            }
-
-            if (unenriched.isNotEmpty()) {
-                appendLine("non arricchiti:")
-                unenriched.take(3).forEach { movie ->
-                    appendLine("• ${movie.title} (${movie.year ?: "n/a"})")
-                }
-                appendLine()
-            }
-
-            val stats = getStats()
-            appendLine("statistiche:")
-            stats.forEach { (key, value) ->
-                appendLine("$key: $value")
-            }
-        }
-    }
-
-    /**
-     * pulisce tutto
+     * elimina tutti i film
      */
     fun clearAll() {
-        val previousSize = moviesList.size
         moviesList.clear()
         _movies.value = emptyList()
-
         sharedPrefs.edit().clear().apply()
-
-        Log.d(TAG, "repository pulito ($previousSize film rimossi)")
-    }
-
-    /**
-     * pulisce per source
-     */
-    fun clearBySource(source: DataSource) {
-        val previousSize = moviesList.size
-        moviesList.removeAll { it.source == source }
-        _movies.value = moviesList.toList()
-
-        repositoryScope.launch {
-            saveMoviesToRoomDatabase()
-        }
-
-        val removedCount = previousSize - moviesList.size
-        Log.d(TAG, "rimossi $removedCount film da $source")
-    }
-
-    /**
-     * cleanup
-     */
-    fun cleanup() {
-        repositoryScope.cancel()
-        Log.d(TAG, "repository cleanup completato")
+        Log.d(TAG, "repository pulito")
     }
 }
