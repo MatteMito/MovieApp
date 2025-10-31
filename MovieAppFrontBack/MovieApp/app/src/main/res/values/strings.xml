@@ -32,6 +32,7 @@
     <string name="watchlist_movies">Da vedere</string>
     <string name="enriched_movies">Con dettagli</string>
     <string name="watch_hours">Ore di film</string>
+    <string name="stats_completed_percentage">%d%% completato</string>
 
     <!-- CHARTS -->
     <string name="genres_chart">I tuoi generi preferiti</string>
@@ -45,9 +46,18 @@
     <string name="delete">Elimina</string>
     <string name="select_file">Scegli il file</string>
 
-    <!-- HELP -->
+    <!-- HELP DIALOGS -->
     <string name="imdb_help_title">Come esportare da IMDb</string>
     <string name="letterboxd_help_title">Come esportare da Letterboxd</string>
+
+    <string name="imdb_watched_help">1. Vai su IMDb.com\n2. Accedi al tuo account\n3. Vai su \"Your Ratings\"\n4. Clicca sui tre puntini e \"Export\"\n5. Scarica il file CSV\n\nSeleziona il file scaricato per importarlo.</string>
+    <string name="imdb_watchlist_help">1. Vai su IMDb.com\n2. Accedi al tuo account\n3. Vai su \"Your Watchlist\"\n4. Clicca sui tre puntini e \"Export\"\n5. Scarica il file CSV\n\nSeleziona il file scaricato per importarlo.</string>
+    <string name="letterboxd_watched_help">1. Vai su Letterboxd.com\n2. Accedi al tuo account\n3. Vai su Settings > Import &amp; Export\n4. Clicca \"Export Your Data\"\n5. Scarica \"watched.csv\"\n\nSeleziona il file scaricato per importarlo.</string>
+    <string name="letterboxd_watchlist_help">1. Vai su Letterboxd.com\n2. Accedi al tuo account\n3. Vai su Settings > Import &amp; Export\n4. Clicca \"Export Your Data\"\n5. Scarica \"watchlist.csv\"\n\nSeleziona il file scaricato per importarlo.</string>
+
+    <!-- CLEAR ALL -->
+    <string name="clear_all_title">Eliminare tutti i film?</string>
+    <string name="clear_all_message">Questa azione eliminerà tutti i tuoi film dal database.\n\nVuoi continuare?</string>
 
     <!-- BACKEND -->
     <string name="backend_connected">Connesso</string>
@@ -75,4 +85,15 @@
     <string name="name">Nome:</string>
     <string name="email">Email:</string>
     <string name="app_version_label">Versione app:</string>
+
+    <!-- LISTS (Social) -->
+    <string name="create_list">Crea lista</string>
+    <string name="list_name">Nome lista</string>
+    <string name="list_description">Descrizione (opzionale)</string>
+    <string name="public_list">Lista pubblica</string>
+    <string name="private_list">Lista privata</string>
+    <string name="add_movies">Aggiungi film</string>
+    <string name="no_lists">Nessuna lista ancora</string>
+    <string name="my_lists">Le mie liste</string>
+    <string name="public_lists">Liste pubbliche</string>
 </resources>

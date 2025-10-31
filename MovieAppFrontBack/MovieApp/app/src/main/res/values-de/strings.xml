@@ -32,6 +32,7 @@
     <string name="watchlist_movies">Zu sehen</string>
     <string name="enriched_movies">Mit Details</string>
     <string name="watch_hours">Stunden Filme</string>
+    <string name="stats_completed_percentage">%d%% abgeschlossen</string>
 
     <!-- CHARTS -->
     <string name="genres_chart">Ihre Lieblingsgenres</string>
@@ -45,9 +46,18 @@
     <string name="delete">Löschen</string>
     <string name="select_file">Datei auswählen</string>
 
-    <!-- HELP -->
+    <!-- HELP DIALOGS -->
     <string name="imdb_help_title">So exportieren Sie von IMDb</string>
     <string name="letterboxd_help_title">So exportieren Sie von Letterboxd</string>
+
+    <string name="imdb_watched_help">1. Gehen Sie zu IMDb.com\n2. Melden Sie sich bei Ihrem Konto an\n3. Gehen Sie zu \"Your Ratings\"\n4. Klicken Sie auf die drei Punkte und \"Export\"\n5. Laden Sie die CSV-Datei herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
+    <string name="imdb_watchlist_help">1. Gehen Sie zu IMDb.com\n2. Melden Sie sich bei Ihrem Konto an\n3. Gehen Sie zu \"Your Watchlist\"\n4. Klicken Sie auf die drei Punkte und \"Export\"\n5. Laden Sie die CSV-Datei herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
+    <string name="letterboxd_watched_help">1. Gehen Sie zu Letterboxd.com\n2. Melden Sie sich bei Ihrem Konto an\n3. Gehen Sie zu Settings > Import &amp; Export\n4. Klicken Sie auf \"Export Your Data\"\n5. Laden Sie \"watched.csv\" herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
+    <string name="letterboxd_watchlist_help">1. Gehen Sie zu Letterboxd.com\n2. Melden Sie sich bei Ihrem Konto an\n3. Gehen Sie zu Settings > Import &amp; Export\n4. Klicken Sie auf \"Export Your Data\"\n5. Laden Sie \"watchlist.csv\" herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
+
+    <!-- CLEAR ALL -->
+    <string name="clear_all_title">Alle Filme löschen?</string>
+    <string name="clear_all_message">Diese Aktion löscht alle Ihre Filme aus der Datenbank.\n\nMöchten Sie fortfahren?</string>
 
     <!-- BACKEND -->
     <string name="backend_connected">Verbunden</string>
@@ -75,4 +85,15 @@
     <string name="name">Name:</string>
     <string name="email">E-Mail:</string>
     <string name="app_version_label">App-Version:</string>
+
+    <!-- LISTS (Social) -->
+    <string name="create_list">Liste erstellen</string>
+    <string name="list_name">Listenname</string>
+    <string name="list_description">Beschreibung (optional)</string>
+    <string name="public_list">Öffentliche Liste</string>
+    <string name="private_list">Private Liste</string>
+    <string name="add_movies">Filme hinzufügen</string>
+    <string name="no_lists">Noch keine Listen</string>
+    <string name="my_lists">Meine Listen</string>
+    <string name="public_lists">Öffentliche Listen</string>
 </resources>

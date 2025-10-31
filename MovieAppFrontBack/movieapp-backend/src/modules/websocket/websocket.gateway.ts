@@ -33,7 +33,7 @@ export class WebsocketGateway
     this.connectedClients.set(client.id, client);
     this.logger.log(`✅ Client connesso: ${client.id} (Total: ${this.connectedClients.size})`);
 
-    // Invia messaggio di benvenuto
+    //invia messaggio di benvenuto
     client.emit('connection', {
       message: 'Connesso al server WebSocket',
       clientId: client.id,
@@ -47,7 +47,7 @@ export class WebsocketGateway
   }
 
   /**
-   * 🔥 Notifica inizio enrichment
+   * notifica inizio enrichment
    */
   async notifyEnrichmentStarted(sessionId: string, totalMovies: number) {
     const payload = {
@@ -61,11 +61,11 @@ export class WebsocketGateway
     };
 
     this.server.emit('enrichment:started', payload);
-    this.logger.log(`📢 Enrichment started: ${totalMovies} film (session: ${sessionId})`);
+    this.logger.log(`🔢 Enrichment started: ${totalMovies} film (session: ${sessionId})`);
   }
 
   /**
-   * 🔥 Notifica progress enrichment (chiamato per ogni film)
+   * notifica progress enrichment (chiamato per ogni film)
    */
   async notifyEnrichmentProgress(
     sessionId: string,
@@ -88,64 +88,66 @@ export class WebsocketGateway
 
     this.server.emit('enrichment:progress', payload);
     
-    // Log ogni 10%
-    if (percentage % 10 === 0 && processed > 0) {
-      this.logger.log(`📊 Progress: ${processed}/${total} (${percentage}%)`);
-    }
+    //log ogni film (non solo ogni 10%)
+    this.logger.log(`📊 Progress: ${processed}/${total} (${percentage}%) - ${currentMovie}`);
   }
 
   /**
-   * 🔥 Notifica completamento enrichment
+   * notifica completamento enrichment
    */
-  async notifyEnrichmentCompleted(
-    sessionId: string,
-    total: number,
-    successful: number,
-  ) {
+  async notifyEnrichmentCompleted(sessionId: string, totalMovies: number) {
     const payload = {
       sessionId,
       type: 'completed',
-      total,
-      processed: total,
+      total: totalMovies,
+      processed: totalMovies,
       percentage: 100,
-      successful,
-      message: `Enrichment completato: ${successful}/${total} film`,
+      message: `Enrichment completato: ${totalMovies} film`,
       timestamp: new Date().toISOString(),
     };
 
     this.server.emit('enrichment:completed', payload);
-    this.logger.log(`✅ Enrichment completed: ${successful}/${total} film (session: ${sessionId})`);
+    this.logger.log(`✅ Enrichment completed: ${totalMovies} film (session: ${sessionId})`);
   }
 
   /**
-   * Notifica errore
+   * notifica errore enrichment
    */
-  async notifyEnrichmentError(sessionId: string, errorMessage: string) {
+  async notifyEnrichmentError(sessionId: string, error: string) {
     const payload = {
       sessionId,
       type: 'error',
-      message: errorMessage,
+      message: error,
       timestamp: new Date().toISOString(),
     };
 
     this.server.emit('enrichment:error', payload);
-    this.logger.error(`❌ Enrichment error (session: ${sessionId}): ${errorMessage}`);
+    this.logger.error(`❌ Enrichment error (session: ${sessionId}): ${error}`);
   }
 
   /**
-   * Broadcast generico a tutti i client
+   * invia messaggio custom a tutti i client
    */
-  broadcastMessage(event: string, data: any) {
+  broadcast(event: string, data: any) {
     this.server.emit(event, data);
+    this.logger.log(`📢 Broadcast: ${event}`);
   }
 
   /**
-   * Info connessioni attive
+   * invia messaggio a client specifico
    */
-  getConnectionInfo() {
-    return {
-      totalConnections: this.connectedClients.size,
-      clients: Array.from(this.connectedClients.keys()),
-    };
+  sendToClient(clientId: string, event: string, data: any) {
+    const client = this.connectedClients.get(clientId);
+    if (client) {
+      client.emit(event, data);
+      this.logger.log(`📤 Message to ${clientId}: ${event}`);
+    }
+  }
+
+  /**
+   * ottieni numero client connessi
+   */
+  getConnectedClientsCount(): number {
+    return this.connectedClients.size;
   }
 }

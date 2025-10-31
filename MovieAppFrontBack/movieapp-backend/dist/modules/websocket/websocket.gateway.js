@@ -47,7 +47,7 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
             timestamp: new Date().toISOString(),
         };
         this.server.emit('enrichment:started', payload);
-        this.logger.log(`📢 Enrichment started: ${totalMovies} film (session: ${sessionId})`);
+        this.logger.log(`🔢 Enrichment started: ${totalMovies} film (session: ${sessionId})`);
     }
     async notifyEnrichmentProgress(sessionId, processed, total, currentMovie) {
         const percentage = Math.round((processed / total) * 100);
@@ -62,42 +62,44 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
             timestamp: new Date().toISOString(),
         };
         this.server.emit('enrichment:progress', payload);
-        if (percentage % 10 === 0 && processed > 0) {
-            this.logger.log(`📊 Progress: ${processed}/${total} (${percentage}%)`);
-        }
+        this.logger.log(`📊 Progress: ${processed}/${total} (${percentage}%) - ${currentMovie}`);
     }
-    async notifyEnrichmentCompleted(sessionId, total, successful) {
+    async notifyEnrichmentCompleted(sessionId, totalMovies) {
         const payload = {
             sessionId,
             type: 'completed',
-            total,
-            processed: total,
+            total: totalMovies,
+            processed: totalMovies,
             percentage: 100,
-            successful,
-            message: `Enrichment completato: ${successful}/${total} film`,
+            message: `Enrichment completato: ${totalMovies} film`,
             timestamp: new Date().toISOString(),
         };
         this.server.emit('enrichment:completed', payload);
-        this.logger.log(`✅ Enrichment completed: ${successful}/${total} film (session: ${sessionId})`);
+        this.logger.log(`✅ Enrichment completed: ${totalMovies} film (session: ${sessionId})`);
     }
-    async notifyEnrichmentError(sessionId, errorMessage) {
+    async notifyEnrichmentError(sessionId, error) {
         const payload = {
             sessionId,
             type: 'error',
-            message: errorMessage,
+            message: error,
             timestamp: new Date().toISOString(),
         };
         this.server.emit('enrichment:error', payload);
-        this.logger.error(`❌ Enrichment error (session: ${sessionId}): ${errorMessage}`);
+        this.logger.error(`❌ Enrichment error (session: ${sessionId}): ${error}`);
     }
-    broadcastMessage(event, data) {
+    broadcast(event, data) {
         this.server.emit(event, data);
+        this.logger.log(`📢 Broadcast: ${event}`);
     }
-    getConnectionInfo() {
-        return {
-            totalConnections: this.connectedClients.size,
-            clients: Array.from(this.connectedClients.keys()),
-        };
+    sendToClient(clientId, event, data) {
+        const client = this.connectedClients.get(clientId);
+        if (client) {
+            client.emit(event, data);
+            this.logger.log(`📤 Message to ${clientId}: ${event}`);
+        }
+    }
+    getConnectedClientsCount() {
+        return this.connectedClients.size;
     }
 };
 exports.WebsocketGateway = WebsocketGateway;

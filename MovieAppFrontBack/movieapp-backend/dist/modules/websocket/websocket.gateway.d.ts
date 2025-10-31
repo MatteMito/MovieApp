@@ -9,11 +9,9 @@ export declare class WebsocketGateway implements OnGatewayInit, OnGatewayConnect
     handleDisconnect(client: Socket): void;
     notifyEnrichmentStarted(sessionId: string, totalMovies: number): Promise<void>;
     notifyEnrichmentProgress(sessionId: string, processed: number, total: number, currentMovie: string): Promise<void>;
-    notifyEnrichmentCompleted(sessionId: string, total: number, successful: number): Promise<void>;
-    notifyEnrichmentError(sessionId: string, errorMessage: string): Promise<void>;
-    broadcastMessage(event: string, data: any): void;
-    getConnectionInfo(): {
-        totalConnections: number;
-        clients: string[];
-    };
+    notifyEnrichmentCompleted(sessionId: string, totalMovies: number): Promise<void>;
+    notifyEnrichmentError(sessionId: string, error: string): Promise<void>;
+    broadcast(event: string, data: any): void;
+    sendToClient(clientId: string, event: string, data: any): void;
+    getConnectedClientsCount(): number;
 }

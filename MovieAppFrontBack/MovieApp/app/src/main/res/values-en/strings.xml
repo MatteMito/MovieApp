@@ -32,6 +32,7 @@
     <string name="watchlist_movies">To watch</string>
     <string name="enriched_movies">With details</string>
     <string name="watch_hours">Hours of movies</string>
+    <string name="stats_completed_percentage">%d%% completed</string>
 
     <!-- CHARTS -->
     <string name="genres_chart">Your favorite genres</string>
@@ -45,9 +46,18 @@
     <string name="delete">Delete</string>
     <string name="select_file">Choose file</string>
 
-    <!-- HELP -->
+    <!-- HELP DIALOGS -->
     <string name="imdb_help_title">How to export from IMDb</string>
     <string name="letterboxd_help_title">How to export from Letterboxd</string>
+
+    <string name="imdb_watched_help">1. Go to IMDb.com\n2. Sign in to your account\n3. Go to \"Your Ratings\"\n4. Click the three dots and \"Export\"\n5. Download the CSV file\n\nSelect the downloaded file to import it.</string>
+    <string name="imdb_watchlist_help">1. Go to IMDb.com\n2. Sign in to your account\n3. Go to \"Your Watchlist\"\n4. Click the three dots and \"Export\"\n5. Download the CSV file\n\nSelect the downloaded file to import it.</string>
+    <string name="letterboxd_watched_help">1. Go to Letterboxd.com\n2. Sign in to your account\n3. Go to Settings > Import &amp; Export\n4. Click \"Export Your Data\"\n5. Download \"watched.csv\"\n\nSelect the downloaded file to import it.</string>
+    <string name="letterboxd_watchlist_help">1. Go to Letterboxd.com\n2. Sign in to your account\n3. Go to Settings > Import &amp; Export\n4. Click \"Export Your Data\"\n5. Download \"watchlist.csv\"\n\nSelect the downloaded file to import it.</string>
+
+    <!-- CLEAR ALL -->
+    <string name="clear_all_title">Delete all movies?</string>
+    <string name="clear_all_message">This action will delete all your movies from the database.\n\nDo you want to continue?</string>
 
     <!-- BACKEND -->
     <string name="backend_connected">Connected</string>
@@ -75,4 +85,15 @@
     <string name="name">Name:</string>
     <string name="email">Email:</string>
     <string name="app_version_label">App version:</string>
+
+    <!-- LISTS (Social) -->
+    <string name="create_list">Create list</string>
+    <string name="list_name">List name</string>
+    <string name="list_description">Description (optional)</string>
+    <string name="public_list">Public list</string>
+    <string name="private_list">Private list</string>
+    <string name="add_movies">Add movies</string>
+    <string name="no_lists">No lists yet</string>
+    <string name="my_lists">My lists</string>
+    <string name="public_lists">Public lists</string>
 </resources>

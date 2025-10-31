@@ -19,7 +19,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- card statistiche con progress bar -->
+            <!-- card statistiche con progress bar film visti -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -47,17 +47,14 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:columnCount="3"
-                        android:rowCount="1"
-                        android:alignmentMode="alignBounds"
-                        android:layout_marginBottom="16dp">
+                        android:rowCount="2">
 
+                        <!-- totale -->
                         <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
                             android:layout_columnWeight="1"
                             android:orientation="vertical"
                             android:gravity="center"
-                            android:padding="12dp">
+                            android:padding="8dp">
 
                             <TextView
                                 android:id="@+id/text_total_movies"
@@ -71,18 +68,17 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Totali"
+                                android:text="@string/total_movies"
                                 android:textSize="12sp"
                                 android:textColor="@color/text_secondary"/>
                         </LinearLayout>
 
+                        <!-- visti -->
                         <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
                             android:layout_columnWeight="1"
                             android:orientation="vertical"
                             android:gravity="center"
-                            android:padding="12dp">
+                            android:padding="8dp">
 
                             <TextView
                                 android:id="@+id/text_watched_movies"
@@ -96,18 +92,17 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Visti"
+                                android:text="@string/watched_movies"
                                 android:textSize="12sp"
                                 android:textColor="@color/text_secondary"/>
                         </LinearLayout>
 
+                        <!-- da vedere -->
                         <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
                             android:layout_columnWeight="1"
                             android:orientation="vertical"
                             android:gravity="center"
-                            android:padding="12dp">
+                            android:padding="8dp">
 
                             <TextView
                                 android:id="@+id/text_watchlist_movies"
@@ -121,13 +116,13 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Da Vedere"
+                                android:text="@string/watchlist_movies"
                                 android:textSize="12sp"
                                 android:textColor="@color/text_secondary"/>
                         </LinearLayout>
                     </GridLayout>
 
-                    <!-- progress bar con percentuale -->
+                    <!-- progress bar film visti / totale -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -151,27 +146,30 @@
                             android:id="@+id/text_progress_percentage"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0% completato"
+                            android:text="@string/stats_completed_percentage"
                             android:textSize="12sp"
                             android:textStyle="bold"
                             android:textColor="@color/text_secondary"
-                            android:layout_marginStart="12dp"/>
+                            android:layout_marginStart="12dp"
+                            tools:text="0% completato"/>
                     </LinearLayout>
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- progress bar import -->
+            <!-- progress bar import (separata, per l'enrichment) -->
             <ProgressBar
                 android:id="@+id/progress_bar_import"
                 style="@android:style/Widget.ProgressBar.Horizontal"
                 android:layout_width="match_parent"
-                android:layout_height="4dp"
+                android:layout_height="6dp"
                 android:layout_marginBottom="16dp"
                 android:max="100"
                 android:progress="0"
                 android:visibility="gone"
-                android:progressTint="@color/primary_blue"/>
+                android:progressTint="@color/primary_blue"
+                tools:visibility="visible"
+                tools:progress="45"/>
 
             <!-- import buttons -->
             <androidx.cardview.widget.CardView
@@ -191,8 +189,8 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📥 Import da IMDB"
-                        android:textSize="16sp"
+                        android:text="📥 IMDb"
+                        android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/text_primary"
                         android:layout_marginBottom="12dp"/>
@@ -201,27 +199,43 @@
                         android:id="@+id/button_import_imdb_watched"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Film Visti"
+                        android:text="@string/import_imdb_watched"
                         android:textAllCaps="false"
                         app:cornerRadius="12dp"
-                        app:icon="@drawable/ic_upload"
+                        style="@style/Widget.Material3.Button.TonalButton"
                         android:layout_marginBottom="8dp"/>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_import_imdb_watchlist"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Da Vedere"
+                        android:text="@string/import_imdb_watchlist"
                         android:textAllCaps="false"
                         app:cornerRadius="12dp"
-                        app:icon="@drawable/ic_upload"
-                        android:layout_marginBottom="16dp"/>
+                        style="@style/Widget.Material3.Button.TonalButton"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- letterboxd buttons -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📥 Import da Letterboxd"
-                        android:textSize="16sp"
+                        android:text="📥 Letterboxd"
+                        android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/text_primary"
                         android:layout_marginBottom="12dp"/>
@@ -230,35 +244,35 @@
                         android:id="@+id/button_import_letterboxd_watched"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Film Visti"
+                        android:text="@string/import_letterboxd_watched"
                         android:textAllCaps="false"
                         app:cornerRadius="12dp"
-                        app:icon="@drawable/ic_upload"
+                        style="@style/Widget.Material3.Button.TonalButton"
                         android:layout_marginBottom="8dp"/>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_import_letterboxd_watchlist"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Da Vedere"
+                        android:text="@string/import_letterboxd_watchlist"
                         android:textAllCaps="false"
                         app:cornerRadius="12dp"
-                        app:icon="@drawable/ic_upload"/>
-
+                        style="@style/Widget.Material3.Button.TonalButton"/>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- clear all button -->
+            <!-- pulsante clear all -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_clear_all"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="🗑️ Elimina Tutti i Film"
+                android:text="@string/clear_all"
                 android:textAllCaps="false"
                 app:cornerRadius="12dp"
+                app:icon="@drawable/ic_delete"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 app:strokeColor="@color/error_red"
-                app:strokeWidth="2dp"
-                style="@style/Widget.Material3.Button.OutlinedButton"/>
+                android:textColor="@color/error_red"/>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

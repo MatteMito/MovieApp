@@ -32,66 +32,22 @@ class HomeFragment : Fragment() {
 
     private lateinit var homeViewModel: HomeViewModel
 
-    //file pickers
-    private val imdbWatchedPicker = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                Log.d(TAG, "file selezionato: imdb watched")
-                checkNotificationPermissionAndProcess(uri, ImportType.IMDB_WATCHED)
-            }
-        }
+    private enum class ImportType {
+        IMDB_WATCHED,
+        IMDB_WATCHLIST,
+        LETTERBOXD_WATCHED,
+        LETTERBOXD_WATCHLIST
     }
 
-    private val imdbWatchlistPicker = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                Log.d(TAG, "file selezionato: imdb watchlist")
-                checkNotificationPermissionAndProcess(uri, ImportType.IMDB_WATCHLIST)
-            }
-        }
-    }
-
-    private val letterboxdWatchedPicker = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                Log.d(TAG, "file selezionato: letterboxd watched")
-                checkNotificationPermissionAndProcess(uri, ImportType.LETTERBOXD_WATCHED)
-            }
-        }
-    }
-
-    private val letterboxdWatchlistPicker = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                Log.d(TAG, "file selezionato: letterboxd watchlist")
-                checkNotificationPermissionAndProcess(uri, ImportType.LETTERBOXD_WATCHLIST)
-            }
-        }
-    }
-
-    //permission launcher per notifiche (android 13+)
-    private val notificationPermissionLauncher = registerForActivityResult(
+    //permission launcher per notifiche
+    private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
+    ) { isGranted: Boolean ->
         if (isGranted) {
-            Log.d(TAG, "permesso notifiche concesso")
-            pendingImport?.let { (uri, type) ->
-                processFile(uri, type)
-                pendingImport = null
-            }
-        } else {
-            Log.w(TAG, "permesso notifiche negato")
+            Log.d(TAG, "notifiche permesse")
             Toast.makeText(
                 requireContext(),
-                "le notifiche sono disabilitate. l'import continuera in background",
+                "l'import continuera in background",
                 Toast.LENGTH_LONG
             ).show()
             pendingImport?.let { (uri, type) ->
@@ -154,9 +110,10 @@ class HomeFragment : Fragment() {
             Log.d(TAG, "loading: $isLoading")
         }
 
-        //movies
+        //movies - aggiorna card statistiche
         homeViewModel.movies.observe(viewLifecycleOwner) { movies ->
             updateStatsCard(movies)
+            Log.d(TAG, "movies aggiornati: ${movies.size} film")
         }
 
         //messages
@@ -183,7 +140,7 @@ class HomeFragment : Fragment() {
         homeViewModel.importProgress.observe(viewLifecycleOwner) { progress ->
             if (progress > 0) {
                 binding.progressBarImport.progress = progress
-                Log.d(TAG, "progress: $progress%")
+                Log.d(TAG, "import progress: $progress%")
             }
         }
     }
@@ -199,20 +156,20 @@ class HomeFragment : Fragment() {
         binding.textWatchedMovies.text = watched.toString()
         binding.textWatchlistMovies.text = watchlist.toString()
 
-        // calcola e aggiorna la percentuale di completamento
+        //calcola e aggiorna la percentuale di completamento (film visti)
         val percentage = if (movies.isNotEmpty()) {
             (watched.toFloat() / movies.size * 100).toInt()
         } else {
             0
         }
         binding.progressStats.progress = percentage
-        binding.textProgressPercentage.text = "$percentage% completato"
+        binding.textProgressPercentage.text = getString(R.string.stats_completed_percentage, percentage)
 
-        Log.d(TAG, "stats aggiornate: ${movies.size} film totali, $watched visti ($percentage%)")
+        Log.d(TAG, "stats aggiornate: total=${movies.size}, watched=$watched, watchlist=$watchlist, %=$percentage")
     }
 
     /**
-     * abilita/disabilita bottoni import
+     * abilita/disabilita pulsanti import
      */
     private fun enableImportButtons(enabled: Boolean) {
         binding.buttonImportImdbWatched.isEnabled = enabled
@@ -222,204 +179,138 @@ class HomeFragment : Fragment() {
         binding.buttonClearAll.isEnabled = enabled
     }
 
-    /**
-     * controlla permesso notifiche e processa file
-     */
-    private fun checkNotificationPermissionAndProcess(uri: Uri, type: ImportType) {
+    //=== DIALOG HELP E CONFERME ===
+
+    private fun showImdbWatchedHelp() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.imdb_help_title))
+            .setMessage(getString(R.string.imdb_watched_help))
+            .setPositiveButton(getString(R.string.select_file)) { _, _ ->
+                pickFile(ImportType.IMDB_WATCHED)
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun showImdbWatchlistHelp() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.imdb_help_title))
+            .setMessage(getString(R.string.imdb_watchlist_help))
+            .setPositiveButton(getString(R.string.select_file)) { _, _ ->
+                pickFile(ImportType.IMDB_WATCHLIST)
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun showLetterboxdWatchedHelp() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.letterboxd_help_title))
+            .setMessage(getString(R.string.letterboxd_watched_help))
+            .setPositiveButton(getString(R.string.select_file)) { _, _ ->
+                pickFile(ImportType.LETTERBOXD_WATCHED)
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun showLetterboxdWatchlistHelp() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.letterboxd_help_title))
+            .setMessage(getString(R.string.letterboxd_watchlist_help))
+            .setPositiveButton(getString(R.string.select_file)) { _, _ ->
+                pickFile(ImportType.LETTERBOXD_WATCHLIST)
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun showClearAllConfirmation() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.clear_all_title))
+            .setMessage(getString(R.string.clear_all_message))
+            .setPositiveButton(getString(R.string.delete)) { _, _ ->
+                homeViewModel.clearAllMovies()
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    //=== FILE PICKER E PROCESSING ===
+
+    private val filePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                currentImportType?.let { type ->
+                    checkPermissionsAndProcess(uri, type)
+                }
+            }
+        }
+    }
+
+    private var currentImportType: ImportType? = null
+
+    private fun pickFile(type: ImportType) {
+        currentImportType = type
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            this.type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/csv", "text/comma-separated-values"))
+        }
+        filePickerLauncher.launch(intent)
+    }
+
+    private fun checkPermissionsAndProcess(uri: Uri, type: ImportType) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             when {
                 ContextCompat.checkSelfPermission(
                     requireContext(),
                     android.Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED -> {
-                    //permesso gia concesso
                     processFile(uri, type)
                 }
-                shouldShowRequestPermissionRationale(android.Manifest.permission.POST_NOTIFICATIONS) -> {
-                    //mostra rationale
-                    MaterialAlertDialogBuilder(requireContext())
-                        .setTitle("permesso notifiche")
-                        .setMessage("l'app ha bisogno del permesso per mostrarti notifiche durante l'import dei film in background")
-                        .setPositiveButton("concedi") { _, _ ->
-                            pendingImport = uri to type
-                            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                        .setNegativeButton("continua senza") { _, _ ->
-                            processFile(uri, type)
-                        }
-                        .show()
-                }
                 else -> {
-                    //richiedi permesso
-                    pendingImport = uri to type
-                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    pendingImport = Pair(uri, type)
+                    requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
         } else {
-            //android 12 e precedenti non richiedono permesso
             processFile(uri, type)
         }
     }
 
-    /**
-     * processa file csv
-     */
     private fun processFile(uri: Uri, type: ImportType) {
         try {
-            requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                when (type) {
-                    ImportType.IMDB_WATCHED -> homeViewModel.processImdbWatchedCsv(stream)
-                    ImportType.IMDB_WATCHLIST -> homeViewModel.processImdbWatchlistCsv(stream)
-                    ImportType.LETTERBOXD_WATCHED -> homeViewModel.processLetterboxdWatchedCsv(stream)
-                    ImportType.LETTERBOXD_WATCHLIST -> homeViewModel.processLetterboxdWatchlistCsv(stream)
-                }
+            val inputStream = requireContext().contentResolver.openInputStream(uri)
+                ?: throw Exception("impossibile leggere file")
+
+            val filename = uri.lastPathSegment ?: "unknown.csv"
+
+            val csvType = when (type) {
+                ImportType.IMDB_WATCHED -> com.example.movieapp.data.repository.CsvType.IMDB_WATCHED
+                ImportType.IMDB_WATCHLIST -> com.example.movieapp.data.repository.CsvType.IMDB_WATCHLIST
+                ImportType.LETTERBOXD_WATCHED -> com.example.movieapp.data.repository.CsvType.LETTERBOXD_WATCHED
+                ImportType.LETTERBOXD_WATCHLIST -> com.example.movieapp.data.repository.CsvType.LETTERBOXD_WATCHLIST
             }
+
+            homeViewModel.startImport(requireContext(), inputStream, filename, csvType)
+
+            Log.d(TAG, "import avviato: $filename ($csvType)")
+
         } catch (e: Exception) {
-            Log.e(TAG, "errore lettura file: ${e.message}", e)
+            Log.e(TAG, "errore processing file: ${e.message}", e)
             Toast.makeText(
                 requireContext(),
-                "errore lettura file: ${e.message}",
+                "errore: ${e.message}",
                 Toast.LENGTH_LONG
             ).show()
         }
     }
 
-    //help dialogs
-    private fun showImdbWatchedHelp() {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Import IMDB Watched")
-            .setMessage("Come esportare i tuoi film visti da IMDB:\n\n" +
-                    "1. Vai su www.imdb.com e fai login\n" +
-                    "2. Clicca sul tuo nome in alto a destra\n" +
-                    "3. Seleziona 'Your Ratings'\n" +
-                    "4. Clicca sui 3 puntini (⋯) in alto a destra\n" +
-                    "5. Seleziona 'Export'\n" +
-                    "6. Salva il file ratings.csv\n" +
-                    "7. Seleziona quel file qui sotto")
-            .setPositiveButton("Seleziona File") { _, _ -> openImdbWatchedPicker() }
-            .setNegativeButton("Annulla", null)
-            .show()
-    }
-
-    private fun showImdbWatchlistHelp() {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Import IMDB Watchlist")
-            .setMessage("Come esportare la tua watchlist da IMDB:\n\n" +
-                    "1. Vai su www.imdb.com e fai login\n" +
-                    "2. Clicca sul tuo nome in alto a destra\n" +
-                    "3. Seleziona 'Your Watchlist'\n" +
-                    "4. Clicca sui 3 puntini (⋯) in alto a destra\n" +
-                    "5. Seleziona 'Export'\n" +
-                    "6. Salva il file watchlist.csv\n" +
-                    "7. Seleziona quel file qui sotto")
-            .setPositiveButton("Seleziona File") { _, _ -> openImdbWatchlistPicker() }
-            .setNegativeButton("Annulla", null)
-            .show()
-    }
-
-    private fun showLetterboxdWatchedHelp() {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Import Letterboxd Watched")
-            .setMessage("Come esportare i tuoi film da Letterboxd:\n\n" +
-                    "1. Vai su letterboxd.com e fai login\n" +
-                    "2. Clicca sul tuo profilo in alto a destra\n" +
-                    "3. Vai su 'Settings' → 'Import & Export'\n" +
-                    "4. Clicca su 'Export Your Data'\n" +
-                    "5. Riceverai una email con un link\n" +
-                    "6. Scarica il file ZIP ed estrailo\n" +
-                    "7. Seleziona 'watched.csv' qui sotto")
-            .setPositiveButton("Seleziona File") { _, _ -> openLetterboxdWatchedPicker() }
-            .setNegativeButton("Annulla", null)
-            .show()
-    }
-
-    private fun showLetterboxdWatchlistHelp() {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Import Letterboxd Watchlist")
-            .setMessage("Come esportare la tua watchlist da Letterboxd:\n\n" +
-                    "1. Vai su letterboxd.com e fai login\n" +
-                    "2. Clicca sul tuo profilo in alto a destra\n" +
-                    "3. Vai su 'Settings' → 'Import & Export'\n" +
-                    "4. Clicca su 'Export Your Data'\n" +
-                    "5. Riceverai una email con un link\n" +
-                    "6. Scarica il file ZIP ed estrailo\n" +
-                    "7. Seleziona 'watchlist.csv' qui sotto")
-            .setPositiveButton("Seleziona File") { _, _ -> openLetterboxdWatchlistPicker() }
-            .setNegativeButton("Annulla", null)
-            .show()
-    }
-
-    //file pickers
-    private fun openImdbWatchedPicker() {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "text/*"
-            addCategory(Intent.CATEGORY_OPENABLE)
-        }
-        imdbWatchedPicker.launch(intent)
-    }
-
-    private fun openImdbWatchlistPicker() {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "text/*"
-            addCategory(Intent.CATEGORY_OPENABLE)
-        }
-        imdbWatchlistPicker.launch(intent)
-    }
-
-    private fun openLetterboxdWatchedPicker() {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "text/*"
-            addCategory(Intent.CATEGORY_OPENABLE)
-        }
-        letterboxdWatchedPicker.launch(intent)
-    }
-
-    private fun openLetterboxdWatchlistPicker() {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "text/*"
-            addCategory(Intent.CATEGORY_OPENABLE)
-        }
-        letterboxdWatchlistPicker.launch(intent)
-    }
-
-    private fun showClearAllConfirmation() {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("elimina tutti i film")
-            .setMessage("sei sicuro di voler eliminare tutti i film? questa azione non puo essere annullata")
-            .setPositiveButton("elimina") { _, _ ->
-                Log.d(TAG, "confermata eliminazione")
-                homeViewModel.clearAllMovies()
-            }
-            .setNegativeButton("annulla") { dialog, _ ->
-                Log.d(TAG, "eliminazione annullata")
-                dialog.dismiss()
-            }
-            .show()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "fragment resumed")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d(TAG, "fragment paused")
-    }
-
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-        Log.d(TAG, "fragment destroyed")
     }
-}
-
-/**
- * enum tipi import
- */
-enum class ImportType {
-    IMDB_WATCHED,
-    IMDB_WATCHLIST,
-    LETTERBOXD_WATCHED,
-    LETTERBOXD_WATCHLIST
 }

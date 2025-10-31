@@ -32,6 +32,7 @@
     <string name="watchlist_movies">À voir</string>
     <string name="enriched_movies">Avec détails</string>
     <string name="watch_hours">Heures de films</string>
+    <string name="stats_completed_percentage">%d%% terminé</string>
 
     <!-- CHARTS -->
     <string name="genres_chart">Vos genres préférés</string>
@@ -45,9 +46,18 @@
     <string name="delete">Supprimer</string>
     <string name="select_file">Choisir le fichier</string>
 
-    <!-- HELP -->
+    <!-- HELP DIALOGS -->
     <string name="imdb_help_title">Comment exporter depuis IMDb</string>
     <string name="letterboxd_help_title">Comment exporter depuis Letterboxd</string>
+
+    <string name="imdb_watched_help">1. Allez sur IMDb.com\n2. Connectez-vous à votre compte\n3. Allez sur \"Your Ratings\"\n4. Cliquez sur les trois points et \"Export\"\n5. Téléchargez le fichier CSV\n\nSélectionnez le fichier téléchargé pour l\'importer.</string>
+    <string name="imdb_watchlist_help">1. Allez sur IMDb.com\n2. Connectez-vous à votre compte\n3. Allez sur \"Your Watchlist\"\n4. Cliquez sur les trois points et \"Export\"\n5. Téléchargez le fichier CSV\n\nSélectionnez le fichier téléchargé pour l\'importer.</string>
+    <string name="letterboxd_watched_help">1. Allez sur Letterboxd.com\n2. Connectez-vous à votre compte\n3. Allez sur Settings > Import &amp; Export\n4. Cliquez sur \"Export Your Data\"\n5. Téléchargez \"watched.csv\"\n\nSélectionnez le fichier téléchargé pour l\'importer.</string>
+    <string name="letterboxd_watchlist_help">1. Allez sur Letterboxd.com\n2. Connectez-vous à votre compte\n3. Allez sur Settings > Import &amp; Export\n4. Cliquez sur \"Export Your Data\"\n5. Téléchargez \"watchlist.csv\"\n\nSélectionnez le fichier téléchargé pour l\'importer.</string>
+
+    <!-- CLEAR ALL -->
+    <string name="clear_all_title">Supprimer tous les films?</string>
+    <string name="clear_all_message">Cette action supprimera tous vos films de la base de données.\n\nVoulez-vous continuer?</string>
 
     <!-- BACKEND -->
     <string name="backend_connected">Connecté</string>
@@ -62,12 +72,12 @@
     <!-- ACCOUNT MENU -->
     <string name="hello_user">Bonjour %s!</string>
     <string name="account">Compte</string>
-    <string name="account_info">Info du Compte</string>
+    <string name="account_info">Info du compte</string>
     <string name="logout">Déconnexion</string>
     <string name="language">Langue</string>
     <string name="select_language">Sélectionner la langue</string>
     <string name="logout_confirm_title">Déconnexion</string>
-    <string name="logout_confirm_message">Voulez-vous vous déconnecter?\n\nVos films resteront sauvegardés.</string>
+    <string name="logout_confirm_message">Voulez-vous vous déconnecter?\n\nVos films resteront enregistrés.</string>
     <string name="logout_button">Déconnecter</string>
 
     <!-- ACCOUNT INFO DIALOG -->
@@ -75,4 +85,15 @@
     <string name="name">Nom:</string>
     <string name="email">Email:</string>
     <string name="app_version_label">Version de l\'app:</string>
+
+    <!-- LISTS (Social) -->
+    <string name="create_list">Créer une liste</string>
+    <string name="list_name">Nom de la liste</string>
+    <string name="list_description">Description (optionnel)</string>
+    <string name="public_list">Liste publique</string>
+    <string name="private_list">Liste privée</string>
+    <string name="add_movies">Ajouter des films</string>
+    <string name="no_lists">Pas encore de listes</string>
+    <string name="my_lists">Mes listes</string>
+    <string name="public_lists">Listes publiques</string>
 </resources>
