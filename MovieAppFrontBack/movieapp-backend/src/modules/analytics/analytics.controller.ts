@@ -1,9 +1,10 @@
-// File: src/modules/analytics/analytics.controller.ts
-// AGGIORNATO: tutti i metodi richiedono userId
+// file: movieapp-backend/src/modules/analytics/analytics.controller.ts
+// controller con endpoint completo
 
 import {
   Controller,
   Get,
+  Param,
   Query,
   HttpStatus,
   HttpException,
@@ -25,7 +26,53 @@ export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   /**
+   * GET /api/v1/analytics/user/:userId
+   * endpoint principale: ritorna TUTTE le statistiche in una chiamata
+   */
+  @Get('user/:userId')
+  async getCompleteAnalytics(@Param('userId') userId: string): Promise<ApiResponse> {
+    try {
+      if (!userId) {
+        throw new HttpException(
+          { 
+            success: false, 
+            message: 'userId mancante', 
+            timestamp: new Date().toISOString() 
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      this.logger.log(`📊 analytics complete richieste per utente ${userId}`);
+      
+      const startTime = Date.now();
+      const analytics = await this.analyticsService.getCompleteAnalytics(userId);
+      const elapsed = Date.now() - startTime;
+
+      this.logger.log(`✅ analytics generate in ${elapsed}ms`);
+
+      return {
+        success: true,
+        data: analytics,
+        message: `analytics complete per ${analytics.basicStats.totalMovies} film (${analytics.basicStats.watchedCount} watched, ${analytics.basicStats.watchlistCount} watchlist)`,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`❌ errore analytics complete: ${error.message}`);
+      throw new HttpException(
+        { 
+          success: false, 
+          message: error.message, 
+          timestamp: new Date().toISOString() 
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
    * GET /api/v1/analytics/basic?userId=xxx
+   * statistiche base (retrocompatibilità)
    */
   @Get('basic')
   async getBasicStats(@Query('userId') userId: string): Promise<ApiResponse> {
@@ -57,6 +104,7 @@ export class AnalyticsController {
 
   /**
    * GET /api/v1/analytics/genres?userId=xxx&limit=10
+   * statistiche generi (retrocompatibilità)
    */
   @Get('genres')
   async getGenreStats(
@@ -93,38 +141,8 @@ export class AnalyticsController {
   }
 
   /**
-   * GET /api/v1/analytics/years?userId=xxx
-   */
-  @Get('years')
-  async getYearStats(@Query('userId') userId: string): Promise<ApiResponse> {
-    try {
-      if (!userId) {
-        throw new HttpException(
-          { success: false, message: 'userId mancante', timestamp: new Date().toISOString() },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      this.logger.log(`📊 statistiche anni per utente ${userId}`);
-      const stats = await this.analyticsService.getYearStats(userId);
-
-      return {
-        success: true,
-        data: stats,
-        message: 'distribuzione per anno',
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore statistiche anni: ${error.message}`);
-      throw new HttpException(
-        { success: false, message: error.message, timestamp: new Date().toISOString() },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
    * GET /api/v1/analytics/directors?userId=xxx&limit=10
+   * statistiche registi (retrocompatibilità)
    */
   @Get('directors')
   async getDirectorStats(
@@ -162,6 +180,7 @@ export class AnalyticsController {
 
   /**
    * GET /api/v1/analytics/advanced?userId=xxx
+   * analytics avanzate (retrocompatibilità)
    */
   @Get('advanced')
   async getAdvancedAnalytics(@Query('userId') userId: string): Promise<ApiResponse> {

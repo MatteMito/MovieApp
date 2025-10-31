@@ -9,9 +9,9 @@ export declare class AnalyticsController {
     private readonly analyticsService;
     private readonly logger;
     constructor(analyticsService: AnalyticsService);
+    getCompleteAnalytics(userId: string): Promise<ApiResponse>;
     getBasicStats(userId: string): Promise<ApiResponse>;
     getGenreStats(userId: string, limit?: string): Promise<ApiResponse>;
-    getYearStats(userId: string): Promise<ApiResponse>;
     getDirectorStats(userId: string, limit?: string): Promise<ApiResponse>;
     getAdvancedAnalytics(userId: string): Promise<ApiResponse>;
 }

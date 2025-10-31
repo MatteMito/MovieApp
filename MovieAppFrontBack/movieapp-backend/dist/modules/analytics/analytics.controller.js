@@ -21,6 +21,36 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
         this.analyticsService = analyticsService;
         this.logger = new common_1.Logger(AnalyticsController_1.name);
     }
+    async getCompleteAnalytics(userId) {
+        try {
+            if (!userId) {
+                throw new common_1.HttpException({
+                    success: false,
+                    message: 'userId mancante',
+                    timestamp: new Date().toISOString()
+                }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            this.logger.log(`📊 analytics complete richieste per utente ${userId}`);
+            const startTime = Date.now();
+            const analytics = await this.analyticsService.getCompleteAnalytics(userId);
+            const elapsed = Date.now() - startTime;
+            this.logger.log(`✅ analytics generate in ${elapsed}ms`);
+            return {
+                success: true,
+                data: analytics,
+                message: `analytics complete per ${analytics.basicStats.totalMovies} film (${analytics.basicStats.watchedCount} watched, ${analytics.basicStats.watchlistCount} watchlist)`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`❌ errore analytics complete: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: error.message,
+                timestamp: new Date().toISOString()
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
     async getBasicStats(userId) {
         try {
             if (!userId) {
@@ -58,25 +88,6 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
         }
         catch (error) {
             this.logger.error(`errore statistiche generi: ${error.message}`);
-            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    async getYearStats(userId) {
-        try {
-            if (!userId) {
-                throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
-            }
-            this.logger.log(`📊 statistiche anni per utente ${userId}`);
-            const stats = await this.analyticsService.getYearStats(userId);
-            return {
-                success: true,
-                data: stats,
-                message: 'distribuzione per anno',
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore statistiche anni: ${error.message}`);
             throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -123,6 +134,13 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
 };
 exports.AnalyticsController = AnalyticsController;
 __decorate([
+    (0, common_1.Get)('user/:userId'),
+    __param(0, (0, common_1.Param)('userId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AnalyticsController.prototype, "getCompleteAnalytics", null);
+__decorate([
     (0, common_1.Get)('basic'),
     __param(0, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
@@ -137,13 +155,6 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], AnalyticsController.prototype, "getGenreStats", null);
-__decorate([
-    (0, common_1.Get)('years'),
-    __param(0, (0, common_1.Query)('userId')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], AnalyticsController.prototype, "getYearStats", null);
 __decorate([
     (0, common_1.Get)('directors'),
     __param(0, (0, common_1.Query)('userId')),

@@ -1,14 +1,50 @@
+// file: src/modules/movies/movies.service.ts
+// fix: associazione corretta user-movie con contatori accurati
+
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, IsNull } from 'typeorm';
+import { Repository } from 'typeorm';
 import { MovieEntity } from '../../database/entities/movie.entity';
-import { UserEntity } from '../../database/entities/user.entity';
 import { UserMovieEntity, MovieStatus } from '../../database/entities/user-movie.entity';
-import { DatabaseService } from '../../database/database.service';
+import { Movie } from '../../common/interfaces/movie.interface';
 import { TmdbService } from '../tmdb/tmdb.service';
+import { DatabaseService } from '../../database/database.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
-import { Movie, BatchUploadResult, EnrichmentResult, FailedMovie } from '../../common/interfaces/movie.interface';
 import { v4 as uuidv4 } from 'uuid';
+
+export interface FailedMovie {
+  movie: Movie;
+  error: string;
+}
+
+export interface EnrichmentResult {
+  sessionId: string;
+  successfulMovies: Movie[];
+  failedMovies: FailedMovie[];
+  totalProcessed: number;
+  successRate: number;
+  cacheHits: number;
+}
+
+export interface BatchUploadResult {
+  sessionId: string;
+  watchlistResult: EnrichmentResult;
+  watchedResult: EnrichmentResult;
+  summary: {
+    totalMovies: number;
+    watchlistCount: number;
+    watchedCount: number;
+    totalEnriched: number;
+    overallSuccessRate: number;
+    cacheHitsTotal: number;
+  };
+  importCounters?: {
+    watchedFromFile: number;
+    watchlistFromFile: number;
+    totalWatched: number;
+    totalWatchlist: number;
+  };
+}
 
 @Injectable()
 export class MoviesService {
@@ -16,237 +52,27 @@ export class MoviesService {
 
   constructor(
     @InjectRepository(MovieEntity)
-    private movieRepository: Repository<MovieEntity>,
-    @InjectRepository(UserEntity)
-    private userRepository: Repository<UserEntity>,
+    private readonly movieRepository: Repository<MovieEntity>,
+
     @InjectRepository(UserMovieEntity)
-    private userMovieRepository: Repository<UserMovieEntity>,
-    private databaseService: DatabaseService,
-    private tmdbService: TmdbService,
-    private websocketGateway: WebsocketGateway,
+    private readonly userMovieRepository: Repository<UserMovieEntity>,
+
+    private readonly tmdbService: TmdbService,
+    private readonly databaseService: DatabaseService,
+    private readonly websocketGateway: WebsocketGateway,
   ) {}
 
   /**
-   * Health check
-   */
-  async healthCheck(): Promise<any> {
-    try {
-      const movieCount = await this.movieRepository.count();
-      return {
-        status: 'healthy',
-        database: 'connected',
-        movieCount,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      return {
-        status: 'unhealthy',
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      };
-    }
-  }
-
-  /**
-   * Get system stats
-   */
-  async getStats(): Promise<any> {
-    const totalMovies = await this.movieRepository.count();
-    const enrichedMovies = await this.movieRepository.count({
-      where: { tmdb_id: Not(IsNull()) },
-    });
-    
-    return {
-      database: {
-        totalMovies,
-        enrichedMovies,
-        enrichmentRate: totalMovies > 0 ? (enrichedMovies / totalMovies) * 100 : 0,
-      },
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  /**
-   * Get user stats (con UserMovieEntity)
-   */
-  async getUserStats(userId: string): Promise<any> {
-    const totalMovies = await this.userMovieRepository.count({ where: { userId } });
-    const watchedCount = await this.userMovieRepository.count({
-      where: { userId, status: MovieStatus.WATCHED },
-    });
-    const watchlistCount = await this.userMovieRepository.count({
-      where: { userId, status: MovieStatus.WATCHLIST },
-    });
-
-    return {
-      totalMovies,
-      watchedCount,
-      watchlistCount,
-    };
-  }
-
-  /**
-   * Get movie by ID
-   */
-  async getMovieById(id: string): Promise<MovieEntity | null> {
-    return this.movieRepository.findOne({ where: { id } });
-  }
-
-  /**
-   * Get all movies for a user (con UserMovieEntity)
-   */
-  async getAllMovies(userId: string): Promise<MovieEntity[]> {
-    const userMovies = await this.userMovieRepository.find({
-      where: { userId },
-      relations: ['movie'],
-      order: { createdAt: 'DESC' },
-    });
-
-    return userMovies.map(um => um.movie);
-  }
-
-  /**
-   * Delete all movies for a user (con UserMovieEntity)
-   */
-  async deleteAllMovies(userId: string): Promise<{ message: string; deletedCount: number }> {
-    const userMovies = await this.userMovieRepository.find({
-      where: { userId },
-    });
-    
-    const deletedCount = userMovies.length;
-
-    await this.userMovieRepository.remove(userMovies);
-
-    this.logger.log(`🗑️ Eliminati ${deletedCount} film per user ${userId}`);
-
-    return {
-      message: 'All movies deleted successfully',
-      deletedCount,
-    };
-  }
-
-  /**
-   * Get user movies with filters
-   */
-  async getUserMovies(userId: string, filters: any): Promise<any> {
-    const queryBuilder = this.userMovieRepository
-      .createQueryBuilder('um')
-      .leftJoinAndSelect('um.movie', 'movie')
-      .where('um.userId = :userId', { userId });
-
-    if (filters.status) {
-      queryBuilder.andWhere('um.status = :status', { status: filters.status });
-    }
-
-    if (filters.query) {
-      queryBuilder.andWhere('movie.title ILIKE :query', { query: `%${filters.query}%` });
-    }
-
-    if (filters.genre) {
-      queryBuilder.andWhere(':genre = ANY(movie.genres)', { genre: filters.genre });
-    }
-
-    if (filters.year) {
-      queryBuilder.andWhere('movie.year = :year', { year: filters.year });
-    }
-
-    if (filters.director) {
-      queryBuilder.andWhere('movie.director ILIKE :director', { director: `%${filters.director}%` });
-    }
-
-    if (filters.minRating !== undefined) {
-      queryBuilder.andWhere('um.userRating >= :minRating', { minRating: filters.minRating });
-    }
-    if (filters.maxRating !== undefined) {
-      queryBuilder.andWhere('um.userRating <= :maxRating', { maxRating: filters.maxRating });
-    }
-
-    const sortBy = filters.sortBy || 'createdAt';
-    const sortOrder = filters.sortOrder || 'DESC';
-    
-    if (sortBy === 'title') {
-      queryBuilder.orderBy('movie.title', sortOrder);
-    } else if (sortBy === 'year') {
-      queryBuilder.orderBy('movie.year', sortOrder);
-    } else if (sortBy === 'userRating') {
-      queryBuilder.orderBy('um.userRating', sortOrder);
-    } else {
-      queryBuilder.orderBy('um.createdAt', sortOrder);
-    }
-
-    if (filters.limit) {
-      queryBuilder.limit(filters.limit);
-    }
-    if (filters.offset) {
-      queryBuilder.offset(filters.offset);
-    }
-
-    const [userMovies, total] = await queryBuilder.getManyAndCount();
-    const movies = userMovies.map(um => um.movie);
-
-    return {
-      movies,
-      total,
-    };
-  }
-
-  /**
-   * Search movies
-   */
-  async searchMovies(filters: any): Promise<any> {
-    const queryBuilder = this.movieRepository.createQueryBuilder('movie');
-
-    if (filters.query) {
-      queryBuilder.where('movie.title ILIKE :query', { query: `%${filters.query}%` });
-    }
-
-    if (filters.genre) {
-      queryBuilder.andWhere(':genre = ANY(movie.genres)', { genre: filters.genre });
-    }
-
-    if (filters.year) {
-      queryBuilder.andWhere('movie.year = :year', { year: filters.year });
-    }
-
-    if (filters.director) {
-      queryBuilder.andWhere('movie.director ILIKE :director', { director: `%${filters.director}%` });
-    }
-
-    if (filters.minRating !== undefined) {
-      queryBuilder.andWhere('movie.tmdb_rating >= :minRating', { minRating: filters.minRating });
-    }
-
-    if (filters.maxRating !== undefined) {
-      queryBuilder.andWhere('movie.tmdb_rating <= :maxRating', { maxRating: filters.maxRating });
-    }
-
-    const sortBy = filters.sortBy || 'title';
-    const sortOrder = filters.sortOrder || 'ASC';
-    queryBuilder.orderBy(`movie.${sortBy}`, sortOrder);
-
-    if (filters.limit) {
-      queryBuilder.limit(filters.limit);
-    }
-    if (filters.offset) {
-      queryBuilder.offset(filters.offset);
-    }
-
-    const [movies, total] = await queryBuilder.getManyAndCount();
-
-    return {
-      movies,
-      total,
-    };
-  }
-
-  /**
-   * Enrich movies
+   * enrich movies con notifica websocket
    */
   async enrichMovies(movies: Movie[]): Promise<EnrichmentResult> {
     const sessionId = uuidv4();
     const successfulMovies: Movie[] = [];
     const failedMovies: FailedMovie[] = [];
     const totalMovies = movies.length;
+
+    //notifica inizio
+    await this.websocketGateway.notifyEnrichmentStarted(sessionId, totalMovies);
 
     for (let i = 0; i < movies.length; i++) {
       const movie = movies[i];
@@ -261,10 +87,11 @@ export class MoviesService {
         } else {
           failedMovies.push({
             movie,
-            error: 'No TMDB data found',
+            error: 'no tmdb data found',
           });
         }
 
+        //notifica progress per ogni film
         await this.websocketGateway.notifyEnrichmentProgress(
           sessionId,
           currentProgress,
@@ -275,7 +102,7 @@ export class MoviesService {
         await this.sleep(300);
 
       } catch (error) {
-        this.logger.warn(`⚠️ Errore enrichment "${movie.title}": ${error.message}`);
+        this.logger.warn(`errore enrichment "${movie.title}": ${error.message}`);
         failedMovies.push({
           movie,
           error: error.message,
@@ -283,10 +110,13 @@ export class MoviesService {
       }
     }
 
+    //notifica completamento
+    await this.websocketGateway.notifyEnrichmentCompleted(sessionId, totalMovies);
+
     const successRate = (successfulMovies.length / movies.length) * 100;
 
     return {
-      sessionId: uuidv4(),
+      sessionId,
       successfulMovies,
       failedMovies,
       totalProcessed: movies.length,
@@ -296,14 +126,14 @@ export class MoviesService {
   }
 
   /**
-   * Batch upload
+   * batch upload base
    */
   async batchUpload(
     watchlist: Movie[],
     watched: Movie[],
     userId?: string,
   ): Promise<BatchUploadResult> {
-    this.logger.log(`📦 Batch upload: ${watchlist.length} watchlist, ${watched.length} watched`);
+    this.logger.log(`batch upload: ${watchlist.length} watchlist, ${watched.length} watched`);
 
     const [watchlistResult, watchedResult] = await Promise.all([
       this.enrichMovies(watchlist),
@@ -329,26 +159,30 @@ export class MoviesService {
     };
   }
 
+  /**
+   * fix: batch upload con associazione user-movie corretta
+   */
   async batchUploadWithUserAssociation(
     userId: string,
     watchlist: Movie[],
     watched: Movie[],
-  ): Promise<any> {
-    this.logger.log(`📦 Batch upload per user ${userId}: ${watchlist.length} watchlist, ${watched.length} watched`);
+  ): Promise<BatchUploadResult> {
+    this.logger.log(`batch upload per user ${userId}: ${watchlist.length} watchlist, ${watched.length} watched`);
 
     //step 1: enrichment
     const result = await this.batchUpload(watchlist, watched, userId);
     
-    //step 2: crea associazioni user_movies per ogni film
-    this.logger.log(`🔗 Creazione associazioni user_movies...`);
+    this.logger.log(`creazione associazioni user_movies...`);
     
     const watchlistMovies = result.watchlistResult.successfulMovies;
     const watchedMovies = result.watchedResult.successfulMovies;
     
-    //crea associazioni per watchlist
+    let watchedCreated = 0;
+    let watchlistCreated = 0;
+    
+    //step 2a: crea associazioni per watchlist
     for (const movie of watchlistMovies) {
       try {
-        //verifica se associazione esiste gia
         const existing = await this.userMovieRepository.findOne({
           where: {
             userId: userId,
@@ -361,16 +195,19 @@ export class MoviesService {
             userId: userId,
             movieId: movie.id,
             status: MovieStatus.WATCHLIST,
+            userRating: null,
+            watchedDate: null,
           });
           await this.userMovieRepository.save(userMovie);
-          this.logger.debug(`✓ associato watchlist: ${movie.title}`);
+          watchlistCreated++;
+          this.logger.debug(`associato watchlist: ${movie.title}`);
         }
       } catch (error) {
-        this.logger.warn(`⚠️ errore associazione ${movie.title}: ${error.message}`);
+        this.logger.warn(`errore associazione ${movie.title}: ${error.message}`);
       }
     }
     
-    //crea associazioni per watched
+    //step 2b: crea associazioni per watched
     for (const movie of watchedMovies) {
       try {
         const existing = await this.userMovieRepository.findOne({
@@ -385,16 +222,21 @@ export class MoviesService {
             userId: userId,
             movieId: movie.id,
             status: MovieStatus.WATCHED,
+            userRating: movie.user_rating || null,
+            watchedDate: movie.watched_date ? new Date(movie.watched_date) : null,
           });
           await this.userMovieRepository.save(userMovie);
-          this.logger.debug(`✓ associato watched: ${movie.title}`);
+          watchedCreated++;
+          this.logger.debug(`associato watched: ${movie.title}`);
         }
       } catch (error) {
-        this.logger.warn(`⚠️ errore associazione ${movie.title}: ${error.message}`);
+        this.logger.warn(`errore associazione ${movie.title}: ${error.message}`);
       }
     }
     
-    //step 3: conta i totali
+    this.logger.log(`associazioni create: ${watchedCreated} watched, ${watchlistCreated} watchlist`);
+    
+    //step 3: conta i totali nel database
     const totalWatched = await this.userMovieRepository.count({
       where: { userId, status: MovieStatus.WATCHED },
     });
@@ -403,8 +245,9 @@ export class MoviesService {
       where: { userId, status: MovieStatus.WATCHLIST },
     });
     
-    this.logger.log(`✅ Associazioni create - Totali: ${totalWatched} watched, ${totalWatchlist} watchlist`);
+    this.logger.log(`totali database: ${totalWatched} watched, ${totalWatchlist} watchlist`);
 
+    //aggiungi contatori al risultato
     return {
       ...result,
       importCounters: {
@@ -417,7 +260,7 @@ export class MoviesService {
   }
 
   /**
-   * Utility: sleep
+   * utility: sleep
    */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));

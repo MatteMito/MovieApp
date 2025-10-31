@@ -16,6 +16,7 @@ const movie_entity_1 = require("./database/entities/movie.entity");
 const user_entity_1 = require("./database/entities/user.entity");
 const user_movie_entity_1 = require("./database/entities/user-movie.entity");
 const list_entity_1 = require("./database/entities/list.entity");
+const app_controller_1 = require("./app.controller");
 const movies_module_1 = require("./modules/movies/movies.module");
 const auth_module_1 = require("./modules/auth/auth.module");
 const analytics_module_1 = require("./modules/analytics/analytics.module");
@@ -76,6 +77,7 @@ exports.AppModule = AppModule = __decorate([
             lists_module_1.ListsModule,
             websocket_module_1.WebsocketModule,
         ],
+        controllers: [app_controller_1.AppController],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

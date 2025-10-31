@@ -17,10 +17,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.isActive
 import java.io.File
 
 /**
- * worker per import film in background con notifiche
+ * worker per import film in background
+ * fix: gestisce file grandi e timeout esteso
  */
 class ImportWorker(
     private val context: Context,
@@ -52,50 +54,40 @@ class ImportWorker(
 
             //recupera parametri
             val filePath = inputData.getString(KEY_FILE_PATH)
-            val csvTypeString = inputData.getString(KEY_CSV_TYPE)
+                ?: return@withContext Result.failure(workDataOf(KEY_MESSAGE to "file path mancante"))
 
-            if (filePath == null || csvTypeString == null) {
-                Log.e(TAG, "parametri mancanti")
-                return@withContext Result.failure()
-            }
+            val csvType = inputData.getString(KEY_CSV_TYPE)
+                ?: return@withContext Result.failure(workDataOf(KEY_MESSAGE to "csv type mancante"))
 
-            val csvType = CsvType.valueOf(csvTypeString)
             val file = File(filePath)
-
             if (!file.exists()) {
                 Log.e(TAG, "file non trovato: $filePath")
-                return@withContext Result.failure()
+                return@withContext Result.failure(workDataOf(KEY_MESSAGE to "file non trovato"))
             }
 
             //step 1: parsing csv
             setForeground(createForegroundInfo(5, "lettura file csv..."))
             setProgressAsync(workDataOf(KEY_PROGRESS to 5))
 
-            val movies = file.inputStream().use { stream ->
-                when (csvType) {
-                    CsvType.IMDB_WATCHED -> csvProcessor.parseImdbWatchedCsv(stream).movies
-                    CsvType.IMDB_WATCHLIST -> csvProcessor.parseImdbWatchlistCsv(stream).movies
-                    CsvType.LETTERBOXD_WATCHED -> csvProcessor.parseLetterboxdWatchedCsv(stream).movies
-                    CsvType.LETTERBOXD_WATCHLIST -> csvProcessor.parseLetterboxdWatchlistCsv(stream).movies
-                }
+            val csvTypeEnum = when (csvType) {
+                "IMDB_WATCHED" -> CsvType.IMDB_WATCHED
+                "IMDB_WATCHLIST" -> CsvType.IMDB_WATCHLIST
+                "LETTERBOXD_WATCHED" -> CsvType.LETTERBOXD_WATCHED
+                "LETTERBOXD_WATCHLIST" -> CsvType.LETTERBOXD_WATCHLIST
+                else -> return@withContext Result.failure(workDataOf(KEY_MESSAGE to "tipo csv non valido"))
             }
+
+            val movies = csvProcessor.processCsv(filePath, csvTypeEnum)
+            Log.d(TAG, "parsed ${movies.size} film dal csv")
 
             if (movies.isEmpty()) {
-                Log.w(TAG, "nessun film trovato nel file")
-                showCompletionNotification("import completato", "nessun film trovato", false)
-                return@withContext Result.success()
+                Log.w(TAG, "nessun film trovato nel csv")
+                return@withContext Result.failure(workDataOf(KEY_MESSAGE to "nessun film trovato"))
             }
 
-            Log.d(TAG, "parsing completato: ${movies.size} film")
-            setForeground(createForegroundInfo(15, "trovati ${movies.size} film"))
-            setProgressAsync(workDataOf(
-                KEY_PROGRESS to 15,
-                KEY_TOTAL_MOVIES to movies.size
-            ))
-
-            //step 2: connetti websocket
-            setForeground(createForegroundInfo(20, "connessione al server..."))
-            setProgressAsync(workDataOf(KEY_PROGRESS to 20))
+            //step 2: connetti websocket per progress
+            setForeground(createForegroundInfo(15, "connessione al server..."))
+            setProgressAsync(workDataOf(KEY_PROGRESS to 15))
 
             try {
                 webSocketService.connect()
@@ -122,38 +114,39 @@ class ImportWorker(
 
             if (!uploadSuccess) {
                 Log.e(TAG, "upload fallito")
-                showCompletionNotification("import fallito", "errore durante l'upload", false)
-                return@withContext Result.failure()
+                return@withContext Result.failure(workDataOf(KEY_MESSAGE to "errore durante l'upload"))
             }
 
             setForeground(createForegroundInfo(40, "enrichment in corso..."))
             setProgressAsync(workDataOf(KEY_PROGRESS to 40))
 
             //step 5: monitora enrichment via websocket
+            //fix: timeout dinamico basato sul numero di film (1 minuto per 100 film, min 15 min, max 60 min)
             val enrichmentSuccess = monitorEnrichment(movies.size)
 
-            //step 6: refresh finale
+            //step 6: aspetta un po' per sicurezza che il backend finisca
+            delay(3000)
+
+            //step 7: refresh finale
             setForeground(createForegroundInfo(95, "aggiornamento database..."))
             setProgressAsync(workDataOf(KEY_PROGRESS to 95))
 
             val repository = MovieRepository.getInstance(context)
             val refreshSuccess = repository.refreshFromBackend()
 
-            //step 7: completion
+            //step 8: completion
             setForeground(createForegroundInfo(100, "completato!"))
             setProgressAsync(workDataOf(KEY_PROGRESS to 100))
 
             val finalMovies = repository.movies.value ?: emptyList()
             Log.d(TAG, "import completato: ${finalMovies.size} film totali")
 
-            showCompletionNotification(
-                "import completato!",
-                "${movies.size} film importati con successo",
-                true
-            )
-
             //cleanup
             file.delete()
+
+            //rimuovi notifica
+            delay(1000)
+            NotificationHelper.cancelNotification(context, NotificationHelper.NOTIFICATION_ID_IMPORT)
 
             Result.success(workDataOf(
                 KEY_STATUS to "success",
@@ -163,7 +156,10 @@ class ImportWorker(
 
         } catch (e: Exception) {
             Log.e(TAG, "errore import worker: ${e.message}", e)
-            showCompletionNotification("import fallito", e.message ?: "errore sconosciuto", false)
+
+            //rimuovi notifica in caso di errore
+            NotificationHelper.cancelNotification(context, NotificationHelper.NOTIFICATION_ID_IMPORT)
+
             Result.failure(workDataOf(
                 KEY_STATUS to "error",
                 KEY_MESSAGE to e.message
@@ -187,7 +183,7 @@ class ImportWorker(
     }
 
     /**
-     * monitora enrichment via websocket
+     * fix: monitora enrichment con timeout dinamico
      */
     private suspend fun monitorEnrichment(totalMovies: Int): Boolean {
         return withContext(Dispatchers.IO) {
@@ -195,7 +191,13 @@ class ImportWorker(
                 var lastProgress = 40
                 var completed = false
                 val startTime = System.currentTimeMillis()
-                val timeout = 15 * 60 * 1000L //15 minuti
+
+                //fix: timeout dinamico - 1 minuto per 100 film, minimo 15 min, massimo 60 min
+                val baseTimeout = 15 * 60 * 1000L //15 minuti base
+                val additionalTimeout = (totalMovies / 100) * 60 * 1000L //1 min per 100 film
+                val timeout = minOf(baseTimeout + additionalTimeout, 60 * 60 * 1000L) //max 60 min
+
+                Log.d(TAG, "timeout enrichment impostato a ${timeout / 60000} minuti per $totalMovies film")
 
                 //osserva websocket updates
                 coroutineScope {
@@ -221,18 +223,21 @@ class ImportWorker(
                         }
                     }
 
-                    //attendi completamento o timeout
-                    while (!completed && (System.currentTimeMillis() - startTime) < timeout) {
+                    //fix: attendi completamento o timeout con controllo isActive
+                    while (!completed &&
+                        (System.currentTimeMillis() - startTime) < timeout &&
+                        isActive) {
                         delay(500)
                     }
 
                     job.cancel()
                 }
 
-                //se timeout raggiunto, il backend sta ancora lavorando
+                //fix: se timeout raggiunto, il backend continua in background
                 if (!completed) {
                     Log.w(TAG, "timeout raggiunto ma enrichment continua in background")
-                    //non e un errore, ritorna success
+                    Log.w(TAG, "l'import e completato lato app, il backend continua l'elaborazione")
+                    //non e un errore, ritorna success per completare il worker
                     return@withContext true
                 }
 
@@ -240,7 +245,7 @@ class ImportWorker(
 
             } catch (e: Exception) {
                 Log.e(TAG, "errore monitoring enrichment: ${e.message}", e)
-                //procedi comunque
+                //procedi comunque - il backend sta lavorando
                 true
             }
         }
@@ -259,27 +264,6 @@ class ImportWorker(
         )
 
         return ForegroundInfo(NotificationHelper.NOTIFICATION_ID_IMPORT, notification)
-    }
-
-    /**
-     * mostra notifica completamento
-     */
-    private fun showCompletionNotification(title: String, message: String, success: Boolean) {
-        val notification = NotificationHelper.createCompletionNotification(
-            context = context,
-            title = title,
-            message = message,
-            success = success
-        )
-
-        NotificationHelper.showNotification(
-            context,
-            NotificationHelper.NOTIFICATION_ID_IMPORT + 1,
-            notification
-        )
-
-        //rimuovi notifica progress
-        NotificationHelper.cancelNotification(context, NotificationHelper.NOTIFICATION_ID_IMPORT)
     }
 }
 

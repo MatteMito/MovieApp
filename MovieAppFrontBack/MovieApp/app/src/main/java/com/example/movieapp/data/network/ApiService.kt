@@ -292,6 +292,11 @@ interface ApiInterface {
     suspend fun getListFollowers(
         @Path("id") listId: String
     ): Response<List<UserInfo>>
+
+    @DELETE("movies/all")
+    suspend fun deleteAllMovies(
+        @Header("x-user-id") userId: String
+    ): Response<ApiResponse<Any>>
 }
 
 // ============================================
@@ -517,29 +522,39 @@ object ApiService {
         }
     }
 
-    // ============================================
-    // LISTE METHODS
-    // ============================================
-
-    suspend fun deleteAllUserMovies(userId: String): Result<Unit> = withContext(Dispatchers.IO) {
+    /**
+     * fix: elimina tutti i film dell'utente corrente
+     */
+    suspend fun deleteAllUserMovies(): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "🗑️ Eliminazione tutti i film per utente: $userId")
+            val userId = getCurrentUserId()
+            if (userId == null) {
+                Log.e(TAG, "userId non disponibile per deleteAllUserMovies")
+                return@withContext Result.failure(Exception("utente non autenticato"))
+            }
 
+            Log.d(TAG, "🗑️ eliminazione tutti i film per user $userId")
+
+            // usa deleteAllUserMovies() invece di deleteAllMovies()
             val response = apiInterface.deleteAllUserMovies(userId)
 
             if (response.isSuccessful && response.body()?.success == true) {
-                Log.d(TAG, "✅ Film eliminati dal backend")
+                Log.d(TAG, "✅ tutti i film eliminati con successo")
                 Result.success(Unit)
             } else {
-                val error = response.body()?.message ?: "Errore eliminazione"
+                val error = response.body()?.message ?: "errore eliminazione film"
                 Log.w(TAG, "⚠️ $error")
                 Result.failure(Exception(error))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore deleteAllUserMovies", e)
+            Log.e(TAG, "❌ errore deleteAllUserMovies", e)
             Result.failure(e)
         }
     }
+
+    // ============================================
+    // LISTE METHODS
+    // ============================================
 
     suspend fun getUserLists(): Result<List<MovieList>> = withContext(Dispatchers.IO) {
         try {

@@ -26,6 +26,7 @@ import com.github.mikephil.charting.highlight.Highlight
 
 /**
  * fragment con grafici interattivi avanzati per analisi cinematografica
+ * fix: mostra messaggio quando non ci sono film importati
  */
 class NotificationsFragment : Fragment() {
 
@@ -71,9 +72,21 @@ class NotificationsFragment : Fragment() {
     }
 
     private fun setupObservers() {
-        //stats cards
+        //fix: gestisce visualizzazione messaggio quando non ci sono film
         notificationsViewModel.movies.observe(viewLifecycleOwner) { movies ->
-            updateStatsCards(movies.size)
+            val watchedMovies = movies.filter { it.isWatched }
+
+            if (watchedMovies.isEmpty()) {
+                //mostra messaggio nessun film
+                binding.textNoData.visibility = View.VISIBLE
+                binding.cardCharts.visibility = View.GONE
+                binding.cardChartsLoading.visibility = View.GONE
+                Log.d(TAG, "nessun film watched, mostra messaggio")
+            } else {
+                //nascondi messaggio, mostra grafici
+                binding.textNoData.visibility = View.GONE
+                updateStatsCards(movies.size)
+            }
         }
 
         //tempo totale visione
@@ -87,9 +100,19 @@ class NotificationsFragment : Fragment() {
             if (ready) {
                 binding.cardChartsLoading.visibility = View.GONE
                 binding.cardCharts.visibility = View.VISIBLE
+                binding.textNoData.visibility = View.GONE
             } else {
-                binding.cardChartsLoading.visibility = View.VISIBLE
-                binding.cardCharts.visibility = View.GONE
+                //se non ready e non ci sono film, mostra messaggio
+                val movies = notificationsViewModel.movies.value ?: emptyList()
+                val watchedMovies = movies.filter { it.isWatched }
+
+                if (watchedMovies.isEmpty()) {
+                    binding.textNoData.visibility = View.VISIBLE
+                    binding.cardCharts.visibility = View.GONE
+                } else {
+                    binding.cardChartsLoading.visibility = View.VISIBLE
+                    binding.cardCharts.visibility = View.GONE
+                }
             }
         }
 

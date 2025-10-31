@@ -7,6 +7,7 @@ import { MovieEntity } from './database/entities/movie.entity';
 import { UserEntity } from './database/entities/user.entity';
 import { UserMovieEntity } from './database/entities/user-movie.entity';
 import { MovieListEntity } from './database/entities/list.entity';
+import { AppController } from './app.controller';
 import { MoviesModule } from './modules/movies/movies.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
@@ -70,5 +71,6 @@ import { TmdbModule } from './modules/tmdb/tmdb.module';
     ListsModule,
     WebsocketModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}

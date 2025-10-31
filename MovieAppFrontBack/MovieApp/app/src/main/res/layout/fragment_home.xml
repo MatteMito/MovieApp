@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- fix: rimossa progress bar dalla card statistiche, mantiene solo quella principale per enrichment -->
 <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -19,7 +20,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- card statistiche con progress bar film visti -->
+            <!-- card statistiche senza progress bar interna -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -122,52 +123,24 @@
                         </LinearLayout>
                     </GridLayout>
 
-                    <!-- progress bar film visti / totale -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:paddingTop="8dp"
-                        android:paddingBottom="8dp">
-
-                        <ProgressBar
-                            android:id="@+id/progress_stats"
-                            style="@android:style/Widget.ProgressBar.Horizontal"
-                            android:layout_width="0dp"
-                            android:layout_height="8dp"
-                            android:layout_weight="1"
-                            android:max="100"
-                            android:progress="0"
-                            android:progressTint="@color/success_green"
-                            android:progressBackgroundTint="@color/background_light"/>
-
-                        <TextView
-                            android:id="@+id/text_progress_percentage"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/stats_completed_percentage"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginStart="12dp"
-                            tools:text="0% completato"/>
-                    </LinearLayout>
+                    <!-- fix: rimossa progress bar qui, viene mostrata solo quella principale sotto -->
+                    <!-- progress bar film visti / totale - rimossa -->
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- progress bar import (separata, per l'enrichment) -->
+            <!-- progress bar import (unica, per l'enrichment) -->
             <ProgressBar
                 android:id="@+id/progress_bar_import"
                 style="@android:style/Widget.ProgressBar.Horizontal"
                 android:layout_width="match_parent"
-                android:layout_height="6dp"
+                android:layout_height="8dp"
                 android:layout_marginBottom="16dp"
                 android:max="100"
                 android:progress="0"
                 android:visibility="gone"
                 android:progressTint="@color/primary_blue"
+                android:progressBackgroundTint="@color/background_light"
                 tools:visibility="visible"
                 tools:progress="45"/>
 
@@ -189,90 +162,106 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📥 IMDb"
+                        android:text="📥 Importa Film"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="@color/text_primary"
-                        android:layout_marginBottom="12dp"/>
+                        android:layout_marginBottom="16dp"/>
 
+                    <!-- imdb watched button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_import_imdb_watched"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/import_imdb_watched"
+                        android:text="IMDb Watched"
                         android:textAllCaps="false"
-                        app:cornerRadius="12dp"
-                        style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_marginBottom="8dp"/>
+                        android:layout_marginBottom="12dp"
+                        app:icon="@drawable/ic_upload"
+                        app:iconGravity="start"/>
 
+                    <!-- imdb watchlist button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_import_imdb_watchlist"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/import_imdb_watchlist"
+                        android:text="IMDb Watchlist"
                         android:textAllCaps="false"
-                        app:cornerRadius="12dp"
+                        android:layout_marginBottom="12dp"
+                        app:icon="@drawable/ic_upload"
+                        app:iconGravity="start"
                         style="@style/Widget.Material3.Button.TonalButton"/>
+
+                    <!-- letterboxd watched button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_import_letterboxd_watched"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Letterboxd Watched"
+                        android:textAllCaps="false"
+                        android:layout_marginBottom="12dp"
+                        app:icon="@drawable/ic_upload"
+                        app:iconGravity="start"/>
+
+                    <!-- letterboxd watchlist button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_import_letterboxd_watchlist"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Letterboxd Watchlist"
+                        android:textAllCaps="false"
+                        android:layout_marginBottom="12dp"
+                        app:icon="@drawable/ic_upload"
+                        app:iconGravity="start"
+                        style="@style/Widget.Material3.Button.TonalButton"/>
+
+                    <!-- clear all button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_clear_all"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/clear_all"
+                        android:textAllCaps="false"
+                        app:icon="@drawable/ic_delete"
+                        app:iconGravity="start"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        app:strokeColor="@color/error_red"
+                        android:textColor="@color/error_red"/>
+
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- letterboxd buttons -->
+            <!-- info card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="4dp"
-                app:cardBackgroundColor="@color/white">
+                app:cardBackgroundColor="@color/primary_blue_light">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="16dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📥 Letterboxd"
-                        android:textSize="18sp"
+                        android:text="ℹ️ Info"
+                        android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="@color/text_primary"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/button_import_letterboxd_watched"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/import_letterboxd_watched"
-                        android:textAllCaps="false"
-                        app:cornerRadius="12dp"
-                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:textColor="@color/primary_blue"
                         android:layout_marginBottom="8dp"/>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/button_import_letterboxd_watchlist"
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/import_letterboxd_watchlist"
-                        android:textAllCaps="false"
-                        app:cornerRadius="12dp"
-                        style="@style/Widget.Material3.Button.TonalButton"/>
+                        android:text="@string/import_info_text"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_secondary"
+                        android:lineSpacingExtra="4dp"/>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
-
-            <!-- pulsante clear all -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_clear_all"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/clear_all"
-                android:textAllCaps="false"
-                app:cornerRadius="12dp"
-                app:icon="@drawable/ic_delete"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                app:strokeColor="@color/error_red"
-                android:textColor="@color/error_red"/>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
