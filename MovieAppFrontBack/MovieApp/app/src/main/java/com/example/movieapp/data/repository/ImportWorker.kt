@@ -10,7 +10,7 @@ import com.example.movieapp.data.models.Movie
 import com.example.movieapp.data.network.ApiService
 import com.example.movieapp.data.network.WebSocketService
 import com.example.movieapp.data.parser.CsvProcessor
-import com.example.movieapp.data.repository.MovieRepository
+import com.example.movieapp.data.parser.CsvParseResult
 import com.example.movieapp.data.network.NotificationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -18,7 +18,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.Job
 import java.io.File
+import java.io.FileInputStream
 
 /**
  * worker per import film in background
@@ -69,15 +71,17 @@ class ImportWorker(
             setForeground(createForegroundInfo(5, "lettura file csv..."))
             setProgressAsync(workDataOf(KEY_PROGRESS to 5))
 
-            val csvTypeEnum = when (csvType) {
-                "IMDB_WATCHED" -> CsvType.IMDB_WATCHED
-                "IMDB_WATCHLIST" -> CsvType.IMDB_WATCHLIST
-                "LETTERBOXD_WATCHED" -> CsvType.LETTERBOXD_WATCHED
-                "LETTERBOXD_WATCHLIST" -> CsvType.LETTERBOXD_WATCHLIST
+            //fix: chiama il metodo corretto in base al tipo
+            val parseResult: CsvParseResult = when (csvType) {
+                "IMDB_WATCHED" -> csvProcessor.parseImdbWatchedCsv(FileInputStream(file))
+                "IMDB_WATCHLIST" -> csvProcessor.parseImdbWatchlistCsv(FileInputStream(file))
+                "LETTERBOXD_WATCHED" -> csvProcessor.parseLetterboxdWatchedCsv(FileInputStream(file))
+                "LETTERBOXD_WATCHLIST" -> csvProcessor.parseLetterboxdWatchlistCsv(FileInputStream(file))
                 else -> return@withContext Result.failure(workDataOf(KEY_MESSAGE to "tipo csv non valido"))
             }
 
-            val movies = csvProcessor.processCsv(filePath, csvTypeEnum)
+            val movies = parseResult.movies
+
             Log.d(TAG, "parsed ${movies.size} film dal csv")
 
             if (movies.isEmpty()) {
@@ -110,111 +114,82 @@ class ImportWorker(
             setForeground(createForegroundInfo(30, "invio film al server..."))
             setProgressAsync(workDataOf(KEY_PROGRESS to 30))
 
-            val uploadSuccess = uploadMovies(watchlist, watched)
+            val uploadResult = ApiService.batchUpload(watchlist, watched)
 
-            if (!uploadSuccess) {
-                Log.e(TAG, "upload fallito")
-                return@withContext Result.failure(workDataOf(KEY_MESSAGE to "errore durante l'upload"))
+            if (uploadResult.isFailure) {
+                Log.e(TAG, "errore upload: ${uploadResult.exceptionOrNull()?.message}")
+                return@withContext Result.failure(
+                    workDataOf(KEY_MESSAGE to "errore upload: ${uploadResult.exceptionOrNull()?.message}")
+                )
             }
 
+            val batchResponse = uploadResult.getOrNull()
+            if (batchResponse == null) {
+                return@withContext Result.failure(workDataOf(KEY_MESSAGE to "risposta backend vuota"))
+            }
+
+            Log.d(TAG, "upload completato, session: ${batchResponse.sessionId}")
             setForeground(createForegroundInfo(40, "enrichment in corso..."))
             setProgressAsync(workDataOf(KEY_PROGRESS to 40))
 
             //step 5: monitora enrichment via websocket
-            //fix: timeout dinamico basato sul numero di film (1 minuto per 100 film, min 15 min, max 60 min)
-            val enrichmentSuccess = monitorEnrichment(movies.size)
+            val enrichmentCompleted = monitorEnrichmentProgress(batchResponse.sessionId)
 
-            //step 6: aspetta un po' per sicurezza che il backend finisca
-            delay(3000)
+            if (enrichmentCompleted) {
+                setForeground(createForegroundInfo(100, "import completato!"))
+                setProgressAsync(workDataOf(KEY_PROGRESS to 100))
 
-            //step 7: refresh finale
-            setForeground(createForegroundInfo(95, "aggiornamento database..."))
-            setProgressAsync(workDataOf(KEY_PROGRESS to 95))
+                delay(1000)
 
-            val repository = MovieRepository.getInstance(context)
-            val refreshSuccess = repository.refreshFromBackend()
-
-            //step 8: completion
-            setForeground(createForegroundInfo(100, "completato!"))
-            setProgressAsync(workDataOf(KEY_PROGRESS to 100))
-
-            val finalMovies = repository.movies.value ?: emptyList()
-            Log.d(TAG, "import completato: ${finalMovies.size} film totali")
-
-            //cleanup
-            file.delete()
-
-            //rimuovi notifica
-            delay(1000)
-            NotificationHelper.cancelNotification(context, NotificationHelper.NOTIFICATION_ID_IMPORT)
-
-            Result.success(workDataOf(
-                KEY_STATUS to "success",
-                KEY_MESSAGE to "import completato",
-                KEY_TOTAL_MOVIES to finalMovies.size
-            ))
+                Log.d(TAG, "=== import worker completed ===")
+                return@withContext Result.success(
+                    workDataOf(
+                        KEY_MESSAGE to "import completato: ${movies.size} film",
+                        KEY_TOTAL_MOVIES to movies.size
+                    )
+                )
+            } else {
+                Log.w(TAG, "timeout enrichment ma backend continua")
+                return@withContext Result.success(
+                    workDataOf(
+                        KEY_MESSAGE to "import avviato: ${movies.size} film",
+                        KEY_TOTAL_MOVIES to movies.size
+                    )
+                )
+            }
 
         } catch (e: Exception) {
-            Log.e(TAG, "errore import worker: ${e.message}", e)
-
-            //rimuovi notifica in caso di errore
-            NotificationHelper.cancelNotification(context, NotificationHelper.NOTIFICATION_ID_IMPORT)
-
-            Result.failure(workDataOf(
-                KEY_STATUS to "error",
-                KEY_MESSAGE to e.message
-            ))
+            Log.e(TAG, "errore worker: ${e.message}", e)
+            return@withContext Result.failure(
+                workDataOf(KEY_MESSAGE to "errore: ${e.message}")
+            )
         }
     }
 
     /**
-     * upload film al backend
+     * monitora progress enrichment via websocket
      */
-    private suspend fun uploadMovies(watchlist: List<Movie>, watched: List<Movie>): Boolean {
+    private suspend fun monitorEnrichmentProgress(sessionId: String): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val result = ApiService.batchUpload(watchlist, watched)
-                result.isSuccess
-            } catch (e: Exception) {
-                Log.e(TAG, "errore upload: ${e.message}", e)
-                false
-            }
-        }
-    }
-
-    /**
-     * fix: monitora enrichment con timeout dinamico
-     */
-    private suspend fun monitorEnrichment(totalMovies: Int): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                var lastProgress = 40
                 var completed = false
+                val timeout = 10 * 60 * 1000L
                 val startTime = System.currentTimeMillis()
 
-                //fix: timeout dinamico - 1 minuto per 100 film, minimo 15 min, massimo 60 min
-                val baseTimeout = 15 * 60 * 1000L //15 minuti base
-                val additionalTimeout = (totalMovies / 100) * 60 * 1000L //1 min per 100 film
-                val timeout = minOf(baseTimeout + additionalTimeout, 60 * 60 * 1000L) //max 60 min
-
-                Log.d(TAG, "timeout enrichment impostato a ${timeout / 60000} minuti per $totalMovies film")
-
-                //osserva websocket updates
                 coroutineScope {
-                    val job = launch {
+                    val job: Job = launch {
                         webSocketService.enrichmentUpdates.collect { update ->
-                            if (update != null) {
-                                val progress = 40 + ((update.processed.toFloat() / update.total) * 55).toInt()
+                            //fix: controlla se update non è null
+                            if (update != null && update.sessionId == sessionId) {
+                                val progress = ((update.processed.toFloat() / update.total) * 55 + 40).toInt()
+                                setProgressAsync(workDataOf(KEY_PROGRESS to progress))
 
-                                if (progress > lastProgress) {
-                                    lastProgress = progress
-                                    val message = "enrichment ${update.processed}/${update.total}: ${update.currentMovie}"
-
-                                    setForeground(createForegroundInfo(progress, message))
-                                    setProgressAsync(workDataOf(KEY_PROGRESS to progress))
-
-                                    Log.d(TAG, message)
-                                }
+                                setForeground(
+                                    createForegroundInfo(
+                                        progress,
+                                        "enrichment: ${update.processed}/${update.total}"
+                                    )
+                                )
 
                                 if (update.processed >= update.total) {
                                     completed = true
@@ -223,7 +198,7 @@ class ImportWorker(
                         }
                     }
 
-                    //fix: attendi completamento o timeout con controllo isActive
+                    //aspetta completamento o timeout con controllo isActive
                     while (!completed &&
                         (System.currentTimeMillis() - startTime) < timeout &&
                         isActive) {

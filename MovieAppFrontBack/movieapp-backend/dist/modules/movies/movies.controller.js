@@ -301,7 +301,7 @@ let MoviesController = MoviesController_1 = class MoviesController {
             return {
                 success: true,
                 data: result,
-                message: `eliminati ${result.deletedCount} film`,
+                message: `eliminati ${result.deleted} film`,
                 timestamp: new Date().toISOString(),
             };
         }

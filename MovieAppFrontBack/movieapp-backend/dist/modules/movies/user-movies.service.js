@@ -23,9 +23,35 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
         this.userMovieRepository = userMovieRepository;
         this.logger = new common_1.Logger(UserMoviesService_1.name);
     }
+    async associateMoviesToUser(userId, movies, status) {
+        try {
+            this.logger.log(`associazione ${movies.length} film (${status}) a user ${userId}`);
+            const movieStatus = status === 'watched' ? user_movie_entity_1.MovieStatus.WATCHED : user_movie_entity_1.MovieStatus.WATCHLIST;
+            for (const movie of movies) {
+                const existing = await this.userMovieRepository.findOne({
+                    where: { userId, movieId: movie.id },
+                });
+                if (!existing) {
+                    const userMovie = this.userMovieRepository.create({
+                        userId,
+                        movieId: movie.id,
+                        status: movieStatus,
+                        userRating: movie.user_rating,
+                        watchedDate: movie.watched_date ? new Date(movie.watched_date) : null,
+                    });
+                    await this.userMovieRepository.save(userMovie);
+                }
+            }
+            this.logger.log(`associati ${movies.length} film come ${status}`);
+        }
+        catch (error) {
+            this.logger.error(`errore associateMoviesToUser: ${error.message}`);
+            throw error;
+        }
+    }
     async batchAssociateMovies(userId, movies) {
         try {
-            this.logger.log(`📦 Batch: ${movies.length} film per utente ${userId}`);
+            this.logger.log(`batch: ${movies.length} film per utente ${userId}`);
             let created = 0;
             let updated = 0;
             let watchedInFile = 0;
@@ -60,15 +86,15 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
                         created++;
                     }
                 }
-                this.logger.log(`✅ Chunk ${Math.floor(i / CHUNK_SIZE) + 1}: ${chunk.length} film`);
+                this.logger.log(`chunk ${Math.floor(i / CHUNK_SIZE) + 1}: ${chunk.length} film`);
             }
-            this.logger.log(`=== BATCH COMPLETATO ===`);
-            this.logger.log(`Creati: ${created}, Aggiornati: ${updated}`);
-            this.logger.log(`Watched: ${watchedInFile}, Watchlist: ${watchlistInFile}`);
+            this.logger.log(`=== batch completato ===`);
+            this.logger.log(`creati: ${created}, aggiornati: ${updated}`);
+            this.logger.log(`watched: ${watchedInFile}, watchlist: ${watchlistInFile}`);
             return { created, updated, watchedInFile, watchlistInFile };
         }
         catch (error) {
-            this.logger.error(`Errore batch: ${error.message}`);
+            this.logger.error(`errore batch: ${error.message}`);
             throw error;
         }
     }
@@ -117,11 +143,11 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
                 watched_date: um.watchedDate?.toISOString(),
                 is_watched: um.status === user_movie_entity_1.MovieStatus.WATCHED,
             }));
-            this.logger.debug(`📚 Recuperati ${movies.length} film per utente ${userId}`);
+            this.logger.debug(`recuperati ${movies.length} film per utente ${userId}`);
             return movies;
         }
         catch (error) {
-            this.logger.error(`Errore getUserMovies: ${error.message}`);
+            this.logger.error(`errore getUserMovies: ${error.message}`);
             return [];
         }
     }
@@ -145,23 +171,29 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
                 ? ratingsWithValues.reduce((sum, r) => sum + r, 0) / ratingsWithValues.length
                 : 0;
             const totalMovies = watched + watchlist;
-            this.logger.debug(`📊 Stats utente ${userId}: ${totalMovies} film (${watched} visti, ${watchlist} da vedere)`);
+            this.logger.debug(`stats utente ${userId}: ${totalMovies} film (${watched} visti, ${watchlist} da vedere)`);
             return {
                 userId,
                 totalMovies,
                 watchedCount: watched,
                 watchlistCount: watchlist,
                 averageRating: parseFloat(averageRating.toFixed(2)),
+                watched,
+                watchlist,
+                total: totalMovies,
             };
         }
         catch (error) {
-            this.logger.error(`Errore getUserMovieStats: ${error.message}`);
+            this.logger.error(`errore getUserMovieStats: ${error.message}`);
             return {
                 userId,
                 totalMovies: 0,
                 watchedCount: 0,
                 watchlistCount: 0,
                 averageRating: 0,
+                watched: 0,
+                watchlist: 0,
+                total: 0,
             };
         }
     }
@@ -176,7 +208,7 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
             };
         }
         catch (error) {
-            this.logger.error(`Errore getImportCounters: ${error.message}`);
+            this.logger.error(`errore getImportCounters: ${error.message}`);
             return {
                 watchedFromFile: 0,
                 watchlistFromFile: 0,

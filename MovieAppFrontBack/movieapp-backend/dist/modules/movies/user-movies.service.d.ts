@@ -7,6 +7,9 @@ export interface UserMovieStats {
     watchedCount: number;
     watchlistCount: number;
     averageRating: number;
+    watched: number;
+    watchlist: number;
+    total: number;
 }
 export interface ImportCounters {
     watchedFromFile: number;
@@ -18,6 +21,7 @@ export declare class UserMoviesService {
     private readonly userMovieRepository;
     private readonly logger;
     constructor(userMovieRepository: Repository<UserMovieEntity>);
+    associateMoviesToUser(userId: string, movies: Movie[], status: 'watched' | 'watchlist'): Promise<void>;
     batchAssociateMovies(userId: string, movies: Array<{
         movieId: string;
         status: MovieStatus;

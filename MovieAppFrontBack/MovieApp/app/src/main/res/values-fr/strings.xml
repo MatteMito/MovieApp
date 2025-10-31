@@ -55,6 +55,8 @@
     <string name="letterboxd_watched_help">1. Allez sur Letterboxd.com\n2. Connectez-vous à votre compte\n3. Allez sur Settings > Import &amp; Export\n4. Cliquez sur \"Export Your Data\"\n5. Téléchargez \"watched.csv\"\n\nSélectionnez le fichier téléchargé pour l\'importer.</string>
     <string name="letterboxd_watchlist_help">1. Allez sur Letterboxd.com\n2. Connectez-vous à votre compte\n3. Allez sur Settings > Import &amp; Export\n4. Cliquez sur \"Export Your Data\"\n5. Téléchargez \"watchlist.csv\"\n\nSélectionnez le fichier téléchargé pour l\'importer.</string>
 
+    <string name="import_info_text">Sélectionnez des fichiers CSV depuis IMDb ou Letterboxd pour importer vos films.\n\nL\'application les enrichira automatiquement avec des données TMDB (affiches, détails, notes).\n\n📊 Après l\'importation, consultez vos statistiques dans le Dashboard!</string>
+
     <!-- CLEAR ALL -->
     <string name="clear_all_title">Supprimer tous les films?</string>
     <string name="clear_all_message">Cette action supprimera tous vos films de la base de données.\n\nVoulez-vous continuer?</string>

@@ -1,1 +1,1 @@
-{"version":3,"file":"movie.interface.js","sourceRoot":"","sources":["../../../src/common/interfaces/movie.interface.ts"],"names":[],"mappings":";;;AAqMA,IAAY,UAKX;AALD,WAAY,UAAU;IACpB,2BAAa,CAAA;IACb,uCAAyB,CAAA;IACzB,+BAAiB,CAAA;IACjB,iCAAmB,CAAA;AACrB,CAAC,EALW,UAAU,0BAAV,UAAU,QAKrB"}
+{"version":3,"file":"movie.interface.js","sourceRoot":"","sources":["../../../src/common/interfaces/movie.interface.ts"],"names":[],"mappings":";;;AAsLA,IAAY,UAKX;AALD,WAAY,UAAU;IACpB,2BAAa,CAAA;IACb,uCAAyB,CAAA;IACzB,+BAAiB,CAAA;IACjB,iCAAmB,CAAA;AACrB,CAAC,EALW,UAAU,0BAAV,UAAU,QAKrB"}

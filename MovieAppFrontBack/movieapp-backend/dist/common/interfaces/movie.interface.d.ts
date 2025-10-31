@@ -3,6 +3,10 @@ export interface Movie {
     title: string;
     year?: number;
     source: string;
+    user_rating?: number;
+    watched_date?: string;
+    is_watched?: boolean;
+    user_review?: string;
     tmdb_id?: number;
     director?: string;
     genres?: string[];
@@ -129,6 +133,12 @@ export interface TmdbMovieDetails {
         iso_639_1: string;
         name: string;
     }>;
+    keywords?: {
+        keywords: Array<{
+            id: number;
+            name: string;
+        }>;
+    };
     credits?: {
         cast: Array<{
             id: number;
@@ -143,19 +153,12 @@ export interface TmdbMovieDetails {
             department: string;
         }>;
     };
-    keywords?: {
-        keywords: Array<{
-            id: number;
-            name: string;
-        }>;
-    };
     videos?: {
         results: Array<{
-            id: string;
             key: string;
-            name: string;
             site: string;
             type: string;
+            official: boolean;
         }>;
     };
     releases?: {

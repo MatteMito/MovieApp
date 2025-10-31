@@ -14,6 +14,7 @@ import com.example.movieapp.data.models.Movie
 import com.example.movieapp.data.repository.ImportWorker
 import com.example.movieapp.data.repository.MovieRepository
 import com.example.movieapp.data.network.WebSocketService
+import com.example.movieapp.data.network.ApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,7 +49,7 @@ class HomeViewModel : ViewModel() {
     fun initialize(context: Context) {
         repository = MovieRepository.getInstance(context)
 
-        //osserva movies dal repository
+        //fix: osserva movies dal repository SENZA suspend
         repository.movies.observeForever { moviesList ->
             _movies.value = moviesList
             Log.d(TAG, "movies aggiornati da repository: ${moviesList.size}")
@@ -68,7 +69,8 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
 
-            val movies = repository.getLocalMovies()
+            //usa movies dal repository
+            val movies = repository.movies.value ?: emptyList()
             _movies.value = movies
 
             _isLoading.value = false
@@ -86,7 +88,8 @@ class HomeViewModel : ViewModel() {
             try {
                 val success = repository.refreshFromBackend()
                 if (success) {
-                    val movies = repository.getLocalMovies()
+                    //usa movies dal repository
+                    val movies = repository.movies.value ?: emptyList()
                     _movies.value = movies
                     Log.d(TAG, "refresh completato: ${movies.size} film")
                 } else {
@@ -165,29 +168,31 @@ class HomeViewModel : ViewModel() {
                             WorkInfo.State.RUNNING -> {
                                 val progress = workInfo.progress.getInt(ImportWorker.KEY_PROGRESS, 0)
                                 _importProgress.value = progress
-                                Log.d(TAG, "work running: $progress%")
                             }
                             WorkInfo.State.SUCCEEDED -> {
                                 _isImporting.value = false
                                 _importProgress.value = 100
+                                _message.value = "Import completato!"
+                                Log.d(TAG, "import worker succeeded")
 
-                                //fix: refresh automatico dopo import per aggiornare contatori
-                                Log.d(TAG, "import completato, avvio refresh automatico...")
-                                refreshFromBackend()
-
-                                Log.d(TAG, "work completato con successo")
+                                //refresh automatico dopo import
+                                viewModelScope.launch {
+                                    delay(1000)
+                                    refreshFromBackend()
+                                }
                             }
                             WorkInfo.State.FAILED -> {
                                 _isImporting.value = false
                                 _importProgress.value = 0
-                                _message.value = "import fallito"
-                                Log.e(TAG, "work fallito")
+                                val errorMsg = workInfo.outputData.getString(ImportWorker.KEY_MESSAGE) ?: "Import fallito"
+                                _message.value = errorMsg
+                                Log.e(TAG, "import worker failed: $errorMsg")
                             }
                             WorkInfo.State.CANCELLED -> {
                                 _isImporting.value = false
                                 _importProgress.value = 0
-                                _message.value = "import annullato"
-                                Log.w(TAG, "work annullato")
+                                _message.value = "Import annullato"
+                                Log.w(TAG, "import worker cancelled")
                             }
                             else -> {
                                 Log.d(TAG, "work state: ${workInfo.state}")
@@ -199,13 +204,13 @@ class HomeViewModel : ViewModel() {
     }
 
     /**
-     * osserva progress websocket real-time
+     * osserva websocket progress per enrichment real-time
      */
     private fun observeWebSocketProgress() {
         viewModelScope.launch {
             webSocketService.enrichmentUpdates.collect { update ->
-                if (update != null && _isImporting.value == true) {
-                    //calcola progress: 40-95% per enrichment
+                update?.let {
+                    //progress enrichment tra 40-95%
                     val currentProgress = _importProgress.value ?: 40
 
                     if (update.total > 0) {

@@ -23,14 +23,61 @@ const tmdb_service_1 = require("../tmdb/tmdb.service");
 const database_service_1 = require("../../database/database.service");
 const websocket_gateway_1 = require("../websocket/websocket.gateway");
 const uuid_1 = require("uuid");
+const user_movies_service_1 = require("./user-movies.service");
+const user_movie_entity_2 = require("../../database/entities/user-movie.entity");
 let MoviesService = MoviesService_1 = class MoviesService {
-    constructor(movieRepository, userMovieRepository, tmdbService, databaseService, websocketGateway) {
+    constructor(movieRepository, userMovieRepository, tmdbService, databaseService, websocketGateway, userMoviesService) {
         this.movieRepository = movieRepository;
         this.userMovieRepository = userMovieRepository;
         this.tmdbService = tmdbService;
         this.databaseService = databaseService;
         this.websocketGateway = websocketGateway;
+        this.userMoviesService = userMoviesService;
         this.logger = new common_1.Logger(MoviesService_1.name);
+    }
+    async healthCheck() {
+        try {
+            const movieCount = await this.movieRepository.count();
+            const userMovieCount = await this.userMovieRepository.count();
+            return {
+                status: 'ok',
+                database: 'connected',
+                movies: movieCount,
+                userMovies: userMovieCount,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`health check failed: ${error.message}`);
+            return {
+                status: 'error',
+                database: 'disconnected',
+                error: error.message,
+                timestamp: new Date().toISOString(),
+            };
+        }
+    }
+    async getStats() {
+        try {
+            const totalMovies = await this.movieRepository.count();
+            const enrichedMovies = await this.movieRepository.count({
+                where: { tmdb_id: (0, typeorm_2.Not)((0, typeorm_2.IsNull)()) },
+            });
+            const totalUserMovies = await this.userMovieRepository.count();
+            return {
+                database: {
+                    totalMovies,
+                    enrichedMovies,
+                    totalUserMovies,
+                    enrichmentRate: totalMovies > 0 ? (enrichedMovies / totalMovies) * 100 : 0,
+                },
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore stats: ${error.message}`);
+            throw error;
+        }
     }
     async enrichMovies(movies) {
         const sessionId = (0, uuid_1.v4)();
@@ -76,33 +123,57 @@ let MoviesService = MoviesService_1 = class MoviesService {
         };
     }
     async batchUpload(watchlist, watched, userId) {
-        this.logger.log(`batch upload: ${watchlist.length} watchlist, ${watched.length} watched`);
-        const [watchlistResult, watchedResult] = await Promise.all([
-            this.enrichMovies(watchlist),
-            this.enrichMovies(watched),
-        ]);
-        const totalEnriched = watchlistResult.successfulMovies.length + watchedResult.successfulMovies.length;
-        const totalProcessed = watchlistResult.totalProcessed + watchedResult.totalProcessed;
+        const sessionId = (0, uuid_1.v4)();
+        this.logger.log(`batch upload per user ${userId}:`);
+        this.logger.log(`  watchlist: ${watchlist.length} film`);
+        this.logger.log(`  watched: ${watched.length} film`);
+        const watchlistResult = await this.enrichMovies(watchlist);
+        const watchedResult = await this.enrichMovies(watched);
+        const fromFile = {
+            watched: watched.length,
+            watchlist: watchlist.length,
+            total: watched.length + watchlist.length,
+        };
+        await this.userMoviesService.associateMoviesToUser(userId, watchlistResult.successfulMovies, 'watchlist');
+        await this.userMoviesService.associateMoviesToUser(userId, watchedResult.successfulMovies, 'watched');
+        const stats = await this.userMoviesService.getUserMovieStats(userId);
+        const afterRefresh = {
+            totalWatched: stats.watched,
+            totalWatchlist: stats.watchlist,
+            total: stats.total,
+        };
+        const summary = {
+            totalMovies: watchlist.length + watched.length,
+            watchlistCount: watchlist.length,
+            watchedCount: watched.length,
+            totalEnriched: watchlistResult.successfulMovies.length +
+                watchedResult.successfulMovies.length,
+            overallSuccessRate: ((watchlistResult.successfulMovies.length +
+                watchedResult.successfulMovies.length) /
+                (watchlist.length + watched.length)) *
+                100,
+            cacheHitsTotal: watchlistResult.cacheHits + watchedResult.cacheHits,
+        };
         return {
-            sessionId: (0, uuid_1.v4)(),
+            sessionId,
             watchlistResult,
             watchedResult,
-            summary: {
-                totalMovies: totalProcessed,
-                watchlistCount: watchlist.length,
-                watchedCount: watched.length,
-                totalEnriched,
-                overallSuccessRate: (totalEnriched / totalProcessed) * 100,
-                cacheHitsTotal: 0,
+            summary,
+            counters: {
+                fromFile,
+                afterRefresh,
             },
         };
     }
     async batchUploadWithUserAssociation(userId, watchlist, watched) {
         this.logger.log(`batch upload per user ${userId}: ${watchlist.length} watchlist, ${watched.length} watched`);
-        const result = await this.batchUpload(watchlist, watched, userId);
+        const watchedFromFile = watched.length;
+        const watchlistFromFile = watchlist.length;
+        const watchlistResult = await this.enrichMovies(watchlist);
+        const watchedResult = await this.enrichMovies(watched);
         this.logger.log(`creazione associazioni user_movies...`);
-        const watchlistMovies = result.watchlistResult.successfulMovies;
-        const watchedMovies = result.watchedResult.successfulMovies;
+        const watchlistMovies = watchlistResult.successfulMovies;
+        const watchedMovies = watchedResult.successfulMovies;
         let watchedCreated = 0;
         let watchlistCreated = 0;
         for (const movie of watchlistMovies) {
@@ -117,17 +188,16 @@ let MoviesService = MoviesService_1 = class MoviesService {
                     const userMovie = this.userMovieRepository.create({
                         userId: userId,
                         movieId: movie.id,
-                        status: user_movie_entity_1.MovieStatus.WATCHLIST,
-                        userRating: null,
+                        status: user_movie_entity_2.MovieStatus.WATCHLIST,
+                        userRating: movie.user_rating || null,
                         watchedDate: null,
                     });
                     await this.userMovieRepository.save(userMovie);
                     watchlistCreated++;
-                    this.logger.debug(`associato watchlist: ${movie.title}`);
                 }
             }
             catch (error) {
-                this.logger.warn(`errore associazione ${movie.title}: ${error.message}`);
+                this.logger.warn(`errore associazione watchlist ${movie.title}: ${error.message}`);
             }
         }
         for (const movie of watchedMovies) {
@@ -142,39 +212,178 @@ let MoviesService = MoviesService_1 = class MoviesService {
                     const userMovie = this.userMovieRepository.create({
                         userId: userId,
                         movieId: movie.id,
-                        status: user_movie_entity_1.MovieStatus.WATCHED,
+                        status: user_movie_entity_2.MovieStatus.WATCHED,
                         userRating: movie.user_rating || null,
                         watchedDate: movie.watched_date ? new Date(movie.watched_date) : null,
                     });
                     await this.userMovieRepository.save(userMovie);
                     watchedCreated++;
-                    this.logger.debug(`associato watched: ${movie.title}`);
                 }
             }
             catch (error) {
-                this.logger.warn(`errore associazione ${movie.title}: ${error.message}`);
+                this.logger.warn(`errore associazione watched ${movie.title}: ${error.message}`);
             }
         }
-        this.logger.log(`associazioni create: ${watchedCreated} watched, ${watchlistCreated} watchlist`);
-        const totalWatched = await this.userMovieRepository.count({
-            where: { userId, status: user_movie_entity_1.MovieStatus.WATCHED },
-        });
-        const totalWatchlist = await this.userMovieRepository.count({
-            where: { userId, status: user_movie_entity_1.MovieStatus.WATCHLIST },
-        });
-        this.logger.log(`totali database: ${totalWatched} watched, ${totalWatchlist} watchlist`);
+        this.logger.log(`associazioni create: ${watchlistCreated} watchlist, ${watchedCreated} watched`);
+        const stats = await this.userMoviesService.getUserMovieStats(userId);
+        const totalEnriched = watchlistResult.successfulMovies.length + watchedResult.successfulMovies.length;
+        const totalProcessed = watchlistResult.totalProcessed + watchedResult.totalProcessed;
         return {
-            ...result,
+            sessionId: (0, uuid_1.v4)(),
+            watchlistResult,
+            watchedResult,
+            summary: {
+                totalMovies: totalProcessed,
+                watchlistCount: watchlist.length,
+                watchedCount: watched.length,
+                totalEnriched,
+                overallSuccessRate: (totalEnriched / totalProcessed) * 100,
+                cacheHitsTotal: watchlistResult.cacheHits + watchedResult.cacheHits,
+            },
             importCounters: {
-                watchedFromFile: watched.length,
-                watchlistFromFile: watchlist.length,
-                totalWatched,
-                totalWatchlist,
+                watchedFromFile,
+                watchlistFromFile,
+                totalWatched: stats.watched,
+                totalWatchlist: stats.watchlist,
             },
         };
     }
+    async getUserMovies(userId, filters) {
+        try {
+            this.logger.log(`recupero film per user ${userId} con filtri:`, filters);
+            const movies = await this.userMoviesService.getUserMovies(userId, filters.status);
+            let filteredMovies = movies;
+            if (filters.query) {
+                const query = filters.query.toLowerCase();
+                filteredMovies = filteredMovies.filter((m) => m.title.toLowerCase().includes(query) ||
+                    m.director?.toLowerCase().includes(query));
+            }
+            if (filters.genre) {
+                filteredMovies = filteredMovies.filter((m) => m.genres?.some((g) => g.toLowerCase().includes(filters.genre.toLowerCase())));
+            }
+            if (filters.year) {
+                filteredMovies = filteredMovies.filter((m) => m.year === filters.year);
+            }
+            if (filters.director) {
+                filteredMovies = filteredMovies.filter((m) => m.director?.toLowerCase().includes(filters.director.toLowerCase()));
+            }
+            if (filters.minRating) {
+                filteredMovies = filteredMovies.filter((m) => (m.tmdb_rating || 0) >= filters.minRating);
+            }
+            if (filters.maxRating) {
+                filteredMovies = filteredMovies.filter((m) => (m.tmdb_rating || 0) <= filters.maxRating);
+            }
+            if (filters.sortBy) {
+                filteredMovies.sort((a, b) => {
+                    const aVal = a[filters.sortBy] || '';
+                    const bVal = b[filters.sortBy] || '';
+                    if (filters.sortOrder === 'DESC') {
+                        return bVal > aVal ? 1 : -1;
+                    }
+                    return aVal > bVal ? 1 : -1;
+                });
+            }
+            const total = filteredMovies.length;
+            if (filters.limit) {
+                const offset = filters.offset || 0;
+                filteredMovies = filteredMovies.slice(offset, offset + filters.limit);
+            }
+            return { movies: filteredMovies, total };
+        }
+        catch (error) {
+            this.logger.error(`errore getUserMovies: ${error.message}`);
+            throw error;
+        }
+    }
+    async getUserStats(userId) {
+        try {
+            return await this.userMoviesService.getUserMovieStats(userId);
+        }
+        catch (error) {
+            this.logger.error(`errore getUserStats: ${error.message}`);
+            throw error;
+        }
+    }
+    async getMovieById(id) {
+        try {
+            const movie = await this.movieRepository.findOne({ where: { id } });
+            return movie;
+        }
+        catch (error) {
+            this.logger.error(`errore getMovieById: ${error.message}`);
+            return null;
+        }
+    }
+    async searchMovies(filters) {
+        try {
+            const queryBuilder = this.movieRepository.createQueryBuilder('movie');
+            if (filters.query) {
+                queryBuilder.andWhere('(LOWER(movie.title) LIKE :query OR LOWER(movie.director) LIKE :query)', { query: `%${filters.query.toLowerCase()}%` });
+            }
+            if (filters.genre) {
+                queryBuilder.andWhere(':genre = ANY(movie.genres)', {
+                    genre: filters.genre,
+                });
+            }
+            if (filters.year) {
+                queryBuilder.andWhere('movie.year = :year', { year: filters.year });
+            }
+            if (filters.director) {
+                queryBuilder.andWhere('LOWER(movie.director) LIKE :director', {
+                    director: `%${filters.director.toLowerCase()}%`,
+                });
+            }
+            if (filters.minRating !== undefined) {
+                queryBuilder.andWhere('movie.tmdb_rating >= :minRating', {
+                    minRating: filters.minRating,
+                });
+            }
+            if (filters.maxRating !== undefined) {
+                queryBuilder.andWhere('movie.tmdb_rating <= :maxRating', {
+                    maxRating: filters.maxRating,
+                });
+            }
+            const total = await queryBuilder.getCount();
+            const sortBy = filters.sortBy || 'title';
+            const sortOrder = filters.sortOrder || 'ASC';
+            queryBuilder.orderBy(`movie.${sortBy}`, sortOrder);
+            if (filters.limit) {
+                queryBuilder.limit(filters.limit);
+            }
+            if (filters.offset) {
+                queryBuilder.offset(filters.offset);
+            }
+            const movies = await queryBuilder.getMany();
+            return { movies: movies, total };
+        }
+        catch (error) {
+            this.logger.error(`errore searchMovies: ${error.message}`);
+            throw error;
+        }
+    }
+    async getAllMovies(userId) {
+        try {
+            const result = await this.getUserMovies(userId, {});
+            return result.movies;
+        }
+        catch (error) {
+            this.logger.error(`errore getAllMovies: ${error.message}`);
+            throw error;
+        }
+    }
+    async deleteAllMovies(userId) {
+        try {
+            const result = await this.userMovieRepository.delete({ userId });
+            this.logger.log(`eliminati ${result.affected} film per user ${userId}`);
+            return { deleted: result.affected || 0 };
+        }
+        catch (error) {
+            this.logger.error(`errore deleteAllMovies: ${error.message}`);
+            throw error;
+        }
+    }
     sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 };
 exports.MoviesService = MoviesService;
@@ -186,6 +395,7 @@ exports.MoviesService = MoviesService = MoviesService_1 = __decorate([
         typeorm_2.Repository,
         tmdb_service_1.TmdbService,
         database_service_1.DatabaseService,
-        websocket_gateway_1.WebsocketGateway])
+        websocket_gateway_1.WebsocketGateway,
+        user_movies_service_1.UserMoviesService])
 ], MoviesService);
 //# sourceMappingURL=movies.service.js.map

@@ -37,7 +37,7 @@ class HomeFragment : Fragment() {
         LETTERBOXD_WATCHLIST
     }
 
-    private var pendingImport: Pair<Uri, ImportType>? = null
+    private var pendingImportType: ImportType? = null
 
     //launcher per selezionare file csv
     private val pickFileLauncher = registerForActivityResult(
@@ -45,9 +45,10 @@ class HomeFragment : Fragment() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.data?.let { uri ->
-                pendingImport?.let { (_, type) ->
+                //fix: usa pendingImportType invece di pendingImport
+                pendingImportType?.let { type ->
                     processFile(uri, type)
-                    pendingImport = null
+                    pendingImportType = null
                 }
             }
         }
@@ -178,7 +179,8 @@ class HomeFragment : Fragment() {
                         "4. salva il file ratings.csv"
             )
             .setPositiveButton("Seleziona File") { _, _ ->
-                pendingImport = null to ImportType.IMDB_WATCHED
+                //fix: salva solo il tipo
+                pendingImportType = ImportType.IMDB_WATCHED
                 launchFilePicker()
             }
             .setNegativeButton("Annulla", null)
@@ -196,7 +198,8 @@ class HomeFragment : Fragment() {
                         "4. salva il file watchlist.csv"
             )
             .setPositiveButton("Seleziona File") { _, _ ->
-                pendingImport = null to ImportType.IMDB_WATCHLIST
+                //fix: salva solo il tipo
+                pendingImportType = ImportType.IMDB_WATCHLIST
                 launchFilePicker()
             }
             .setNegativeButton("Annulla", null)
@@ -214,7 +217,8 @@ class HomeFragment : Fragment() {
                         "4. estrai e seleziona diary.csv"
             )
             .setPositiveButton("Seleziona File") { _, _ ->
-                pendingImport = null to ImportType.LETTERBOXD_WATCHED
+                //fix: salva solo il tipo
+                pendingImportType = ImportType.LETTERBOXD_WATCHED
                 launchFilePicker()
             }
             .setNegativeButton("Annulla", null)
@@ -232,7 +236,8 @@ class HomeFragment : Fragment() {
                         "4. estrai e seleziona watchlist.csv"
             )
             .setPositiveButton("Seleziona File") { _, _ ->
-                pendingImport = null to ImportType.LETTERBOXD_WATCHLIST
+                //fix: salva solo il tipo
+                pendingImportType = ImportType.LETTERBOXD_WATCHLIST
                 launchFilePicker()
             }
             .setNegativeButton("Annulla", null)

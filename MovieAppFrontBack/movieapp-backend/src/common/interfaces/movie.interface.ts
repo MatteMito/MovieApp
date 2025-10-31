@@ -1,6 +1,4 @@
-// File: src/common/interfaces/movie.interface.ts
-// AGGIORNATO: rimossi campi utente (ora in UserMovieEntity)
-
+// movie.interface.ts
 export interface Movie {
   // ===== IDENTIFICATORI =====
   id: string;
@@ -8,8 +6,11 @@ export interface Movie {
   year?: number;
   source: string;
 
-  // ⚠️ RIMOSSI: user_rating, watched_date, user_review, is_watched
-  // Questi campi sono ora gestiti in UserMovieEntity
+  // ===== DATI UTENTE (trasportati dall'app, poi salvati in UserMovieEntity) =====
+  user_rating?: number;
+  watched_date?: string;
+  is_watched?: boolean;
+  user_review?: string;
 
   // ===== DATI TMDB =====
   tmdb_id?: number;
@@ -140,33 +141,17 @@ export interface TmdbMovieDetails {
   production_companies?: Array<{ id: number; name: string }>;
   production_countries?: Array<{ iso_3166_1: string; name: string }>;
   spoken_languages?: Array<{ iso_639_1: string; name: string }>;
+  keywords?: { keywords: Array<{ id: number; name: string }> };
   credits?: {
-    cast: Array<{
-      id: number;
-      name: string;
-      character: string;
-      order: number;
-    }>;
-    crew: Array<{
-      id: number;
-      name: string;
-      job: string;
-      department: string;
-    }>;
-  };
-  keywords?: {
-    keywords: Array<{
-      id: number;
-      name: string;
-    }>;
+    cast: Array<{ id: number; name: string; character: string; order: number }>;
+    crew: Array<{ id: number; name: string; job: string; department: string }>;
   };
   videos?: {
     results: Array<{
-      id: string;
       key: string;
-      name: string;
       site: string;
       type: string;
+      official: boolean;
     }>;
   };
   releases?: {
