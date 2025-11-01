@@ -143,13 +143,16 @@ export class MoviesService {
   }
 
   // ============================================
-  // enrich movies con notifica websocket
+  // enrich movies con notifica websocket + cache intelligente
   // ============================================
   async enrichMovies(movies: Movie[]): Promise<EnrichmentResult> {
     const sessionId = uuidv4();
     const successfulMovies: Movie[] = [];
     const failedMovies: FailedMovie[] = [];
+    let cacheHits = 0;
     const totalMovies = movies.length;
+
+    this.logger.log(`🎬 enrichment batch: ${totalMovies} film`);
 
     //notifica inizio
     await this.websocketGateway.notifyEnrichmentStarted(sessionId, totalMovies);
@@ -159,11 +162,36 @@ export class MoviesService {
       const currentProgress = i + 1;
 
       try {
-        const enrichedMovie = await this.tmdbService.enrichMovie(movie);
-        
+        // STEP 1: Controlla cache PRIMA di chiamare TMDB
+        const existingMovie = await this.databaseService.findMovieByTitleYear(
+          movie.title,
+          movie.year
+        );
+
+        let enrichedMovie: Movie;
+
+        if (existingMovie && existingMovie.is_enriched && existingMovie.tmdb_id) {
+          // CACHE HIT: Film già arricchito, usa quello
+          this.logger.debug(`💰 cache hit: ${movie.title}`);
+          enrichedMovie = {
+            ...existingMovie,
+            id: movie.id,  //preserva id originale
+            source: movie.source  //preserva source originale
+          };
+          cacheHits++;
+        } else {
+          // CACHE MISS: Arricchisci con TMDB
+          this.logger.debug(`🔍 enrichment tmdb: ${movie.title}`);
+          enrichedMovie = await this.tmdbService.enrichMovie(movie);
+          
+          // Salva solo se arricchito con successo
+          if (enrichedMovie.tmdb_id) {
+            await this.databaseService.saveMovie(enrichedMovie);
+          }
+        }
+
         if (enrichedMovie && enrichedMovie.tmdb_id) {
           successfulMovies.push(enrichedMovie);
-          await this.databaseService.saveMovie(enrichedMovie);
         } else {
           failedMovies.push({
             movie,
@@ -179,7 +207,8 @@ export class MoviesService {
           movie.title,
         );
 
-        await this.sleep(300);
+        //pausa per non sovraccaricare
+        await this.sleep(200);
 
       } catch (error) {
         this.logger.warn(`errore enrichment "${movie.title}": ${error.message}`);
@@ -193,15 +222,22 @@ export class MoviesService {
     //notifica completamento
     await this.websocketGateway.notifyEnrichmentCompleted(sessionId, totalMovies);
 
-    const successRate = (successfulMovies.length / movies.length) * 100;
+    const successRate = totalMovies > 0 
+      ? (successfulMovies.length / totalMovies) * 100 
+      : 0;
+
+    this.logger.log(`✅ enrichment completato:`);
+    this.logger.log(`   successo: ${successfulMovies.length}/${totalMovies}`);
+    this.logger.log(`   cache hits: ${cacheHits}`);
+    this.logger.log(`   falliti: ${failedMovies.length}`);
 
     return {
       sessionId,
       successfulMovies,
       failedMovies,
-      totalProcessed: movies.length,
+      totalProcessed: totalMovies,
       successRate,
-      cacheHits: 0,
+      cacheHits,
     };
   }
 

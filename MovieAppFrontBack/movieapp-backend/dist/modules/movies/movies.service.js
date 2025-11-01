@@ -83,16 +83,34 @@ let MoviesService = MoviesService_1 = class MoviesService {
         const sessionId = (0, uuid_1.v4)();
         const successfulMovies = [];
         const failedMovies = [];
+        let cacheHits = 0;
         const totalMovies = movies.length;
+        this.logger.log(`🎬 enrichment batch: ${totalMovies} film`);
         await this.websocketGateway.notifyEnrichmentStarted(sessionId, totalMovies);
         for (let i = 0; i < movies.length; i++) {
             const movie = movies[i];
             const currentProgress = i + 1;
             try {
-                const enrichedMovie = await this.tmdbService.enrichMovie(movie);
+                const existingMovie = await this.databaseService.findMovieByTitleYear(movie.title, movie.year);
+                let enrichedMovie;
+                if (existingMovie && existingMovie.is_enriched && existingMovie.tmdb_id) {
+                    this.logger.debug(`💰 cache hit: ${movie.title}`);
+                    enrichedMovie = {
+                        ...existingMovie,
+                        id: movie.id,
+                        source: movie.source
+                    };
+                    cacheHits++;
+                }
+                else {
+                    this.logger.debug(`🔍 enrichment tmdb: ${movie.title}`);
+                    enrichedMovie = await this.tmdbService.enrichMovie(movie);
+                    if (enrichedMovie.tmdb_id) {
+                        await this.databaseService.saveMovie(enrichedMovie);
+                    }
+                }
                 if (enrichedMovie && enrichedMovie.tmdb_id) {
                     successfulMovies.push(enrichedMovie);
-                    await this.databaseService.saveMovie(enrichedMovie);
                 }
                 else {
                     failedMovies.push({
@@ -101,7 +119,7 @@ let MoviesService = MoviesService_1 = class MoviesService {
                     });
                 }
                 await this.websocketGateway.notifyEnrichmentProgress(sessionId, currentProgress, totalMovies, movie.title);
-                await this.sleep(300);
+                await this.sleep(200);
             }
             catch (error) {
                 this.logger.warn(`errore enrichment "${movie.title}": ${error.message}`);
@@ -112,14 +130,20 @@ let MoviesService = MoviesService_1 = class MoviesService {
             }
         }
         await this.websocketGateway.notifyEnrichmentCompleted(sessionId, totalMovies);
-        const successRate = (successfulMovies.length / movies.length) * 100;
+        const successRate = totalMovies > 0
+            ? (successfulMovies.length / totalMovies) * 100
+            : 0;
+        this.logger.log(`✅ enrichment completato:`);
+        this.logger.log(`   successo: ${successfulMovies.length}/${totalMovies}`);
+        this.logger.log(`   cache hits: ${cacheHits}`);
+        this.logger.log(`   falliti: ${failedMovies.length}`);
         return {
             sessionId,
             successfulMovies,
             failedMovies,
-            totalProcessed: movies.length,
+            totalProcessed: totalMovies,
             successRate,
-            cacheHits: 0,
+            cacheHits,
         };
     }
     async batchUpload(watchlist, watched, userId) {

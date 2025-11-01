@@ -1,21 +1,21 @@
 <resources>
-    <!-- APP INFO -->
+    <!-- app info -->
     <string name="app_name">MovieApp</string>
     <string name="app_version">1.0.0</string>
 
-    <!-- NAVIGATION TITLES -->
+    <!-- navigation titles -->
     <string name="title_home">Inicio</string>
     <string name="title_lists">Listas</string>
     <string name="title_notifications">Estadísticas</string>
 
-    <!-- HOME SCREEN -->
+    <!-- home screen -->
     <string name="import_imdb_watched">Importar películas vistas</string>
     <string name="import_imdb_watchlist">Importar películas por ver</string>
     <string name="import_letterboxd_watched">Importar películas vistas</string>
     <string name="import_letterboxd_watchlist">Importar películas por ver</string>
     <string name="clear_all">Eliminar todas las películas</string>
 
-    <!-- MESSAGES -->
+    <!-- messages -->
     <string name="loading">Cargando…</string>
     <string name="processing">Procesando tus películas…</string>
     <string name="enriching">Recuperando información…</string>
@@ -26,7 +26,7 @@
     <string name="no_movies_imported">No hay películas importadas</string>
     <string name="import_movies_to_see_stats">Importa tus películas para ver estadísticas</string>
 
-    <!-- STATS -->
+    <!-- stats -->
     <string name="total_movies">Total</string>
     <string name="watched_movies">Vistas</string>
     <string name="watchlist_movies">Por ver</string>
@@ -34,19 +34,19 @@
     <string name="watch_hours">Horas de películas</string>
     <string name="stats_completed_percentage">%d%% completado</string>
 
-    <!-- CHARTS -->
+    <!-- charts -->
     <string name="genres_chart">Tus géneros favoritos</string>
     <string name="years_chart">Películas por año</string>
     <string name="directors_chart">Directores más vistos</string>
 
-    <!-- DIALOGS -->
+    <!-- dialogs -->
     <string name="confirm">Confirmar</string>
     <string name="cancel">Cancelar</string>
     <string name="ok">OK</string>
     <string name="delete">Eliminar</string>
     <string name="select_file">Elegir archivo</string>
 
-    <!-- HELP DIALOGS -->
+    <!-- help dialogs -->
     <string name="imdb_help_title">Cómo exportar desde IMDb</string>
     <string name="letterboxd_help_title">Cómo exportar desde Letterboxd</string>
 
@@ -55,26 +55,26 @@
     <string name="letterboxd_watched_help">1. Ve a Letterboxd.com\n2. Inicia sesión en tu cuenta\n3. Ve a Settings > Import &amp; Export\n4. Haz clic en \"Export Your Data\"\n5. Descarga \"watched.csv\"\n\nSelecciona el archivo descargado para importarlo.</string>
     <string name="letterboxd_watchlist_help">1. Ve a Letterboxd.com\n2. Inicia sesión en tu cuenta\n3. Ve a Settings > Import &amp; Export\n4. Haz clic en \"Export Your Data\"\n5. Descarga \"watchlist.csv\"\n\nSelecciona el archivo descargado para importarlo.</string>
 
-    <string name="import_info_text">Selecciona archivos CSV de IMDb o Letterboxd para importar tus películas.\n\nLa app las enriquecerá automáticamente con datos de TMDB (posters, detalles, valoraciones).\n\n📊 Después de importar, revisa tus estadísticas en el Dashboard!</string>
+    <string name="import_info_text">Selecciona archivos CSV de IMDb o Letterboxd para importar tus películas.\n\nLa app las enriquecerá automáticamente con datos de TMDB (pósters, detalles, calificaciones).\n\n¡Después de la importación, revisa tus estadísticas en el Dashboard!</string>
 
-    <!-- CLEAR ALL -->
+    <!-- clear all -->
     <string name="clear_all_title">¿Eliminar todas las películas?</string>
     <string name="clear_all_message">Esta acción eliminará todas tus películas de la base de datos.\n\n¿Quieres continuar?</string>
 
-    <!-- BACKEND -->
+    <!-- backend -->
     <string name="backend_connected">Conectado</string>
     <string name="backend_disconnected">No conectado</string>
     <string name="backend_error">Error de conexión</string>
 
-    <!-- ACCESSIBILITY -->
+    <!-- accessibility -->
     <string name="content_description_home">Pantalla principal</string>
     <string name="content_description_dashboard">Información</string>
     <string name="content_description_charts">Gráficos y estadísticas</string>
 
-    <!-- ACCOUNT MENU -->
+    <!-- account menu -->
     <string name="hello_user">¡Hola %s!</string>
     <string name="account">Cuenta</string>
-    <string name="account_info">Info de la cuenta</string>
+    <string name="account_info">Info de Cuenta</string>
     <string name="logout">Cerrar sesión</string>
     <string name="language">Idioma</string>
     <string name="select_language">Seleccionar idioma</string>
@@ -82,20 +82,29 @@
     <string name="logout_confirm_message">¿Quieres cerrar sesión?\n\nTus películas permanecerán guardadas.</string>
     <string name="logout_button">Cerrar sesión</string>
 
-    <!-- ACCOUNT INFO DIALOG -->
+    <!-- account info dialog -->
     <string name="your_account">Tu cuenta:</string>
     <string name="name">Nombre:</string>
     <string name="email">Email:</string>
     <string name="app_version_label">Versión de la app:</string>
 
-    <!-- LISTS (Social) -->
-    <string name="create_list">Crear lista</string>
-    <string name="list_name">Nombre de la lista</string>
+    <!-- social lists -->
+    <string name="create_list">Crear Lista</string>
+    <string name="list_name">Nombre de la Lista</string>
     <string name="list_description">Descripción (opcional)</string>
-    <string name="public_list">Lista pública</string>
-    <string name="private_list">Lista privada</string>
-    <string name="add_movies">Añadir películas</string>
+    <string name="public_list">Lista Pública</string>
+    <string name="private_list">Lista Privada</string>
+    <string name="add_movies">Agregar Películas</string>
+    <string name="search_movies">Buscar películas...</string>
     <string name="no_lists">Aún no hay listas</string>
-    <string name="my_lists">Mis listas</string>
-    <string name="public_lists">Listas públicas</string>
+    <string name="my_lists">Mis Listas</string>
+    <string name="public_lists">Listas Públicas</string>
+    <string name="copy_list">Copiar Lista</string>
+    <string name="delete_list">Eliminar Lista</string>
+    <string name="list_copied">Lista copiada exitosamente</string>
+    <string name="list_deleted">Lista eliminada exitosamente</string>
+    <string name="followers">seguidores</string>
+    <string name="movies_count">%d películas</string>
+    <string name="selected_movies">%d películas seleccionadas</string>
+    <string name="search_movies_placeholder">Busca y selecciona películas para agregar a la lista</string>
 </resources>

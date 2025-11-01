@@ -10,20 +10,15 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
-const jwt_1 = require("@nestjs/jwt");
-const axios_1 = require("@nestjs/axios");
-const movie_entity_1 = require("./database/entities/movie.entity");
-const user_entity_1 = require("./database/entities/user.entity");
-const user_movie_entity_1 = require("./database/entities/user-movie.entity");
-const list_entity_1 = require("./database/entities/list.entity");
-const app_controller_1 = require("./app.controller");
+const schedule_1 = require("@nestjs/schedule");
+const database_module_1 = require("./database/database.module");
 const movies_module_1 = require("./modules/movies/movies.module");
+const tmdb_module_1 = require("./modules/tmdb/tmdb.module");
 const auth_module_1 = require("./modules/auth/auth.module");
-const analytics_module_1 = require("./modules/analytics/analytics.module");
 const lists_module_1 = require("./modules/lists/lists.module");
 const websocket_module_1 = require("./modules/websocket/websocket.module");
-const database_module_1 = require("./database/database.module");
-const tmdb_module_1 = require("./modules/tmdb/tmdb.module");
+const analytics_module_1 = require("./modules/analytics/analytics.module");
+const app_controller_1 = require("./app.controller");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -34,50 +29,28 @@ exports.AppModule = AppModule = __decorate([
                 isGlobal: true,
                 envFilePath: '.env',
             }),
-            typeorm_1.TypeOrmModule.forRootAsync({
-                imports: [config_1.ConfigModule],
-                useFactory: (configService) => ({
-                    type: 'postgres',
-                    host: configService.get('DB_HOST', 'localhost'),
-                    port: configService.get('DB_PORT', 5432),
-                    username: configService.get('DB_USERNAME', 'postgres'),
-                    password: configService.get('DB_PASSWORD', 'password'),
-                    database: configService.get('DB_NAME', 'movieapp'),
-                    entities: [
-                        movie_entity_1.MovieEntity,
-                        user_entity_1.UserEntity,
-                        user_movie_entity_1.UserMovieEntity,
-                        list_entity_1.MovieListEntity,
-                    ],
-                    synchronize: true,
-                    logging: true,
-                }),
-                inject: [config_1.ConfigService],
+            typeorm_1.TypeOrmModule.forRoot({
+                type: 'postgres',
+                host: process.env.DB_HOST || 'localhost',
+                port: parseInt(process.env.DB_PORT, 10) || 5432,
+                username: process.env.DB_USER || 'postgres',
+                password: process.env.DB_PASSWORD || 'postgres',
+                database: process.env.DB_NAME || 'movieapp',
+                entities: [__dirname + '/**/*.entity{.ts,.js}'],
+                synchronize: false,
+                logging: false,
             }),
-            jwt_1.JwtModule.registerAsync({
-                imports: [config_1.ConfigModule],
-                useFactory: (configService) => ({
-                    secret: configService.get('JWT_SECRET', 'movieapp-secret-key'),
-                    signOptions: {
-                        expiresIn: configService.get('JWT_EXPIRATION', '7d'),
-                    },
-                }),
-                inject: [config_1.ConfigService],
-                global: true,
-            }),
-            axios_1.HttpModule.register({
-                timeout: 30000,
-                maxRedirects: 5,
-            }),
+            schedule_1.ScheduleModule.forRoot(),
             database_module_1.DatabaseModule,
             movies_module_1.MoviesModule,
-            auth_module_1.AuthModule,
             tmdb_module_1.TmdbModule,
-            analytics_module_1.AnalyticsModule,
+            auth_module_1.AuthModule,
             lists_module_1.ListsModule,
             websocket_module_1.WebsocketModule,
+            analytics_module_1.AnalyticsModule,
         ],
         controllers: [app_controller_1.AppController],
+        providers: [],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

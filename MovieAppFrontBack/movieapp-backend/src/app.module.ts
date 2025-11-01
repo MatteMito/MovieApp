@@ -1,20 +1,16 @@
+// file: src/app.module.ts
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
-import { HttpModule } from '@nestjs/axios';
-import { MovieEntity } from './database/entities/movie.entity';
-import { UserEntity } from './database/entities/user.entity';
-import { UserMovieEntity } from './database/entities/user-movie.entity';
-import { MovieListEntity } from './database/entities/list.entity';
-import { AppController } from './app.controller';
+import { ScheduleModule } from '@nestjs/schedule';
+import { DatabaseModule } from './database/database.module';
 import { MoviesModule } from './modules/movies/movies.module';
+import { TmdbModule } from './modules/tmdb/tmdb.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ListsModule } from './modules/lists/lists.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
-import { DatabaseModule } from './database/database.module';
-import { TmdbModule } from './modules/tmdb/tmdb.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -22,55 +18,27 @@ import { TmdbModule } from './modules/tmdb/tmdb.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST', 'localhost'),
-        port: configService.get('DB_PORT', 5432),
-        username: configService.get('DB_USERNAME', 'postgres'),
-        password: configService.get('DB_PASSWORD', 'password'),
-        database: configService.get('DB_NAME', 'movieapp'),
-        
-        entities: [
-          MovieEntity,
-          UserEntity,
-          UserMovieEntity,
-          MovieListEntity,
-        ],
-        
-        synchronize: true,
-        logging: true,
-      }),
-      inject: [ConfigService],
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT, 10) || 5432,
+      username: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || 'postgres',
+      database: process.env.DB_NAME || 'movieapp',
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
+      synchronize: false,
+      logging: false,
     }),
-
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET', 'movieapp-secret-key'),
-        signOptions: {
-          expiresIn: configService.get('JWT_EXPIRATION', '7d'),
-        },
-      }),
-      inject: [ConfigService],
-      global: true,
-    }),
-
-    HttpModule.register({
-      timeout: 30000,
-      maxRedirects: 5,
-    }),
-
+    ScheduleModule.forRoot(),
     DatabaseModule,
     MoviesModule,
-    AuthModule,
     TmdbModule,
-    AnalyticsModule,
+    AuthModule,
     ListsModule,
     WebsocketModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
+  providers: [],
 })
 export class AppModule {}

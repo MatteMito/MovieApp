@@ -1,10 +1,8 @@
-// FILE: movieapp-backend/src/modules/tmdb/tmdb.module.ts
-// Modulo aggiornato con controller
-
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { TmdbService } from './tmdb.service';
-import { TmdbController } from './tmdb.controller'; 
+import { TmdbController } from './tmdb.controller';
+import { TmdbScheduler } from './tmdb.scheduler';
 import { DatabaseModule } from '../../database/database.module';
 
 @Module({
@@ -20,7 +18,10 @@ import { DatabaseModule } from '../../database/database.module';
     DatabaseModule,
   ],
   controllers: [TmdbController],
-  providers: [TmdbService],
+  providers: [
+    TmdbService,
+    TmdbScheduler,
+  ],
   exports: [TmdbService],
 })
 export class TmdbModule {}

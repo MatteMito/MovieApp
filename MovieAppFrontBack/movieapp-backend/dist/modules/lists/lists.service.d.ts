@@ -14,19 +14,16 @@ export declare class ListsService {
         sortBy?: string;
     }): Promise<any[]>;
     getListById(listId: string, userId?: string): Promise<any>;
-    createList(userId: string, createListDto: CreateListDto): Promise<MovieListEntity>;
-    updateList(listId: string, userId: string, updateListDto: UpdateListDto): Promise<MovieListEntity>;
+    private getMoviesForList;
+    createList(userId: string, createListDto: CreateListDto): Promise<any>;
+    updateList(listId: string, userId: string, updateListDto: UpdateListDto): Promise<any>;
     deleteList(listId: string, userId: string): Promise<{
         message: string;
     }>;
     addMovieToList(listId: string, userId: string, movieId: string): Promise<any>;
     removeMovieFromList(listId: string, userId: string, movieId: string): Promise<any>;
-    followList(listId: string, userId: string): Promise<{
-        message: string;
-    }>;
-    unfollowList(listId: string, userId: string): Promise<{
-        message: string;
-    }>;
-    getListFollowers(listId: string): Promise<UserEntity[]>;
-    private getMoviesForList;
+    followList(listId: string, userId: string): Promise<any>;
+    unfollowList(listId: string, userId: string): Promise<any>;
+    getListFollowers(listId: string): Promise<any[]>;
+    copyList(listId: string, userId: string, newName?: string): Promise<any>;
 }

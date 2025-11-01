@@ -31,45 +31,45 @@ let TmdbService = TmdbService_1 = class TmdbService {
         if (!this.apiKey) {
             throw new Error('TMDB_API_KEY non trovata nelle variabili ambiente');
         }
-        this.logger.log('✅ tmdb service inizializzato (cache = movies table)');
+        this.logger.log('tmdb service inizializzato (cache = movies table)');
     }
     async enrichMovie(movie) {
         try {
             const existingMovie = await this.databaseService.findMovieByTitleYear(movie.title, movie.year);
-            if (existingMovie && existingMovie.tmdb_id) {
-                this.logger.log(`✅ CACHE HIT (movies table): ${movie.title}`);
+            if (existingMovie && existingMovie.tmdb_id && existingMovie.is_enriched) {
+                this.logger.log(`cache hit: ${movie.title}`);
                 return {
                     ...existingMovie,
                     id: movie.id,
                     source: movie.source,
                 };
             }
-            this.logger.log(`🔍 ricerca tmdb: ${movie.title} (${movie.year})`);
+            this.logger.log(`ricerca tmdb: ${movie.title} (${movie.year})`);
             await this.enforceRateLimit();
             let tmdbMovie = null;
             if (movie.id.startsWith('tt')) {
                 tmdbMovie = await this.findByImdbId(movie.id);
                 if (tmdbMovie) {
-                    this.logger.log(`✅ trovato via imdb id: ${tmdbMovie.id} per ${movie.title}`);
+                    this.logger.log(`trovato via imdb id: ${tmdbMovie.id} per ${movie.title}`);
                 }
             }
             if (!tmdbMovie) {
                 tmdbMovie = await this.searchByTitle(movie.title, movie.year);
                 if (tmdbMovie) {
-                    this.logger.log(`✅ trovato via titolo: ${tmdbMovie.id} per ${movie.title}`);
+                    this.logger.log(`trovato via titolo: ${tmdbMovie.id} per ${movie.title}`);
                 }
             }
             if (!tmdbMovie) {
-                this.logger.warn(`⚠️ nessun risultato tmdb per: ${movie.title}`);
+                this.logger.warn(`nessun risultato tmdb per: ${movie.title}`);
                 return movie;
             }
             const enrichedMovie = this.mapTmdbToMovie(movie, tmdbMovie);
             await this.databaseService.saveMovie(enrichedMovie);
-            this.logger.log(`✅ film arricchito e salvato: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
+            this.logger.log(`film arricchito e salvato: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
             return enrichedMovie;
         }
         catch (error) {
-            this.logger.error(`❌ errore enrichment per ${movie.title}: ${error.message}`);
+            this.logger.error(`errore enrichment per ${movie.title}: ${error.message}`);
             return movie;
         }
     }
@@ -80,25 +80,25 @@ let TmdbService = TmdbService_1 = class TmdbService {
             totalProcessed: 0,
             successRate: 0,
         };
-        this.logger.log(`🎬 avvio enrichment batch per ${movies.length} film`);
+        this.logger.log(`avvio enrichment batch per ${movies.length} film`);
         const moviesToEnrich = [];
         for (const movie of movies) {
             const existing = await this.databaseService.findMovieByTitleYear(movie.title, movie.year);
-            if (existing && existing.tmdb_id) {
+            if (existing && existing.tmdb_id && existing.is_enriched) {
                 const merged = {
                     ...existing,
                     id: movie.id,
                     source: movie.source,
                 };
                 results.successfulMovies.push(merged);
-                this.logger.debug(`💰 CACHE HIT: ${movie.title}`);
+                this.logger.debug(`cache hit: ${movie.title}`);
             }
             else {
                 moviesToEnrich.push(movie);
             }
         }
-        this.logger.log(`📊 film da arricchire: ${moviesToEnrich.length}`);
-        this.logger.log(`💰 cache hits: ${results.successfulMovies.length}`);
+        this.logger.log(`film da arricchire: ${moviesToEnrich.length}`);
+        this.logger.log(`cache hits: ${results.successfulMovies.length}`);
         for (let i = 0; i < moviesToEnrich.length; i++) {
             const movie = moviesToEnrich[i];
             try {
@@ -109,7 +109,7 @@ let TmdbService = TmdbService_1 = class TmdbService {
                 else {
                     results.failedMovies.push({
                         movie,
-                        error: 'TMDB ID non trovato'
+                        error: 'tmdb id non trovato'
                     });
                 }
                 results.totalProcessed++;
@@ -118,11 +118,11 @@ let TmdbService = TmdbService_1 = class TmdbService {
                     await options.onProgress(results.totalProcessed + results.successfulMovies.length - moviesToEnrich.length + results.totalProcessed, movies.length, movie.title);
                 }
                 if (results.totalProcessed % 5 === 0) {
-                    this.logger.log(`📈 progress: ${results.totalProcessed}/${moviesToEnrich.length} nuovi arricchiti (${results.successfulMovies.length}/${movies.length} totali)`);
+                    this.logger.log(`progress: ${results.totalProcessed}/${moviesToEnrich.length} nuovi arricchiti (${results.successfulMovies.length}/${movies.length} totali)`);
                 }
             }
             catch (error) {
-                this.logger.error(`❌ errore per ${movie.title}: ${error.message}`);
+                this.logger.error(`errore per ${movie.title}: ${error.message}`);
                 results.failedMovies.push({
                     movie,
                     error: error.message
@@ -136,11 +136,132 @@ let TmdbService = TmdbService_1 = class TmdbService {
         results.successRate = movies.length > 0
             ? (results.successfulMovies.length / movies.length) * 100
             : 0;
-        this.logger.log(`✅ enrichment completato:`);
-        this.logger.log(`   - successi: ${results.successfulMovies.length}/${movies.length}`);
-        this.logger.log(`   - falliti: ${results.failedMovies.length}`);
-        this.logger.log(`   - tasso successo: ${results.successRate.toFixed(2)}%`);
+        this.logger.log(`enrichment completato:`);
+        this.logger.log(`  successi: ${results.successfulMovies.length}/${movies.length}`);
+        this.logger.log(`  falliti: ${results.failedMovies.length}`);
+        this.logger.log(`  tasso successo: ${results.successRate.toFixed(2)}%`);
         return results;
+    }
+    async syncPopularMovies(limit = 10000) {
+        this.logger.log(`sync film popolari tmdb (limit: ${limit})`);
+        let synced = 0;
+        let errors = 0;
+        const batchSize = 20;
+        const totalPages = Math.ceil(limit / batchSize);
+        for (let page = 1; page <= totalPages; page++) {
+            try {
+                await this.enforceRateLimit();
+                const url = `${this.baseUrl}/movie/popular`;
+                const response = await (0, rxjs_1.firstValueFrom)(this.httpService.get(url, {
+                    params: {
+                        api_key: this.apiKey,
+                        language: 'it-IT',
+                        page: page,
+                    },
+                }));
+                if (!response.data.results || response.data.results.length === 0) {
+                    this.logger.warn(`nessun risultato alla pagina ${page}`);
+                    break;
+                }
+                for (const tmdbMovie of response.data.results) {
+                    try {
+                        const existing = await this.databaseService.findMovieByTitleYear(tmdbMovie.title, tmdbMovie.release_date ? new Date(tmdbMovie.release_date).getFullYear() : undefined);
+                        if (existing) {
+                            this.logger.debug(`skip: ${tmdbMovie.title} (gia presente)`);
+                            continue;
+                        }
+                        const movie = {
+                            id: `tmdb_${tmdbMovie.id}`,
+                            title: tmdbMovie.title,
+                            year: tmdbMovie.release_date
+                                ? new Date(tmdbMovie.release_date).getFullYear()
+                                : undefined,
+                            source: 'TMDB',
+                            tmdb_id: tmdbMovie.id,
+                            overview: tmdbMovie.overview,
+                            poster_url: tmdbMovie.poster_path
+                                ? `https://image.tmdb.org/t/p/w500${tmdbMovie.poster_path}`
+                                : undefined,
+                            backdrop_url: tmdbMovie.backdrop_path
+                                ? `https://image.tmdb.org/t/p/original${tmdbMovie.backdrop_path}`
+                                : undefined,
+                            popularity: tmdbMovie.popularity,
+                            tmdb_rating: tmdbMovie.vote_average,
+                            vote_count: tmdbMovie.vote_count,
+                            genres: [],
+                            actors: [],
+                            is_enriched: false,
+                        };
+                        await this.databaseService.saveMovie(movie);
+                        synced++;
+                        if (synced % 100 === 0) {
+                            this.logger.log(`${synced} film sincronizzati`);
+                        }
+                    }
+                    catch (error) {
+                        this.logger.error(`errore ${tmdbMovie.title}: ${error.message}`);
+                        errors++;
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            catch (error) {
+                this.logger.error(`errore pagina ${page}: ${error.message}`);
+                errors++;
+            }
+        }
+        this.logger.log(`sync completato: ${synced} film, ${errors} errori`);
+        return { synced, errors };
+    }
+    async searchByTitle(title, year) {
+        try {
+            const url = `${this.baseUrl}/search/movie`;
+            const response = await (0, rxjs_1.firstValueFrom)(this.httpService.get(url, {
+                params: {
+                    api_key: this.apiKey,
+                    query: title,
+                    year: year,
+                    language: 'it-IT',
+                    include_adult: false,
+                },
+            }));
+            if (!response.data.results || response.data.results.length === 0) {
+                return null;
+            }
+            const bestMatch = response.data.results[0];
+            return await this.getMovieDetails(bestMatch.id);
+        }
+        catch (error) {
+            this.logger.error(`errore ricerca titolo ${title}: ${error.message}`);
+            return null;
+        }
+    }
+    async getMovieDetails(tmdbId) {
+        try {
+            await this.enforceRateLimit();
+            const url = `${this.baseUrl}/movie/${tmdbId}`;
+            const response = await (0, rxjs_1.firstValueFrom)(this.httpService.get(url, {
+                params: {
+                    api_key: this.apiKey,
+                    language: 'it-IT',
+                    append_to_response: 'credits,keywords,videos,releases',
+                },
+            }));
+            return response.data;
+        }
+        catch (error) {
+            this.logger.error(`errore dettagli film ${tmdbId}: ${error.message}`);
+            return null;
+        }
+    }
+    async searchForAutocomplete(query, limit = 10) {
+        try {
+            return await this.databaseService.searchMoviesForAutocomplete(query, limit);
+        }
+        catch (error) {
+            this.logger.error(`errore autocomplete: ${error.message}`);
+            return [];
+        }
     }
     async enforceRateLimit() {
         const now = Date.now();
@@ -148,7 +269,7 @@ let TmdbService = TmdbService_1 = class TmdbService {
         if (this.requestHistory.length >= this.maxRequestsPerWindow) {
             const oldestRequest = this.requestHistory[0];
             const waitTime = this.rateLimitWindow - (now - oldestRequest) + 100;
-            this.logger.debug(`⏳ rate limit raggiunto, attesa ${waitTime}ms`);
+            this.logger.debug(`rate limit raggiunto, attesa ${waitTime}ms`);
             await new Promise((resolve) => setTimeout(resolve, waitTime));
             return this.enforceRateLimit();
         }
@@ -174,117 +295,65 @@ let TmdbService = TmdbService_1 = class TmdbService {
             return null;
         }
     }
-    async searchByTitle(title, year) {
-        try {
-            const url = `${this.baseUrl}/search/movie`;
-            const response = await (0, rxjs_1.firstValueFrom)(this.httpService.get(url, {
-                params: {
-                    api_key: this.apiKey,
-                    query: title,
-                    year,
-                    include_adult: false,
-                },
-            }));
-            const bestMatch = this.findBestMatch(response.data.results, title, year);
-            if (!bestMatch)
-                return null;
-            return await this.getMovieDetails(bestMatch.id);
-        }
-        catch (error) {
-            this.logger.error(`errore ricerca titolo ${title}: ${error.message}`);
-            return null;
-        }
-    }
-    async getMovieDetails(tmdbId) {
-        try {
-            const url = `${this.baseUrl}/movie/${tmdbId}`;
-            const response = await (0, rxjs_1.firstValueFrom)(this.httpService.get(url, {
-                params: {
-                    api_key: this.apiKey,
-                    append_to_response: 'credits,keywords,videos,releases',
-                },
-            }));
-            return response.data;
-        }
-        catch (error) {
-            this.logger.error(`errore dettagli film ${tmdbId}: ${error.message}`);
-            return null;
-        }
-    }
-    findBestMatch(movies, originalTitle, originalYear) {
-        if (movies.length === 0)
-            return null;
-        const normalizeTitle = (title) => title.toLowerCase().replace(/[^\w\s]/g, '').trim();
-        const normalizedOriginal = normalizeTitle(originalTitle);
-        let bestMatch = movies[0];
-        let bestScore = 0;
-        for (const movie of movies) {
-            const normalizedTitle = normalizeTitle(movie.title);
-            let score = 0;
-            if (normalizedTitle === normalizedOriginal) {
-                score += 100;
-            }
-            else if (normalizedTitle.includes(normalizedOriginal)) {
-                score += 50;
-            }
-            else if (normalizedOriginal.includes(normalizedTitle)) {
-                score += 40;
-            }
-            if (originalYear && movie.release_date) {
-                const movieYear = parseInt(movie.release_date.substring(0, 4));
-                if (movieYear === originalYear) {
-                    score += 50;
-                }
-                else if (Math.abs(movieYear - originalYear) <= 1) {
-                    score += 20;
-                }
-            }
-            if (movie.popularity) {
-                score += Math.min(movie.popularity / 10, 10);
-            }
-            if (score > bestScore) {
-                bestScore = score;
-                bestMatch = movie;
-            }
-        }
-        return bestMatch;
-    }
-    mapTmdbToMovie(movie, tmdb) {
+    mapTmdbToMovie(originalMovie, tmdbData) {
+        const director = tmdbData.credits?.crew
+            ?.find((c) => c.job === 'Director')?.name;
+        const actors = tmdbData.credits?.cast
+            ?.slice(0, 10)
+            .map((c) => c.name) || [];
+        const genres = tmdbData.genres?.map((g) => g.name) || [];
+        const keywords = tmdbData.keywords?.keywords
+            ?.slice(0, 10)
+            .map((k) => k.name) || [];
+        const productionCompanies = tmdbData.production_companies
+            ?.map((c) => c.name) || [];
+        const productionCountries = tmdbData.production_countries
+            ?.map((c) => c.name) || [];
+        const spokenLanguages = tmdbData.spoken_languages
+            ?.map((l) => l.english_name) || [];
+        const certification = tmdbData.releases?.countries
+            ?.find((c) => c.iso_3166_1 === 'IT')?.certification;
+        const trailer = tmdbData.videos?.results
+            ?.find((v) => v.type === 'Trailer' && v.site === 'YouTube');
         return {
-            ...movie,
-            tmdb_id: tmdb.id,
-            title: tmdb.title || movie.title,
-            year: tmdb.release_date ? parseInt(tmdb.release_date.substring(0, 4)) : movie.year,
-            genres: tmdb.genres?.map((g) => g.name) || [],
-            director: tmdb.credits?.crew?.find((c) => c.job === 'Director')?.name,
-            actors: tmdb.credits?.cast?.slice(0, 5).map((a) => a.name) || [],
-            overview: tmdb.overview,
-            tagline: tmdb.tagline,
-            poster_url: tmdb.poster_path
-                ? `https://image.tmdb.org/t/p/w500${tmdb.poster_path}`
+            id: originalMovie.id,
+            title: tmdbData.title,
+            year: tmdbData.release_date
+                ? new Date(tmdbData.release_date).getFullYear()
+                : originalMovie.year,
+            source: originalMovie.source,
+            tmdb_id: tmdbData.id,
+            is_enriched: true,
+            genres,
+            director,
+            actors,
+            overview: tmdbData.overview,
+            tagline: tmdbData.tagline,
+            runtime: tmdbData.runtime,
+            poster_url: tmdbData.poster_path
+                ? `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}`
                 : undefined,
-            backdrop_url: tmdb.backdrop_path
-                ? `https://image.tmdb.org/t/p/original${tmdb.backdrop_path}`
+            backdrop_url: tmdbData.backdrop_path
+                ? `https://image.tmdb.org/t/p/original${tmdbData.backdrop_path}`
                 : undefined,
-            tmdb_rating: tmdb.vote_average,
-            vote_count: tmdb.vote_count,
-            runtime: tmdb.runtime,
-            budget: tmdb.budget,
-            revenue: tmdb.revenue,
-            status: tmdb.status,
-            original_language: tmdb.original_language,
-            original_title: tmdb.original_title,
-            popularity: tmdb.popularity,
-            adult: tmdb.adult,
-            homepage: tmdb.homepage,
-            imdb_id: tmdb.imdb_id,
-            production_companies: tmdb.production_companies?.map((c) => c.name) || [],
-            production_countries: tmdb.production_countries?.map((c) => c.name) || [],
-            spoken_languages: tmdb.spoken_languages?.map((l) => l.name) || [],
-            keywords: tmdb.keywords?.keywords?.slice(0, 10).map((k) => k.name) || [],
-            certification: tmdb.releases?.countries?.find((c) => c.iso_3166_1 === 'US')?.certification,
-            trailer_url: tmdb.videos?.results?.find((v) => v.type === 'Trailer')?.key
-                ? `https://www.youtube.com/watch?v=${tmdb.videos.results.find((v) => v.type === 'Trailer')?.key}`
+            tmdb_rating: tmdbData.vote_average,
+            vote_count: tmdbData.vote_count,
+            popularity: tmdbData.popularity,
+            budget: tmdbData.budget,
+            revenue: tmdbData.revenue,
+            status: tmdbData.status,
+            production_companies: productionCompanies,
+            production_countries: productionCountries,
+            original_language: tmdbData.original_language,
+            original_title: tmdbData.original_title,
+            spoken_languages: spokenLanguages,
+            adult: tmdbData.adult,
+            homepage: tmdbData.homepage,
+            imdb_id: tmdbData.imdb_id,
+            keywords,
+            certification,
+            trailer_url: trailer
+                ? `https://www.youtube.com/watch?v=${trailer.key}`
                 : undefined,
         };
     }

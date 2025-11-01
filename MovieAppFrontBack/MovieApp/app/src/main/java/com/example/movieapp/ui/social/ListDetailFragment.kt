@@ -114,10 +114,15 @@ class ListDetailFragment : Fragment() {
     }
 
     private fun showAddMovieDialog() {
+        // TODO: implementare dialog ricerca film
+        Toast.makeText(requireContext(), "Funzione in sviluppo", Toast.LENGTH_SHORT).show()
+
+        /*
         val dialog = SearchMovieDialogFragment.newInstance { movie ->
             addMovieToList(movie)
         }
         dialog.show(childFragmentManager, "SearchMovieDialog")
+        */
     }
 
     private fun addMovieToList(movie: Movie) {

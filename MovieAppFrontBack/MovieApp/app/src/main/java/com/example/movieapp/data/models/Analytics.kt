@@ -1,3 +1,8 @@
+// file: app/src/main/java/com/example/movieapp/data/models/Analytics.kt
+// analytics helper
+
+package com.example.movieapp.data.models
+
 import com.example.movieapp.data.models.Movie
 
 /**
@@ -20,9 +25,9 @@ data class BasicAnalytics(
 object AnalyticsGenerator {
 
     fun generateBasicAnalytics(movies: List<Movie>): BasicAnalytics {
-        val watched = movies.filter { it.isWatched }
-        val watchlist = movies.filter { !it.isWatched }
-        val enriched = movies.filter { it.isEnriched() }
+        val watched = movies.filter { it.isWatched }  // ⬅️ FIX: rimosso ()
+        val watchlist = movies.filter { !it.isWatched }  // ⬅️ FIX: rimosso ()
+        val enriched = movies.filter { it.isEnriched }  // ⬅️ FIX: rimosso ()
 
         val topGenres = movies
             .flatMap { it.genres }

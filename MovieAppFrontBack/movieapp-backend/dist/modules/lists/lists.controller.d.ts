@@ -6,8 +6,8 @@ export declare class ListsController {
     getPublicLists(search?: string, sortBy?: string, limit?: string, userId?: string): Promise<any[]>;
     getMyLists(userId: string): Promise<any[]>;
     getListById(id: string, userId?: string): Promise<any>;
-    createList(createListDto: CreateListDto): Promise<import("../../database/entities/list.entity").MovieListEntity>;
-    updateList(id: string, updateListDto: UpdateListDto, userId?: string): Promise<import("../../database/entities/list.entity").MovieListEntity>;
+    createList(createListDto: CreateListDto): Promise<any>;
+    updateList(id: string, updateListDto: UpdateListDto, userId?: string): Promise<any>;
     deleteList(id: string, userId?: string): Promise<{
         message: string;
     }>;
@@ -15,11 +15,11 @@ export declare class ListsController {
     removeMovieFromList(listId: string, movieId: string, userId?: string): Promise<any>;
     followList(listId: string, body: {
         userId: string;
-    }): Promise<{
-        message: string;
-    }>;
-    unfollowList(listId: string, userId?: string): Promise<{
-        message: string;
-    }>;
-    getListFollowers(listId: string): Promise<import("../../database/entities/user.entity").UserEntity[]>;
+    }): Promise<any>;
+    unfollowList(listId: string, userId?: string): Promise<any>;
+    getListFollowers(listId: string): Promise<any[]>;
+    copyList(listId: string, body: {
+        userId: string;
+        newName?: string;
+    }): Promise<any>;
 }

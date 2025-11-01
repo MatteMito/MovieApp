@@ -379,7 +379,7 @@ class NotificationsViewModel : ViewModel() {
             .filter { it.runtime != null && it.userRating != null }
             .map { it.runtime!! to it.userRating!!.toFloat() }
     }
-    
+
     //funzioni per recuperare film per categoria (per i click)
     fun getMoviesByGenre(genre: String): List<Movie> = genreMoviesMap[genre] ?: emptyList()
     fun getMoviesByYear(year: Int): List<Movie> = yearMoviesMap[year] ?: emptyList()

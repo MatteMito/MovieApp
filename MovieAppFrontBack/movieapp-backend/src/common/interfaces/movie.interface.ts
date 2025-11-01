@@ -1,107 +1,66 @@
-// movie.interface.ts
+// file: src/common/interfaces/movie.interface.ts
+// interfaccia movie completa con campi user
+
 export interface Movie {
-  // ===== IDENTIFICATORI =====
   id: string;
   title: string;
   year?: number;
   source: string;
 
-  // ===== DATI UTENTE (trasportati dall'app, poi salvati in UserMovieEntity) =====
-  user_rating?: number;
-  watched_date?: string;
-  is_watched?: boolean;
-  user_review?: string;
-
-  // ===== DATI TMDB =====
+  // tmdb enrichment
   tmdb_id?: number;
-  director?: string;
+  is_enriched?: boolean;
+
+  // metadata
   genres?: string[];
+  director?: string;
   actors?: string[];
   overview?: string;
   tagline?: string;
   runtime?: number;
+
+  // poster e immagini
   poster_url?: string;
   backdrop_url?: string;
+
+  // rating e popolarita
   tmdb_rating?: number;
   vote_count?: number;
+  popularity?: number;
+
+  // produzione
   budget?: number;
   revenue?: number;
   status?: string;
+  release_date?: string;
+  production_companies?: string[];
+  production_countries?: string[];
+
+  // lingue
   original_language?: string;
   original_title?: string;
-  popularity?: number;
+  spoken_languages?: string[];
+
+  // metadata extra
   adult?: boolean;
   homepage?: string;
   imdb_id?: string;
-  production_companies?: string[];
-  production_countries?: string[];
-  spoken_languages?: string[];
   keywords?: string[];
   certification?: string;
   trailer_url?: string;
-  
-  // ===== TIMESTAMP =====
+
+  // dati utente (da user_movies)
+  user_rating?: number;
+  watched_date?: Date | string;
+  user_review?: string;
+  is_favorite?: boolean;
+
+  // timestamp
   created_at?: Date;
   updated_at?: Date;
 }
 
-// ===== INTERFACCE PER ENRICHMENT =====
-
-export interface EnrichmentResult {
-  sessionId: string;
-  successfulMovies: Movie[];
-  failedMovies: FailedMovie[];
-  totalProcessed: number;
-  successRate: number;
-  cacheHits: number;
-}
-
-export interface FailedMovie {
-  movie: Movie;
-  error: string;
-}
-
-export interface BatchUploadResult {
-  sessionId: string;
-  watchlistResult: EnrichmentResult;
-  watchedResult: EnrichmentResult;
-  summary: {
-    totalMovies: number;
-    watchlistCount: number;
-    watchedCount: number;
-    totalEnriched: number;
-    overallSuccessRate: number;
-    cacheHitsTotal: number;
-  };
-}
-
-// ===== INTERFACCE TMDB =====
-
-export interface TmdbSearchResult {
-  id: number;
-  title: string;
-  release_date: string;
-  poster_path?: string;
-  backdrop_path?: string;
-  vote_average?: number;
-  vote_count?: number;
-  overview?: string;
-  popularity?: number;
-}
-
-export interface TmdbMovie {
-  id: number;
-  title: string;
-  original_title: string;
-  release_date: string;
-  poster_path?: string;
-  backdrop_path?: string;
-  vote_average?: number;
-  vote_count?: number;
-  overview?: string;
-  popularity?: number;
-}
-
+// tmdb api response types
 export interface TmdbSearchResponse {
   page: number;
   results: TmdbMovie[];
@@ -109,51 +68,98 @@ export interface TmdbSearchResponse {
   total_results: number;
 }
 
-export interface TmdbFindResponse {
-  movie_results: TmdbMovie[];
-  person_results: any[];
-  tv_results: any[];
-  tv_episode_results: any[];
-  tv_season_results: any[];
+export interface TmdbMovie {
+  id: number;
+  title: string;
+  original_title: string;
+  overview: string;
+  release_date: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  vote_count: number;
+  popularity: number;
+  adult: boolean;
+  genre_ids: number[];
 }
 
 export interface TmdbMovieDetails {
   id: number;
   title: string;
   original_title: string;
+  overview: string;
+  tagline: string;
   release_date: string;
-  runtime?: number;
-  genres: Array<{ id: number; name: string }>;
-  overview?: string;
-  tagline?: string;
-  poster_path?: string;
-  backdrop_path?: string;
-  vote_average?: number;
-  vote_count?: number;
-  budget?: number;
-  revenue?: number;
-  status?: string;
-  original_language?: string;
-  popularity?: number;
-  adult?: boolean;
-  homepage?: string;
-  imdb_id?: string;
-  production_companies?: Array<{ id: number; name: string }>;
-  production_countries?: Array<{ iso_3166_1: string; name: string }>;
-  spoken_languages?: Array<{ iso_639_1: string; name: string }>;
-  keywords?: { keywords: Array<{ id: number; name: string }> };
+  runtime: number;
+  budget: number;
+  revenue: number;
+  status: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  vote_count: number;
+  popularity: number;
+  adult: boolean;
+  homepage: string;
+  imdb_id: string;
+  original_language: string;
+
+  genres: Array<{
+    id: number;
+    name: string;
+  }>;
+
+  production_companies: Array<{
+    id: number;
+    name: string;
+    logo_path: string | null;
+    origin_country: string;
+  }>;
+
+  production_countries: Array<{
+    iso_3166_1: string;
+    name: string;
+  }>;
+
+  spoken_languages: Array<{
+    english_name: string;
+    iso_639_1: string;
+    name: string;
+  }>;
+
   credits?: {
-    cast: Array<{ id: number; name: string; character: string; order: number }>;
-    crew: Array<{ id: number; name: string; job: string; department: string }>;
+    cast: Array<{
+      id: number;
+      name: string;
+      character: string;
+      order: number;
+    }>;
+    crew: Array<{
+      id: number;
+      name: string;
+      job: string;
+      department: string;
+    }>;
   };
+
+  keywords?: {
+    keywords: Array<{
+      id: number;
+      name: string;
+    }>;
+  };
+
   videos?: {
     results: Array<{
+      id: string;
       key: string;
+      name: string;
       site: string;
       type: string;
       official: boolean;
     }>;
   };
+
   releases?: {
     countries: Array<{
       iso_3166_1: string;
@@ -163,26 +169,10 @@ export interface TmdbMovieDetails {
   };
 }
 
-export interface TmdbCredits {
-  cast: Array<{
-    id: number;
-    name: string;
-    character: string;
-    order: number;
-  }>;
-  crew: Array<{
-    id: number;
-    name: string;
-    job: string;
-    department: string;
-  }>;
-}
-
-// ===== ENUM =====
-
-export enum DataSource {
-  IMDB = 'IMDB',
-  LETTERBOXD = 'LETTERBOXD',
-  MANUAL = 'MANUAL',
-  UNKNOWN = 'UNKNOWN',
+export interface TmdbFindResponse {
+  movie_results: TmdbMovie[];
+  person_results: any[];
+  tv_results: any[];
+  tv_episode_results: any[];
+  tv_season_results: any[];
 }

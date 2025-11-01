@@ -11,11 +11,9 @@ export declare class TmdbController {
     private readonly databaseService;
     private readonly logger;
     constructor(tmdbService: TmdbService, databaseService: DatabaseService);
-    searchMovie(query: string, year?: string): Promise<ApiResponse>;
-    addMovieFromTmdb(body: {
-        tmdb_id: number;
-        user_id: string;
-        status?: string;
+    syncPopularMovies(body: {
+        limit?: number;
     }): Promise<ApiResponse>;
+    getStats(): Promise<ApiResponse>;
 }
 export {};

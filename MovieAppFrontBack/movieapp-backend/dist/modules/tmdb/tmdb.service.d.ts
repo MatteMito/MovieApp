@@ -25,10 +25,14 @@ export declare class TmdbService {
         totalProcessed: number;
         successRate: number;
     }>;
-    private enforceRateLimit;
-    private findByImdbId;
+    syncPopularMovies(limit?: number): Promise<{
+        synced: number;
+        errors: number;
+    }>;
     searchByTitle(title: string, year: number | undefined): Promise<TmdbMovieDetails | null>;
     getMovieDetails(tmdbId: number): Promise<TmdbMovieDetails | null>;
-    private findBestMatch;
+    searchForAutocomplete(query: string, limit?: number): Promise<Movie[]>;
+    private enforceRateLimit;
+    private findByImdbId;
     private mapTmdbToMovie;
 }

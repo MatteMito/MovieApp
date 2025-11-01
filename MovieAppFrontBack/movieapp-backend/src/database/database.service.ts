@@ -1,9 +1,9 @@
-// File: src/database/database.service.ts
-// ✅ OTTIMIZZATO: rimossa logica tmdb_cache ridondante
+// file: src/database/database.service.ts
+// service database con metodi per sync tmdb
 
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere } from 'typeorm';
+import { Repository, FindOptionsWhere, Not, IsNull } from 'typeorm';
 import { MovieEntity } from './entities/movie.entity';
 import { Movie } from '../common/interfaces/movie.interface';
 
@@ -54,7 +54,7 @@ export class DatabaseService {
     entity.certification = movie.certification;
     entity.trailer_url = movie.trailer_url;
 
-    entity.is_enriched = !!(movie.tmdb_id && movie.tmdb_id > 0);
+    entity.is_enriched = movie.is_enriched || false;
     
     return entity;
   }
@@ -93,6 +93,7 @@ export class DatabaseService {
       trailer_url: entity.trailer_url,
       created_at: entity.created_at,
       updated_at: entity.updated_at,
+      is_enriched: entity.is_enriched,
     };
   }
 
@@ -103,7 +104,7 @@ export class DatabaseService {
       const entity = this.movieToEntity(movie);
       const saved = await this.movieRepository.save(entity);
       
-      this.logger.debug(`💾 film salvato: ${movie.title}`);
+      this.logger.debug(`film salvato: ${movie.title}`);
       return this.entityToMovie(saved);
     } catch (error) {
       this.logger.error(`errore salvataggio film ${movie.title}: ${error.message}`);
@@ -113,201 +114,154 @@ export class DatabaseService {
 
   async saveMovies(movies: Movie[]): Promise<MovieEntity[]> {
     try {
-      const entities = movies.map((movie) => {
-        const entity = this.movieToEntity(movie);
-        entity.is_enriched = !!(movie.tmdb_id && movie.tmdb_id > 0);
-        return entity;
-      });
+      const entities = movies.map((movie) => this.movieToEntity(movie));
 
-      const chunkSize = 100;
-      const savedEntities: MovieEntity[] = [];
-
-      for (let i = 0; i < entities.length; i += chunkSize) {
-        const chunk = entities.slice(i, i + chunkSize);
-        const saved = await this.movieRepository.save(chunk);
-        savedEntities.push(...saved);
-        
-        this.logger.log(`💾 salvati ${saved.length} film (chunk ${Math.floor(i / chunkSize) + 1})`);
-      }
-
-      const enrichedCount = savedEntities.filter((e) => e.is_enriched).length;
-      this.logger.log(`✅ batch completato: ${savedEntities.length} film salvati (${enrichedCount} arricchiti)`);
-
-      return savedEntities;
+      const saved = await this.movieRepository.save(entities, { chunk: 100 });
+      this.logger.log(`salvati ${saved.length} film nel database`);
+      return saved;
     } catch (error) {
       this.logger.error(`errore salvataggio batch: ${error.message}`);
       throw error;
     }
   }
 
-  async getAllMovies(): Promise<Movie[]> {
-    try {
-      const entities = await this.movieRepository.find({
-        order: { title: 'ASC' },
-      });
-
-      const movies = entities.map((entity) => this.entityToMovie(entity));
-      const enrichedCount = movies.filter((m) => m.tmdb_id).length;
-
-      this.logger.log(`📚 recuperati ${movies.length} film (${enrichedCount} arricchiti)`);
-
-      return movies;
-    } catch (error) {
-      this.logger.error(`errore recupero film: ${error.message}`);
-      return [];
-    }
-  }
-
-  async getMovieById(id: string): Promise<Movie | null> {
+  async findMovieById(id: string): Promise<Movie | null> {
     try {
       const entity = await this.movieRepository.findOne({ where: { id } });
-
-      if (!entity) {
-        this.logger.debug(`film non trovato per id: ${id}`);
-        return null;
-      }
-
-      return this.entityToMovie(entity);
+      return entity ? this.entityToMovie(entity) : null;
     } catch (error) {
-      this.logger.error(`errore recupero film ${id}: ${error.message}`);
+      this.logger.error(`errore ricerca film ${id}: ${error.message}`);
       return null;
-    }
-  }
-
-  async getMoviesByIds(movieIds: string[]): Promise<Movie[]> {
-    try {
-      if (movieIds.length === 0) {
-        return [];
-      }
-
-      const entities = await this.movieRepository.findByIds(movieIds);
-      const movies = entities.map((entity) => this.entityToMovie(entity));
-
-      this.logger.debug(`📚 recuperati ${movies.length} film da ${movieIds.length} IDs`);
-
-      return movies;
-    } catch (error) {
-      this.logger.error(`errore recupero film by IDs: ${error.message}`);
-      return [];
     }
   }
 
   async findMovieByTitleYear(title: string, year?: number): Promise<Movie | null> {
     try {
-      const whereConditions: FindOptionsWhere<MovieEntity> = { title };
-      if (year) whereConditions.year = year;
-
-      let entity = await this.movieRepository.findOne({
-        where: whereConditions,
-      });
-
-      if (!entity && title) {
-        entity = await this.movieRepository
-          .createQueryBuilder('movie')
-          .where('LOWER(movie.title) = LOWER(:title)', { title })
-          .andWhere(year ? 'movie.year = :year' : '1=1', { year })
-          .getOne();
+      const where: FindOptionsWhere<MovieEntity> = { title };
+      if (year) {
+        where.year = year;
       }
 
-      if (!entity) {
-        return null;
-      }
-
-      return this.entityToMovie(entity);
+      const entity = await this.movieRepository.findOne({ where });
+      return entity ? this.entityToMovie(entity) : null;
     } catch (error) {
-      this.logger.error(`errore ricerca film ${title}: ${error.message}`);
+      this.logger.error(`errore ricerca ${title}: ${error.message}`);
       return null;
     }
   }
 
-  async updateMovie(id: string, updates: Partial<Movie>): Promise<Movie> {
+  async findMovieByTmdbId(tmdbId: number): Promise<Movie | null> {
     try {
-      const entity = await this.movieRepository.findOne({ where: { id } });
-      
-      if (!entity) {
-        throw new Error(`Movie ${id} not found`);
-      }
-
-      const updatedEntity = this.movieToEntity({
-        ...this.entityToMovie(entity),
-        ...updates,
+      const entity = await this.movieRepository.findOne({
+        where: { tmdb_id: tmdbId },
       });
 
-      const updated = await this.movieRepository.save(updatedEntity);
-      this.logger.debug(`✅ film ${id} aggiornato`);
-      
-      return this.entityToMovie(updated);
+      return entity ? this.entityToMovie(entity) : null;
     } catch (error) {
-      this.logger.error(`errore aggiornamento film ${id}: ${error.message}`);
-      throw error;
-    }
-  }
-
-  async deleteMovie(id: string): Promise<void> {
-    try {
-      const entity = await this.movieRepository.findOne({ where: { id } });
-      
-      if (!entity) {
-        throw new Error(`Movie ${id} not found`);
-      }
-
-      await this.movieRepository.remove(entity);
-      this.logger.debug(`✅ film ${id} eliminato`);
-    } catch (error) {
-      this.logger.error(`errore eliminazione film ${id}: ${error.message}`);
-      throw error;
-    }
-  }
-
-  async getMovieByTmdbId(tmdbId: number): Promise<Movie | null> {
-    try {
-      const entity = await this.movieRepository.findOne({ 
-        where: { tmdb_id: tmdbId } 
-      });
-
-      if (!entity) {
-        return null;
-      }
-
-      return this.entityToMovie(entity);
-    } catch (error) {
-      this.logger.error(`errore recupero film tmdb_id ${tmdbId}: ${error.message}`);
+      this.logger.error(`errore ricerca tmdb_id ${tmdbId}: ${error.message}`);
       return null;
     }
   }
 
-  // ===== ANALYTICS CACHE (in-memory) =====
-
-  async saveAnalytics(userId: string, analyticsData: any): Promise<void> {
+  async getAllMovies(): Promise<Movie[]> {
     try {
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      this.analyticsCache.set(userId, { data: analyticsData, expiresAt });
-      this.logger.log(`💾 analytics salvate per utente: ${userId}`);
+      const entities = await this.movieRepository.find();
+      return entities.map(entity => this.entityToMovie(entity));
     } catch (error) {
-      this.logger.error(`errore salvataggio analytics ${userId}: ${error.message}`);
+      this.logger.error(`errore caricamento film: ${error.message}`);
+      return [];
+    }
+  }
+
+  async deleteAllMovies(): Promise<number> {
+    try {
+      const result = await this.movieRepository.delete({});
+      const count = result.affected || 0;
+      this.logger.log(`eliminati ${count} film dal database`);
+      return count;
+    } catch (error) {
+      this.logger.error(`errore eliminazione film: ${error.message}`);
       throw error;
     }
   }
 
-  async getAnalytics(userId: string): Promise<any | null> {
+  async getMoviesCount(): Promise<number> {
     try {
-      const cached = this.analyticsCache.get(userId);
-
-      if (!cached) return null;
-
-      if (cached.expiresAt < new Date()) {
-        this.analyticsCache.delete(userId);
-        return null;
-      }
-
-      return cached.data;
+      return await this.movieRepository.count();
     } catch (error) {
-      this.logger.error(`errore recupero analytics ${userId}: ${error.message}`);
-      return null;
+      this.logger.error(`errore conteggio film: ${error.message}`);
+      return 0;
     }
   }
 
-  isDatabaseAvailable(): boolean {
-    return this.movieRepository !== undefined;
+  // ===== METODI PER AUTOCOMPLETE E SYNC =====
+
+  async searchMoviesForAutocomplete(query: string, limit: number = 10): Promise<Movie[]> {
+    try {
+      const normalized = query.toLowerCase().trim();
+
+      const entities = await this.movieRepository
+        .createQueryBuilder('movie')
+        .where('LOWER(movie.title) LIKE :query', { query: `%${normalized}%` })
+        .orderBy('movie.popularity', 'DESC', 'NULLS LAST')
+        .addOrderBy('movie.year', 'DESC', 'NULLS LAST')
+        .limit(limit)
+        .getMany();
+
+      return entities.map(entity => this.entityToMovie(entity));
+    } catch (error) {
+      this.logger.error(`errore autocomplete: ${error.message}`);
+      return [];
+    }
+  }
+
+  async getSyncStats(): Promise<{
+    total: number;
+    enriched: number;
+    notEnriched: number;
+    withTmdbId: number;
+  }> {
+    try {
+      const [total, enriched, withTmdbId] = await Promise.all([
+        this.movieRepository.count(),
+        this.movieRepository.count({ where: { is_enriched: true } }),
+        this.movieRepository.count({ where: { tmdb_id: Not(IsNull()) } }),
+      ]);
+
+      return {
+        total,
+        enriched,
+        notEnriched: total - enriched,
+        withTmdbId,
+      };
+    } catch (error) {
+      this.logger.error(`errore stats: ${error.message}`);
+      return { total: 0, enriched: 0, notEnriched: 0, withTmdbId: 0 };
+    }
+  }
+
+  // ===== CACHE ANALYTICS =====
+
+  getCachedAnalytics(key: string): any | null {
+    const cached = this.analyticsCache.get(key);
+    if (!cached) return null;
+
+    if (new Date() > cached.expiresAt) {
+      this.analyticsCache.delete(key);
+      return null;
+    }
+
+    return cached.data;
+  }
+
+  setCachedAnalytics(key: string, data: any, ttlMinutes: number = 5): void {
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + ttlMinutes);
+    
+    this.analyticsCache.set(key, { data, expiresAt });
+  }
+
+  clearAnalyticsCache(): void {
+    this.analyticsCache.clear();
   }
 }

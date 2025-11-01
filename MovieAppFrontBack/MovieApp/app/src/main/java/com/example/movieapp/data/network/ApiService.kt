@@ -1,3 +1,6 @@
+// file: app/src/main/java/com/example/movieapp/data/network/ApiService.kt
+// api service completo con tutte le funzionalita
+
 package com.example.movieapp.data.network
 
 import android.content.Context
@@ -10,6 +13,7 @@ import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -154,13 +158,14 @@ data class UserStatsResponse(
     val watchlist_count: Int,
     val average_rating: Double
 ) {
-    // Alias per compatibilità
+    //alias per compatibilita
     val totalMovies: Int get() = total_movies
     val watchedCount: Int get() = watched_count
     val watchlistCount: Int get() = watchlist_count
     val averageRating: Double get() = average_rating
 }
 
+// TMDB
 data class AddMovieFromTmdbRequest(
     @SerializedName("tmdb_id")
     val tmdbId: Int,
@@ -172,8 +177,45 @@ data class AddMovieFromTmdbRequest(
     val status: String = "watchlist"
 )
 
+data class SyncPopularRequest(
+    val limit: Int = 10000
+)
+
+data class SyncPopularResponse(
+    val synced: Int,
+    val errors: Int
+)
+
+data class TmdbStatsResponse(
+    val total: Int,
+    val enriched: Int,
+    val notEnriched: Int,
+    val withTmdbId: Int
+)
+
+// LISTS
+data class CreateListRequest(
+    val user_id: String,
+    val name: String,
+    val description: String? = null,
+    val is_public: Boolean = false,
+    val movie_ids: List<String> = emptyList()
+)
+
+data class UpdateListRequest(
+    val name: String? = null,
+    val description: String? = null,
+    val is_public: Boolean? = null,
+    val movie_ids: List<String>? = null
+)
+
 data class AddMovieToListRequest(
     val movie_id: String
+)
+
+data class CopyListRequest(
+    val userId: String,
+    val newName: String? = null
 )
 
 // ============================================
@@ -213,15 +255,15 @@ interface ApiInterface {
     @GET("movies/initialize")
     suspend fun initializeApp(): Response<ApiResponse<Map<String, Any>>>
 
-    // LISTE
-    @GET("lists")
-    suspend fun getUserLists(
-        @Query("userId") userId: String
-    ): Response<ApiResponse<List<MovieList>>>
-
     @DELETE("movies/user/{userId}/all")
     suspend fun deleteAllUserMovies(@Path("userId") userId: String): Response<ApiResponse<Unit>>
 
+    @DELETE("movies/all")
+    suspend fun deleteAllMovies(
+        @Header("x-user-id") userId: String
+    ): Response<ApiResponse<Any>>
+
+    // TMDB
     @GET("tmdb/search")
     suspend fun searchTmdb(
         @Query("query") query: String,
@@ -233,70 +275,90 @@ interface ApiInterface {
         @Body request: AddMovieFromTmdbRequest
     ): Response<ApiResponse<Movie>>
 
-    @POST("api/v1/lists")
+    @POST("tmdb/sync-popular")
+    suspend fun syncPopularMovies(
+        @Body request: SyncPopularRequest
+    ): Response<ApiResponse<SyncPopularResponse>>
+
+    @GET("tmdb/autocomplete")
+    suspend fun autocompleteMovies(
+        @Query("query") query: String,
+        @Query("limit") limit: Int = 10
+    ): Response<ApiResponse<List<Movie>>>
+
+    @GET("tmdb/stats")
+    suspend fun getTmdbStats(): Response<ApiResponse<TmdbStatsResponse>>
+
+    // LISTS
+    @POST("lists")
     suspend fun createList(
         @Body request: CreateListRequest
     ): Response<MovieList>
 
-    @PUT("api/v1/lists/{id}")
+    @PUT("lists/{id}")
     suspend fun updateList(
         @Path("id") listId: String,
         @Body request: UpdateListRequest
     ): Response<MovieList>
 
-    @GET("api/v1/lists/my")
+    @GET("lists/my")
     suspend fun getMyLists(
         @Query("userId") userId: String
     ): Response<List<MovieList>>
 
-    @GET("api/v1/lists/public")
+    @GET("lists/public")
     suspend fun getPublicLists(
         @Query("limit") limit: Int = 20,
         @Query("userId") userId: String? = null
     ): Response<List<MovieList>>
 
-    @GET("api/v1/lists/{id}")
+    @GET("lists/{id}")
     suspend fun getListById(
         @Path("id") listId: String
     ): Response<MovieList>
 
-    @DELETE("api/v1/lists/{id}")
+    @DELETE("lists/{id}")
     suspend fun deleteList(
-        @Path("id") listId: String
+        @Path("id") listId: String,
+        @Query("userId") userId: String
     ): Response<Any>
 
-    @POST("api/v1/lists/{id}/movies")
+    @POST("lists/{id}/movies")
     suspend fun addMovieToList(
         @Path("id") listId: String,
-        @Body request: AddMovieToListRequest
+        @Body request: AddMovieToListRequest,
+        @Query("userId") userId: String
     ): Response<MovieList>
 
-    @DELETE("api/v1/lists/{id}/movies/{movieId}")
+    @DELETE("lists/{id}/movies/{movieId}")
     suspend fun removeMovieFromList(
         @Path("id") listId: String,
-        @Path("movieId") movieId: String
+        @Path("movieId") movieId: String,
+        @Query("userId") userId: String
     ): Response<MovieList>
 
-    @POST("api/v1/lists/{id}/follow")
+    @POST("lists/{id}/follow")
     suspend fun followList(
         @Path("id") listId: String,
         @Body body: Map<String, String>
     ): Response<Any>
 
-    @DELETE("api/v1/lists/{id}/follow")
+    @DELETE("lists/{id}/follow")
     suspend fun unfollowList(
-        @Path("id") listId: String
+        @Path("id") listId: String,
+        @Query("userId") userId: String
     ): Response<Any>
 
-    @GET("api/v1/lists/{id}/followers")
+    @GET("lists/{id}/followers")
     suspend fun getListFollowers(
         @Path("id") listId: String
     ): Response<List<UserInfo>>
 
-    @DELETE("movies/all")
-    suspend fun deleteAllMovies(
-        @Header("x-user-id") userId: String
-    ): Response<ApiResponse<Any>>
+    @POST("lists/{id}/copy")
+    suspend fun copyList(
+        @Path("id") listId: String,
+        @Body body: CopyListRequest
+    ): Response<MovieList>
 }
 
 // ============================================
@@ -312,30 +374,35 @@ object ApiService {
     private var currentToken: String? = null
     private var currentUser: UserInfo? = null
 
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(AppConfig.CONNECT_TIMEOUT, TimeUnit.SECONDS)
-        .readTimeout(AppConfig.READ_TIMEOUT, TimeUnit.SECONDS)
-        .writeTimeout(AppConfig.WRITE_TIMEOUT, TimeUnit.SECONDS)
-        .addInterceptor { chain ->
-            val originalRequest = chain.request()
-            val requestBuilder = originalRequest.newBuilder()
-                .addHeader("Content-Type", "application/json")
+    lateinit var apiInterface: ApiInterface
+        private set
 
-            currentToken?.let { token ->
-                requestBuilder.addHeader("Authorization", "Bearer $token")
-            }
-
-            chain.proceed(requestBuilder.build())
+    private val okHttpClient by lazy {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
         }
-        .build()
 
-    private val retrofit = Retrofit.Builder()
-        .baseUrl(AppConfig.BASE_URL)
-        .client(okHttpClient)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
+        OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val requestBuilder = original.newBuilder()
 
-    val apiInterface: ApiInterface = retrofit.create(ApiInterface::class.java)
+                currentToken?.let { token ->
+                    requestBuilder.header("Authorization", "Bearer $token")
+                }
+
+                requestBuilder.header("Accept", "application/json")
+                requestBuilder.header("Content-Type", "application/json")
+
+                val request = requestBuilder.build()
+                chain.proceed(request)
+            }
+            .connectTimeout(AppConfig.CONNECT_TIMEOUT, TimeUnit.SECONDS)
+            .readTimeout(AppConfig.READ_TIMEOUT, TimeUnit.SECONDS)
+            .writeTimeout(AppConfig.WRITE_TIMEOUT, TimeUnit.SECONDS)
+            .build()
+    }
 
     // ============================================
     // INIZIALIZZAZIONE
@@ -343,6 +410,14 @@ object ApiService {
 
     fun initialize(context: Context) {
         prefs = context.getSharedPreferences(AppConfig.AUTH_PREFS_NAME, Context.MODE_PRIVATE)
+
+        val retrofit = Retrofit.Builder()
+            .baseUrl(AppConfig.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        apiInterface = retrofit.create(ApiInterface::class.java)
 
         currentToken = prefs.getString("access_token", null)
 
@@ -355,11 +430,11 @@ object ApiService {
             }
         }
 
-        Log.i(TAG, "✅ ApiService inizializzato")
-        Log.i(TAG, "   Backend: ${AppConfig.BASE_URL}")
-        Log.i(TAG, "   Autenticato: ${isAuthenticated()}")
+        Log.i(TAG, "apiservice inizializzato")
+        Log.i(TAG, "backend: ${AppConfig.BASE_URL}")
+        Log.i(TAG, "autenticato: ${isAuthenticated()}")
         if (currentUser != null) {
-            Log.i(TAG, "   User: ${currentUser?.email}")
+            Log.i(TAG, "user: ${currentUser?.email}")
         }
     }
 
@@ -367,6 +442,7 @@ object ApiService {
     fun hasUserId(): Boolean = currentUser?.id != null
     fun isAuthenticated(): Boolean = currentToken != null && currentUser != null
     fun getCurrentUser(): UserInfo? = currentUser
+    fun getToken(): String? = currentToken
 
     // ============================================
     // AUTH METHODS
@@ -375,7 +451,7 @@ object ApiService {
     suspend fun register(email: String, password: String, username: String? = null): Result<AuthResponse> =
         withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "📝 Registrazione utente: $email")
+                Log.d(TAG, "registrazione utente: $email")
 
                 val request = RegisterRequest(email, password, username)
                 val response = apiInterface.register(request)
@@ -392,15 +468,15 @@ object ApiService {
                         apply()
                     }
 
-                    Log.d(TAG, "✅ Registrazione completata: ${authData.user.email}")
+                    Log.d(TAG, "registrazione completata: ${authData.user.email}")
                     Result.success(authData)
                 } else {
                     val errorMsg = response.body()?.message ?: "registrazione fallita"
-                    Log.e(TAG, "❌ $errorMsg")
+                    Log.e(TAG, errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ errore registrazione: ${e.message}")
+                Log.e(TAG, "errore registrazione: ${e.message}")
                 Result.failure(e)
             }
         }
@@ -408,7 +484,7 @@ object ApiService {
     suspend fun login(email: String, password: String): Result<AuthResponse> =
         withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "🔐 Login: $email")
+                Log.d(TAG, "login: $email")
 
                 val request = LoginRequest(email, password)
                 val response = apiInterface.login(request)
@@ -425,15 +501,15 @@ object ApiService {
                         apply()
                     }
 
-                    Log.d(TAG, "✅ Login completato: ${authData.user.email}")
+                    Log.d(TAG, "login completato: ${authData.user.email}")
                     Result.success(authData)
                 } else {
                     val errorMsg = response.body()?.message ?: "login fallito"
-                    Log.e(TAG, "❌ $errorMsg")
+                    Log.e(TAG, errorMsg)
                     Result.failure(Exception(errorMsg))
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ errore login: ${e.message}")
+                Log.e(TAG, "errore login: ${e.message}")
                 Result.failure(e)
             }
         }
@@ -448,7 +524,7 @@ object ApiService {
             apply()
         }
 
-        Log.d(TAG, "👋 Logout completato")
+        Log.d(TAG, "logout completato")
     }
 
     // ============================================
@@ -464,38 +540,36 @@ object ApiService {
         }
     }
 
-    /**
-     * Cerca film su TMDB
-     */
+    // ============================================
+    // TMDB METHODS
+    // ============================================
+
     suspend fun searchMovieOnTmdb(query: String, year: Int? = null): Result<Movie> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "🔍 Ricerca TMDB: $query${if (year != null) " ($year)" else ""}")
+            Log.d(TAG, "ricerca tmdb: $query${if (year != null) " ($year)" else ""}")
 
             val response = apiInterface.searchTmdb(query, year)
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val movie = response.body()?.data
-                    ?: return@withContext Result.failure(Exception("Film non trovato su TMDB"))
+                    ?: return@withContext Result.failure(Exception("film non trovato su tmdb"))
 
-                Log.d(TAG, "✅ Film trovato su TMDB: ${movie.title}")
+                Log.d(TAG, "film trovato su tmdb: ${movie.title}")
                 Result.success(movie)
             } else {
-                val error = response.body()?.message ?: "Nessun film trovato su TMDB"
-                Log.w(TAG, "⚠️ $error")
+                val error = response.body()?.message ?: "nessun film trovato su tmdb"
+                Log.w(TAG, error)
                 Result.failure(Exception(error))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore ricerca TMDB", e)
+            Log.e(TAG, "errore ricerca tmdb", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Aggiunge film da TMDB al database
-     */
     suspend fun addMovieFromTmdb(tmdbId: Int, userId: String, status: String = "watchlist"): Result<Movie> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "📥 Aggiunta film da TMDB: $tmdbId")
+            Log.d(TAG, "aggiunta film da tmdb: $tmdbId")
 
             val request = AddMovieFromTmdbRequest(
                 tmdbId = tmdbId,
@@ -507,350 +581,17 @@ object ApiService {
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val movie = response.body()?.data
-                    ?: return@withContext Result.failure(Exception("Errore aggiunta film"))
+                    ?: return@withContext Result.failure(Exception("errore aggiunta film"))
 
-                Log.d(TAG, "✅ Film aggiunto al database: ${movie.title}")
+                Log.d(TAG, "film aggiunto al database: ${movie.title}")
                 Result.success(movie)
             } else {
-                val error = response.body()?.message ?: "Errore aggiunta film da TMDB"
-                Log.w(TAG, "⚠️ $error")
+                val error = response.body()?.message ?: "errore aggiunta film da tmdb"
+                Log.w(TAG, error)
                 Result.failure(Exception(error))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore addMovieFromTmdb", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * fix: elimina tutti i film dell'utente corrente
-     */
-    suspend fun deleteAllUserMovies(): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val userId = getCurrentUserId()
-            if (userId == null) {
-                Log.e(TAG, "userId non disponibile per deleteAllUserMovies")
-                return@withContext Result.failure(Exception("utente non autenticato"))
-            }
-
-            Log.d(TAG, "🗑️ eliminazione tutti i film per user $userId")
-
-            // usa deleteAllUserMovies() invece di deleteAllMovies()
-            val response = apiInterface.deleteAllUserMovies(userId)
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                Log.d(TAG, "✅ tutti i film eliminati con successo")
-                Result.success(Unit)
-            } else {
-                val error = response.body()?.message ?: "errore eliminazione film"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ errore deleteAllUserMovies", e)
-            Result.failure(e)
-        }
-    }
-
-    // ============================================
-    // LISTE METHODS
-    // ============================================
-
-    suspend fun getUserLists(): Result<List<MovieList>> = withContext(Dispatchers.IO) {
-        try {
-            val userId = getCurrentUserId()
-                ?: return@withContext Result.failure(Exception("Utente non autenticato"))
-
-            Log.d(TAG, "📋 Recupero liste per utente $userId")
-
-            val response = apiInterface.getMyLists(userId)
-
-            if (response.isSuccessful) {  // ⬅️ Senza .body()?.success
-                val lists = response.body() ?: emptyList()  // ⬅️ Diretto, senza .data
-                Log.d(TAG, "✅ ${lists.size} liste recuperate")
-                Result.success(lists)
-            } else {
-                val error = response.message() ?: "Errore recupero liste"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore getUserLists", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun getPublicLists(limit: Int = 20): Result<List<MovieList>> = withContext(Dispatchers.IO) {
-        try {
-            val userId = getCurrentUserId()
-            Log.d(TAG, "🌐 Recupero liste pubbliche (limit: $limit, exclude: $userId)")
-
-            val response = apiInterface.getPublicLists(limit, userId)
-
-            if (response.isSuccessful) {  // ⬅️ Senza .body()?.success
-                val lists = response.body() ?: emptyList()  // ⬅️ Diretto, senza .data
-                Log.d(TAG, "✅ ${lists.size} liste pubbliche recuperate")
-                Result.success(lists)
-            } else {
-                val error = response.message() ?: "Errore recupero liste pubbliche"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore getPublicLists", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun getListById(listId: String): Result<MovieList> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "📄 Recupero dettaglio lista $listId")
-
-            val response = apiInterface.getListById(listId)
-
-            if (response.isSuccessful) {
-                val list = response.body()
-                    ?: return@withContext Result.failure(Exception("Lista non trovata"))
-
-                Log.d(TAG, "✅ Lista recuperata: ${list.name}")
-                Result.success(list)
-            } else {
-                val error = response.message() ?: "Errore recupero lista"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore getListById", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun deleteList(listId: String): Result<Boolean> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "🗑️ Eliminazione lista $listId")
-
-            val response = apiInterface.deleteList(listId)
-
-            if (response.isSuccessful) {
-                Log.d(TAG, "✅ Lista eliminata: $listId")
-                Result.success(true)
-            } else {
-                val error = response.message() ?: "Errore eliminazione lista"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore deleteList", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun addMovieToList(listId: String, movieId: String): Result<MovieList> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "➕ Aggiunta film $movieId a lista $listId")
-
-            val request = AddMovieToListRequest(movie_id = movieId)  // ⬅️ movie_id
-            val response = apiInterface.addMovieToList(listId, request)
-
-            if (response.isSuccessful) {
-                val list = response.body()
-                    ?: return@withContext Result.failure(Exception("Errore aggiunta film"))
-
-                Log.d(TAG, "✅ Film aggiunto a lista")
-                Result.success(list)
-            } else {
-                val error = response.message() ?: "Errore aggiunta film"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore addMovieToList", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun removeMovieFromList(listId: String, movieId: String): Result<MovieList> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "➖ Rimozione film $movieId da lista $listId")
-
-            val response = apiInterface.removeMovieFromList(listId, movieId)
-
-            if (response.isSuccessful) {
-                val list = response.body()
-                    ?: return@withContext Result.failure(Exception("Errore rimozione film"))
-
-                Log.d(TAG, "✅ Film rimosso da lista")
-                Result.success(list)
-            } else {
-                val error = response.message() ?: "Errore rimozione film"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore removeMovieFromList", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun followList(listId: String): Result<Any> = withContext(Dispatchers.IO) {
-        try {
-            val userId = getCurrentUserId()
-                ?: return@withContext Result.failure(Exception("Utente non autenticato"))
-
-            Log.d(TAG, "👥 Follow lista $listId")
-
-            val request = mapOf("userId" to userId)
-            val response = apiInterface.followList(listId, request)
-
-            if (response.isSuccessful) {
-                Log.d(TAG, "✅ Lista seguita")
-                Result.success(Unit)
-            } else {
-                val error = response.message() ?: "Errore follow lista"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore followList", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun createList(
-        name: String,
-        description: String? = null,
-        isPublic: Boolean = false,
-        movieIds: List<String> = emptyList()
-    ): Result<MovieList> = withContext(Dispatchers.IO) {
-        try {
-            // 🔍 LOGGING DETTAGLIATO
-            Log.d(TAG, "========================================")
-            Log.d(TAG, "📝 CREAZIONE LISTA - INIZIO")
-            Log.d(TAG, "   Nome: $name")
-            Log.d(TAG, "   Pubblica: $isPublic")
-            Log.d(TAG, "   Descrizione: ${description ?: "nessuna"}")
-            Log.d(TAG, "========================================")
-
-            // 🔍 Verifica stato autenticazione
-            Log.d(TAG, "🔐 Verifica autenticazione:")
-            Log.d(TAG, "   currentToken: ${if (currentToken != null) "PRESENTE" else "NULL"}")
-            Log.d(TAG, "   currentUser: ${if (currentUser != null) "PRESENTE" else "NULL"}")
-            Log.d(TAG, "   currentUser.id: ${currentUser?.id ?: "NULL"}")
-            Log.d(TAG, "   currentUser.email: ${currentUser?.email ?: "NULL"}")
-            Log.d(TAG, "   isAuthenticated(): ${isAuthenticated()}")
-            Log.d(TAG, "   hasUserId(): ${hasUserId()}")
-
-            val userId = getCurrentUserId()
-
-            if (userId == null) {
-                Log.e(TAG, "❌ ERRORE: userId è NULL!")
-                Log.e(TAG, "   Possibili cause:")
-                Log.e(TAG, "   1. Login non completato correttamente")
-                Log.e(TAG, "   2. Dati utente non salvati in SharedPreferences")
-                Log.e(TAG, "   3. ApiService.initialize() non chiamato dopo login")
-
-                // 🔍 Verifica SharedPreferences
-                val savedToken = prefs.getString("access_token", null)
-                val savedUserJson = prefs.getString("user_info", null)
-                Log.d(TAG, "📦 Contenuto SharedPreferences:")
-                Log.d(TAG, "   access_token: ${if (savedToken != null) "PRESENTE" else "NULL"}")
-                Log.d(TAG, "   user_info: ${if (savedUserJson != null) "PRESENTE" else "NULL"}")
-                if (savedUserJson != null) {
-                    Log.d(TAG, "   user_info JSON: $savedUserJson")
-                }
-
-                return@withContext Result.failure(Exception("❌ Utente non autenticato. Effettua nuovamente il login."))
-            }
-
-            Log.d(TAG, "✅ UserId trovato: $userId")
-            Log.d(TAG, "🌐 Invio richiesta al backend...")
-            Log.d(TAG, "   URL: ${AppConfig.BASE_URL}lists")
-
-            val request = CreateListRequest(
-                userId = userId,
-                name = name,
-                description = description,
-                isPublic = isPublic,
-                movieIds = movieIds
-            )
-
-            Log.d(TAG, "📤 Request body:")
-            Log.d(TAG, "   userId: ${request.userId}")
-            Log.d(TAG, "   name: ${request.name}")
-            Log.d(TAG, "   description: ${request.description}")
-            Log.d(TAG, "   isPublic: ${request.isPublic}")
-            Log.d(TAG, "   movieIds: ${request.movieIds}")
-
-            val response = apiInterface.createList(request)
-
-            Log.d(TAG, "📥 Risposta ricevuta:")
-            Log.d(TAG, "   isSuccessful: ${response.isSuccessful}")
-            Log.d(TAG, "   code: ${response.code()}")
-            Log.d(TAG, "   message: ${response.message()}")
-
-            if (response.isSuccessful) {
-                val list = response.body()
-                    ?: return@withContext Result.failure(Exception("Dati lista non presenti nella risposta"))
-
-                Log.d(TAG, "✅ LISTA CREATA CON SUCCESSO!")
-                Log.d(TAG, "   ID: ${list.id}")
-                Log.d(TAG, "   Nome: ${list.name}")
-                Log.d(TAG, "========================================")
-                Result.success(list)
-            } else {
-                val error = response.message() ?: "Errore creazione lista"
-                val errorBody = response.errorBody()?.string()
-
-                Log.e(TAG, "❌ ERRORE CREAZIONE LISTA")
-                Log.e(TAG, "   Messaggio: $error")
-                if (errorBody != null) {
-                    Log.e(TAG, "   Error Body: $errorBody")
-                }
-                Log.e(TAG, "========================================")
-
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ ECCEZIONE durante createList:", e)
-            Log.e(TAG, "   Tipo: ${e.javaClass.simpleName}")
-            Log.e(TAG, "   Messaggio: ${e.message}")
-            Log.e(TAG, "   Stack trace:")
-            e.printStackTrace()
-            Log.e(TAG, "========================================")
-            Result.failure(e)
-        }
-    }
-
-    suspend fun updateList(
-        listId: String,
-        name: String? = null,
-        description: String? = null,
-        isPublic: Boolean? = null
-    ): Result<MovieList> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "✏️ Aggiornamento lista $listId")
-
-            val request = UpdateListRequest(
-                name = name,
-                description = description,
-                isPublic = isPublic
-            )
-
-            val response = apiInterface.updateList(listId, request)
-
-            if (response.isSuccessful) {
-                val list = response.body()
-                    ?: return@withContext Result.failure(Exception("Errore aggiornamento lista"))
-
-                Log.d(TAG, "✅ Lista aggiornata: $listId")
-                Result.success(list)
-            } else {
-                val error = response.message() ?: "Errore creazione lista"
-                Log.w(TAG, "⚠️ $error")
-                Result.failure(Exception(error))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Errore updateList", e)
+            Log.e(TAG, "errore addmovie fromtmdb", e)
             Result.failure(e)
         }
     }
@@ -866,17 +607,15 @@ object ApiService {
         try {
             val userId = getCurrentUserId()
             if (userId == null) {
-                Log.e(TAG, "❌ userId non disponibile - utente non autenticato")
-                return@withContext Result.failure(Exception("Utente non autenticato"))
+                Log.e(TAG, "userid non disponibile - utente non autenticato")
+                return@withContext Result.failure(Exception("utente non autenticato"))
             }
 
-            Log.d(TAG, "╔═══════════════════════════════════════╗")
-            Log.d(TAG, "📦 BATCH UPLOAD")
-            Log.d(TAG, "   User ID: $userId")
-            Log.d(TAG, "   Watchlist: ${watchlist.size} film")
-            Log.d(TAG, "   Watched: ${watched.size} film")
-            Log.d(TAG, "   Totale: ${watchlist.size + watched.size} film")
-            Log.d(TAG, "╚═══════════════════════════════════════╝")
+            Log.d(TAG, "batch upload")
+            Log.d(TAG, "user id: $userId")
+            Log.d(TAG, "watchlist: ${watchlist.size} film")
+            Log.d(TAG, "watched: ${watched.size} film")
+            Log.d(TAG, "totale: ${watchlist.size + watched.size} film")
 
             val watchlistDtos = watchlist.map { movie ->
                 MovieDto(
@@ -910,37 +649,27 @@ object ApiService {
                 watched = watchedDtos
             )
 
-            Log.d(TAG, "📤 invio batch al backend...")
+            Log.d(TAG, "invio batch al backend...")
 
             val response = apiInterface.batchUpload(request)
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val batchData = response.body()?.data!!
 
-                Log.d(TAG, "✅ BATCH UPLOAD COMPLETATO")
-                Log.d(TAG, "═══════════════════════════════════════")
-                Log.d(TAG, "Session: ${batchData.sessionId}")
-                Log.d(TAG, "Film totali: ${batchData.summary.totalMovies}")
-                Log.d(TAG, "Arricchiti: ${batchData.summary.totalEnriched}")
-                Log.d(TAG, "Cache hits: ${batchData.summary.cacheHitsTotal}")
-                Log.d(TAG, "")
-                Log.d(TAG, "📊 CONTATORI DAL FILE:")
-                Log.d(TAG, "   Watched: ${batchData.counters.fromFile.watched}")
-                Log.d(TAG, "   Watchlist: ${batchData.counters.fromFile.watchlist}")
-                Log.d(TAG, "")
-                Log.d(TAG, "📊 CONTATORI TOTALI (dopo refresh):")
-                Log.d(TAG, "   Watched: ${batchData.counters.afterRefresh.watched}")
-                Log.d(TAG, "   Watchlist: ${batchData.counters.afterRefresh.watchlist}")
-                Log.d(TAG, "═══════════════════════════════════════")
+                Log.d(TAG, "batch upload completato")
+                Log.d(TAG, "session: ${batchData.sessionId}")
+                Log.d(TAG, "film totali: ${batchData.summary.totalMovies}")
+                Log.d(TAG, "arricchiti: ${batchData.summary.totalEnriched}")
+                Log.d(TAG, "cache hits: ${batchData.summary.cacheHitsTotal}")
 
                 Result.success(batchData)
             } else {
                 val errorMsg = response.body()?.message ?: "batch upload fallito"
-                Log.e(TAG, "❌ $errorMsg")
+                Log.e(TAG, errorMsg)
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ exception: ${e.message}", e)
+            Log.e(TAG, "exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -948,10 +677,8 @@ object ApiService {
     suspend fun enrichMoviesAutomatic(movies: List<Movie>): Result<EnrichmentResponse> =
         withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "╔═══════════════════════════════════════╗")
-                Log.d(TAG, "🎬 ENRICHMENT AUTOMATICO")
-                Log.d(TAG, "   Film da processare: ${movies.size}")
-                Log.d(TAG, "╚═══════════════════════════════════════╝")
+                Log.d(TAG, "enrichment automatico")
+                Log.d(TAG, "film da processare: ${movies.size}")
 
                 val movieDtos = movies.map { movie ->
                     MovieDto(
@@ -968,57 +695,49 @@ object ApiService {
 
                 val request = EnrichRequest(movies = movieDtos)
 
-                Log.d(TAG, "📤 invio richiesta enrichment...")
+                Log.d(TAG, "invio richiesta enrichment...")
 
                 val response = apiInterface.enrichMovies(request)
 
                 if (response.isSuccessful && response.body()?.success == true) {
                     val enrichmentData = response.body()?.data!!
 
-                    Log.d(TAG, "✅ ENRICHMENT COMPLETATO")
-                    Log.d(TAG, "═══════════════════════════════════════")
-                    Log.d(TAG, "   Session: ${enrichmentData.sessionId}")
-                    Log.d(TAG, "   Processati: ${enrichmentData.totalProcessed}")
-                    Log.d(TAG, "   Successo: ${enrichmentData.successfulMovies.size}")
-                    Log.d(TAG, "   Success rate: ${(enrichmentData.successRate * 100).toInt()}%")
-                    Log.d(TAG, "   Cache hits: ${enrichmentData.cacheHits}")
-                    Log.d(TAG, "   Falliti: ${enrichmentData.failedMovies.size}")
-                    Log.d(TAG, "═══════════════════════════════════════")
+                    Log.d(TAG, "enrichment completato")
+                    Log.d(TAG, "session: ${enrichmentData.sessionId}")
+                    Log.d(TAG, "processati: ${enrichmentData.totalProcessed}")
+                    Log.d(TAG, "successo: ${enrichmentData.successfulMovies.size}")
+                    Log.d(TAG, "success rate: ${(enrichmentData.successRate * 100).toInt()}%")
+                    Log.d(TAG, "cache hits: ${enrichmentData.cacheHits}")
+                    Log.d(TAG, "falliti: ${enrichmentData.failedMovies.size}")
 
                     Result.success(enrichmentData)
                 } else {
                     val errorMsg = response.body()?.message ?: "enrichment fallito"
                     val errorBody = response.errorBody()?.string()
 
-                    Log.e(TAG, "❌ ENRICHMENT FALLITO")
-                    Log.e(TAG, "   Message: $errorMsg")
-                    Log.e(TAG, "   Error body: $errorBody")
-                    Log.e(TAG, "═══════════════════════════════════════")
+                    Log.e(TAG, "enrichment fallito")
+                    Log.e(TAG, "message: $errorMsg")
+                    Log.e(TAG, "error body: $errorBody")
 
                     Result.failure(Exception(errorMsg))
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ EXCEPTION: ${e.message}", e)
-                Log.e(TAG, "═══════════════════════════════════════")
+                Log.e(TAG, "exception: ${e.message}", e)
                 Result.failure(e)
             }
         }
 
-    /**
-     * ✅ Recupera i film dell'utente corrente
-     * Questo è l'UNICO metodo da usare per recuperare i film
-     */
     suspend fun getUserStoredMovies(
         status: String? = null
     ): Result<List<Movie>> = withContext(Dispatchers.IO) {
         try {
             val userId = getCurrentUserId()
             if (userId == null) {
-                Log.e(TAG, "❌ userId non disponibile")
-                return@withContext Result.failure(Exception("Utente non autenticato"))
+                Log.e(TAG, "userid non disponibile")
+                return@withContext Result.failure(Exception("utente non autenticato"))
             }
 
-            Log.d(TAG, "📚 richiesta film per utente $userId (status: ${status ?: "all"})")
+            Log.d(TAG, "richiesta film per utente $userId (status: ${status ?: "all"})")
 
             val response = apiInterface.getUserMovies(userId, status)
 
@@ -1026,32 +745,29 @@ object ApiService {
                 val moviesData = response.body()?.data!!
                 val movies = moviesData.movies.map { dto -> dtoToMovie(dto) }
 
-                Log.d(TAG, "✅ recuperati ${movies.size} film per utente $userId")
+                Log.d(TAG, "recuperati ${movies.size} film per utente $userId")
                 Result.success(movies)
             } else {
                 val errorMsg = response.body()?.message ?: "errore recupero film utente"
-                Log.e(TAG, "❌ errore: $errorMsg")
+                Log.e(TAG, "errore: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ errore recupero film utente: ${e.message}")
+            Log.e(TAG, "errore recupero film utente: ${e.message}")
             Result.failure(e)
         }
     }
 
-    /**
-     * Ottieni statistiche utente (veloce - solo contatori)
-     */
     suspend fun getUserStats(): Result<UserStatsResponse> {
         return try {
             val userId = getCurrentUserId()
 
             if (userId == null) {
-                Log.e(TAG, "❌ userId mancante per getUserStats")
-                return Result.failure(Exception("userId mancante"))
+                Log.e(TAG, "userid mancante per getstats")
+                return Result.failure(Exception("userid mancante"))
             }
 
-            Log.d(TAG, "📊 Richiesta stats per utente: $userId")
+            Log.d(TAG, "richiesta stats per utente: $userId")
 
             val response = apiInterface.getUserStats(userId)
 
@@ -1059,25 +775,141 @@ object ApiService {
                 val body = response.body()
 
                 if (body?.success == true && body.data != null) {
-                    Log.d(TAG, "✅ Stats ricevute:")
-                    Log.d(TAG, "   Totali: ${body.data.totalMovies}")
-                    Log.d(TAG, "   Visti: ${body.data.watchedCount}")
-                    Log.d(TAG, "   Da vedere: ${body.data.watchlistCount}")
-                    Log.d(TAG, "   Rating medio: ${body.data.averageRating}")
+                    Log.d(TAG, "stats ricevute:")
+                    Log.d(TAG, "totali: ${body.data.totalMovies}")
+                    Log.d(TAG, "visti: ${body.data.watchedCount}")
+                    Log.d(TAG, "da vedere: ${body.data.watchlistCount}")
+                    Log.d(TAG, "rating medio: ${body.data.averageRating}")
 
                     Result.success(body.data)
                 } else {
-                    val errorMsg = body?.message ?: "Risposta vuota"
-                    Log.e(TAG, "❌ Errore stats: $errorMsg")
+                    val errorMsg = body?.message ?: "risposta vuota"
+                    Log.e(TAG, "errore stats: $errorMsg")
                     Result.failure(Exception(errorMsg))
                 }
             } else {
-                val errorMsg = "HTTP ${response.code()}: ${response.message()}"
-                Log.e(TAG, "❌ Errore HTTP stats: $errorMsg")
+                val errorMsg = "http ${response.code()}: ${response.message()}"
+                Log.e(TAG, "errore http stats: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Eccezione getUserStats", e)
+            Log.e(TAG, "eccezione getstats", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteAllUserMovies(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userId = getCurrentUserId()
+            if (userId == null) {
+                Log.e(TAG, "userid non disponibile per deleteallusermovies")
+                return@withContext Result.failure(Exception("utente non autenticato"))
+            }
+
+            Log.d(TAG, "eliminazione tutti i film per user $userId")
+
+            val response = apiInterface.deleteAllUserMovies(userId)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Log.d(TAG, "tutti i film eliminati con successo")
+                Result.success(Unit)
+            } else {
+                val error = response.body()?.message ?: "errore eliminazione film"
+                Log.w(TAG, error)
+                Result.failure(Exception(error))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "errore deleteallusermovies", e)
+            Result.failure(e)
+        }
+    }
+
+    // ============================================
+    // LISTS METHODS
+    // ============================================
+
+    suspend fun createList(
+        name: String,
+        description: String? = null,
+        isPublic: Boolean = false,
+        movieIds: List<String> = emptyList()
+    ): Result<MovieList> = withContext(Dispatchers.IO) {
+        try {
+            val userId = getCurrentUserId()
+
+            if (userId == null) {
+                Log.e(TAG, "userid e null!")
+                return@withContext Result.failure(Exception("utente non autenticato. effettua nuovamente il login."))
+            }
+
+            Log.d(TAG, "creazione lista: $name")
+
+            val request = CreateListRequest(
+                user_id = userId,
+                name = name,
+                description = description,
+                is_public = isPublic,
+                movie_ids = movieIds
+            )
+
+            val response = apiInterface.createList(request)
+
+            if (response.isSuccessful) {
+                val list = response.body()
+                    ?: return@withContext Result.failure(Exception("dati lista non presenti nella risposta"))
+
+                Log.d(TAG, "lista creata con successo!")
+                Log.d(TAG, "id: ${list.id}")
+                Log.d(TAG, "nome: ${list.name}")
+                Result.success(list)
+            } else {
+                val error = response.message() ?: "errore creazione lista"
+                val errorBody = response.errorBody()?.string()
+
+                Log.e(TAG, "errore creazione lista")
+                Log.e(TAG, "messaggio: $error")
+                if (errorBody != null) {
+                    Log.e(TAG, "error body: $errorBody")
+                }
+
+                Result.failure(Exception(error))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "eccezione durante createlist:", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateList(
+        listId: String,
+        name: String? = null,
+        description: String? = null,
+        isPublic: Boolean? = null
+    ): Result<MovieList> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "aggiornamento lista $listId")
+
+            val request = UpdateListRequest(
+                name = name,
+                description = description,
+                is_public = isPublic
+            )
+
+            val response = apiInterface.updateList(listId, request)
+
+            if (response.isSuccessful) {
+                val list = response.body()
+                    ?: return@withContext Result.failure(Exception("errore aggiornamento lista"))
+
+                Log.d(TAG, "lista aggiornata: $listId")
+                Result.success(list)
+            } else {
+                val error = response.message() ?: "errore aggiornamento lista"
+                Log.w(TAG, error)
+                Result.failure(Exception(error))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "errore updatelist", e)
             Result.failure(e)
         }
     }
@@ -1093,16 +925,16 @@ object ApiService {
             year = dto.year,
             director = dto.director,
             genres = dto.genres,
-            cast = dto.cast,
+            actors = dto.cast,
             overview = dto.overview,
             runtime = dto.runtime,
             userRating = dto.userRating,
             dateRated = dto.watchedDate,
             isWatched = dto.isWatched,
             source = try {
-                com.example.movieapp.data.models.DataSource.valueOf(dto.source)
+                DataSource.valueOf(dto.source)
             } catch (e: Exception) {
-                com.example.movieapp.data.models.DataSource.UNKNOWN
+                DataSource.UNKNOWN
             },
             tmdbId = dto.tmdbId,
             posterUrl = dto.posterUrl,

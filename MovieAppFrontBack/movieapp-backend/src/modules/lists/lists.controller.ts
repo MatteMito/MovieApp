@@ -1,3 +1,6 @@
+// file: src/modules/lists/lists.controller.ts
+// controller con endpoint copia lista
+
 import {
   Controller,
   Get,
@@ -24,7 +27,7 @@ export class ListsController {
 
   /**
    * GET /api/v1/lists/public
-   * Ottieni tutte le liste pubbliche (SENZA AUTENTICAZIONE)
+   * ottieni tutte le liste pubbliche (senza autenticazione)
    */
   @Get('public')
   async getPublicLists(
@@ -41,7 +44,7 @@ export class ListsController {
 
   /**
    * GET /api/v1/lists/my
-   * Ottieni tutte le liste dell'utente autenticato
+   * ottieni tutte le liste dell'utente autenticato
    */
   @Get('my')
   async getMyLists(@Query('userId') userId: string) {
@@ -53,7 +56,7 @@ export class ListsController {
 
   /**
    * GET /api/v1/lists/:id
-   * Ottieni dettagli lista specifica (con film)
+   * ottieni dettagli lista specifica (con film)
    */
   @Get(':id')
   async getListById(@Param('id') id: string, @Query('userId') userId?: string) {
@@ -62,7 +65,7 @@ export class ListsController {
 
   /**
    * POST /api/v1/lists
-   * Crea nuova lista
+   * crea nuova lista
    */
   @Post()
   async createList(@Body() createListDto: CreateListDto) {
@@ -75,7 +78,7 @@ export class ListsController {
 
   /**
    * PUT /api/v1/lists/:id
-   * Aggiorna lista esistente
+   * aggiorna lista esistente
    */
   @Put(':id')
   async updateList(
@@ -91,7 +94,7 @@ export class ListsController {
 
   /**
    * DELETE /api/v1/lists/:id
-   * Elimina lista
+   * elimina lista
    */
   @Delete(':id')
   async deleteList(@Param('id') id: string, @Query('userId') userId?: string) {
@@ -105,7 +108,7 @@ export class ListsController {
 
   /**
    * POST /api/v1/lists/:id/movies
-   * Aggiungi film a lista
+   * aggiungi film a lista
    */
   @Post(':id/movies')
   async addMovieToList(
@@ -121,7 +124,7 @@ export class ListsController {
 
   /**
    * DELETE /api/v1/lists/:id/movies/:movieId
-   * Rimuovi film da lista
+   * rimuovi film da lista
    */
   @Delete(':id/movies/:movieId')
   async removeMovieFromList(
@@ -139,7 +142,7 @@ export class ListsController {
 
   /**
    * POST /api/v1/lists/:id/follow
-   * Segui una lista pubblica
+   * segui una lista pubblica
    */
   @Post(':id/follow')
   async followList(
@@ -155,7 +158,7 @@ export class ListsController {
 
   /**
    * DELETE /api/v1/lists/:id/follow
-   * Smetti di seguire una lista
+   * smetti di seguire una lista
    */
   @Delete(':id/follow')
   async unfollowList(
@@ -170,10 +173,28 @@ export class ListsController {
 
   /**
    * GET /api/v1/lists/:id/followers
-   * Ottieni followers di una lista
+   * ottieni followers di una lista
    */
   @Get(':id/followers')
   async getListFollowers(@Param('id') listId: string) {
     return this.listsService.getListFollowers(listId);
+  }
+
+  /**
+   * POST /api/v1/lists/:id/copy
+   * copia una lista pubblica e rendila privata
+   */
+  @Post(':id/copy')
+  async copyList(
+    @Param('id') listId: string,
+    @Body() body: { userId: string; newName?: string },
+  ) {
+    const { userId, newName } = body;
+    
+    if (!userId) {
+      throw new HttpException('userId richiesto', HttpStatus.BAD_REQUEST);
+    }
+
+    return this.listsService.copyList(listId, userId, newName);
   }
 }

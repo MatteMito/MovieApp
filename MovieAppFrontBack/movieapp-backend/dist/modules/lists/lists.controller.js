@@ -80,6 +80,13 @@ let ListsController = class ListsController {
     async getListFollowers(listId) {
         return this.listsService.getListFollowers(listId);
     }
+    async copyList(listId, body) {
+        const { userId, newName } = body;
+        if (!userId) {
+            throw new common_1.HttpException('userId richiesto', common_1.HttpStatus.BAD_REQUEST);
+        }
+        return this.listsService.copyList(listId, userId, newName);
+    }
 };
 exports.ListsController = ListsController;
 __decorate([
@@ -172,6 +179,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "getListFollowers", null);
+__decorate([
+    (0, common_1.Post)(':id/copy'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], ListsController.prototype, "copyList", null);
 exports.ListsController = ListsController = __decorate([
     (0, common_1.Controller)('api/v1/lists'),
     __metadata("design:paramtypes", [lists_service_1.ListsService])

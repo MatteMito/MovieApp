@@ -1,59 +1,56 @@
+// file: app/src/main/java/com/example/movieapp/ui/social/SearchMovieAdapter.kt
+// adapter per autocomplete ricerca film
+
 package com.example.movieapp.ui.social
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.example.movieapp.databinding.ItemSearchMovieBinding
+import com.bumptech.glide.Glide
+import com.example.movieapp.R
 import com.example.movieapp.data.models.Movie
+import com.example.movieapp.databinding.ItemSearchMovieBinding
 
 class SearchMovieAdapter(
     private val onMovieClick: (Movie) -> Unit
-) : ListAdapter<Movie, SearchMovieAdapter.MovieViewHolder>(MovieDiffCallback()) {
+) : ListAdapter<Movie, SearchMovieAdapter.ViewHolder>(MovieDiffCallback()) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MovieViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemSearchMovieBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
         )
-        return MovieViewHolder(binding)
+        return ViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: MovieViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(getItem(position))
     }
 
-    inner class MovieViewHolder(
+    inner class ViewHolder(
         private val binding: ItemSearchMovieBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(movie: Movie) {
             binding.apply {
-                // Titolo
-                textTitle.text = movie.title
+                tvMovieTitle.text = movie.title
+                tvMovieYear.text = movie.year?.toString() ?: "N/A"
 
-                // Anno e regista
-                val details = buildString {
-                    if (movie.year != null) {
-                        append(movie.year)
-                    }
-                    if (!movie.director.isNullOrEmpty()) {
-                        if (isNotEmpty()) append(" • ")
-                        append(movie.director)
-                    }
+                //poster
+                if (movie.posterUrl != null) {
+                    Glide.with(root.context)
+                        .load(movie.posterUrl)
+                        .placeholder(R.drawable.ic_home)
+                        .error(R.drawable.ic_home)
+                        .into(ivMoviePoster)
+                } else {
+                    ivMoviePoster.setImageResource(R.drawable.ic_home)
                 }
-                textDetails.text = details
-                textDetails.isVisible = details.isNotEmpty()
 
-                // Generi
-                val genres = movie.genres.joinToString(", ")
-                textGenres.text = genres
-                textGenres.isVisible = genres.isNotEmpty()
-
-                // Click
+                //click
                 root.setOnClickListener {
                     onMovieClick(movie)
                 }
