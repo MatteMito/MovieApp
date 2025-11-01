@@ -18,6 +18,7 @@ import com.example.movieapp.R
 import com.example.movieapp.databinding.FragmentHomeBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 /**
  * homefragment con import in background
@@ -147,26 +148,41 @@ class HomeFragment : Fragment() {
             Log.d(TAG, "import progress: $progress%")
         }
 
-        //osserva websocket updates in tempo reale (SOLO PER LOG, PROGRESS GIA' GESTITO DAL WORKER)
+        //osserva websocket updates in tempo reale
         viewLifecycleOwner.lifecycleScope.launch {
             homeViewModel.observeWebSocketUpdates().collect { update ->
                 if (update != null && binding.importProgressContainer.isVisible) {
-                    //aggiorna solo il testo con info dettagliate, NON il progress
-                    val detailText = when (update.type) {
-                        "started" -> "Inizio enrichment: ${update.total} film"
-                        "progress" -> "${update.currentMovie}"
-                        "completed" -> "Enrichment completato!"
-                        "error" -> "Errore: ${update.message}"
-                        else -> "Import in corso..."
-                    }
 
-                    //mostra dettaglio film corrente sotto la percentuale
-                    if (update.type == "progress") {
-                        val mainText = "Enrichment: ${update.processed}/${update.total} (${update.percentage}%)"
-                        binding.textImportStatus.text = "$mainText\n$detailText"
-                    }
+                    when (update.type) {
+                        "progress" -> {
+                            //aggiorna progress (40-100% mappato da enrichment 0-100%)
+                            val uiProgress = 40 + ((update.percentage * 60) / 100)
+                            binding.progressBarImport.progress = uiProgress
 
-                    Log.d(TAG, "websocket update: ${update.type} - ${update.processed}/${update.total}")
+                            val statusText = "Enrichment: ${update.processed}/${update.total}\n${update.currentMovie}"
+                            binding.textImportStatus.text = statusText
+
+                            Log.d(TAG, "ws: ${update.processed}/${update.total} -> $uiProgress%")
+
+                            //fix: rileva automaticamente quando processed = total
+                            if (update.processed >= update.total && update.total > 0) {
+                                Log.d(TAG, "✅ RILEVATO 100%: ${update.processed}/${update.total}")
+                                homeViewModel.onEnrichmentCompleted()
+                            }
+                        }
+                        "completed" -> {
+                            Log.d(TAG, "✅ EVENTO COMPLETED RICEVUTO")
+                            homeViewModel.onEnrichmentCompleted()
+                        }
+                        "error" -> {
+                            binding.textImportStatus.text = "Errore: ${update.message}"
+                            //termina import anche in caso di errore
+                            viewLifecycleOwner.lifecycleScope.launch {
+                                delay(2000)
+                                homeViewModel.onEnrichmentCompleted()
+                            }
+                        }
+                    }
                 }
             }
         }
