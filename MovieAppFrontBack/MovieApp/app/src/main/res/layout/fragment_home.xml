@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- fix: rimossa progress bar dalla card statistiche, mantiene solo quella principale per enrichment -->
 <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -20,7 +19,17 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- card statistiche senza progress bar interna -->
+            <!-- header sezione -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="La Tua Collezione"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- card statistiche -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -38,8 +47,8 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📊 Statistiche"
-                        android:textSize="18sp"
+                        android:text="Riepilogo"
+                        android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="@color/text_primary"
                         android:layout_marginBottom="16dp"/>
@@ -48,10 +57,13 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:columnCount="3"
-                        android:rowCount="2">
+                        android:rowCount="1"
+                        android:alignmentMode="alignBounds">
 
                         <!-- totale -->
                         <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
                             android:layout_columnWeight="1"
                             android:orientation="vertical"
                             android:gravity="center"
@@ -76,6 +88,8 @@
 
                         <!-- visti -->
                         <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
                             android:layout_columnWeight="1"
                             android:orientation="vertical"
                             android:gravity="center"
@@ -100,6 +114,8 @@
 
                         <!-- da vedere -->
                         <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
                             android:layout_columnWeight="1"
                             android:orientation="vertical"
                             android:gravity="center"
@@ -123,13 +139,10 @@
                         </LinearLayout>
                     </GridLayout>
 
-                    <!-- fix: rimossa progress bar qui, viene mostrata solo quella principale sotto -->
-                    <!-- progress bar film visti / totale - rimossa -->
-
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- progress bar import (unica, per l'enrichment) -->
+            <!-- progress bar import -->
             <ProgressBar
                 android:id="@+id/progress_bar_import"
                 style="@android:style/Widget.ProgressBar.Horizontal"
@@ -140,11 +153,11 @@
                 android:progress="0"
                 android:visibility="gone"
                 android:progressTint="@color/primary_blue"
-                android:progressBackgroundTint="@color/background_light"
+                android:progressBackgroundTint="@color/primary_blue_light"
                 tools:visibility="visible"
                 tools:progress="45"/>
 
-            <!-- import buttons -->
+            <!-- card import -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -162,8 +175,8 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📥 Importa Film"
-                        android:textSize="18sp"
+                        android:text="Importa Film"
+                        android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="@color/text_primary"
                         android:layout_marginBottom="16dp"/>
@@ -173,93 +186,94 @@
                         android:id="@+id/button_import_imdb_watched"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="IMDb Watched"
+                        android:text="IMDb - Film Visti"
                         android:textAllCaps="false"
                         android:layout_marginBottom="12dp"
                         app:icon="@drawable/ic_upload"
-                        app:iconGravity="start"/>
+                        app:iconGravity="start"
+                        app:cornerRadius="12dp"
+                        style="@style/Widget.Material3.Button"/>
 
                     <!-- imdb watchlist button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_import_imdb_watchlist"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="IMDb Watchlist"
+                        android:text="IMDb - Watchlist"
                         android:textAllCaps="false"
                         android:layout_marginBottom="12dp"
                         app:icon="@drawable/ic_upload"
                         app:iconGravity="start"
-                        style="@style/Widget.Material3.Button.TonalButton"/>
+                        app:cornerRadius="12dp"
+                        style="@style/Widget.Material3.Button"/>
 
                     <!-- letterboxd watched button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_import_letterboxd_watched"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Letterboxd Watched"
+                        android:text="Letterboxd - Film Visti"
                         android:textAllCaps="false"
                         android:layout_marginBottom="12dp"
                         app:icon="@drawable/ic_upload"
-                        app:iconGravity="start"/>
+                        app:iconGravity="start"
+                        app:cornerRadius="12dp"
+                        style="@style/Widget.Material3.Button"/>
 
                     <!-- letterboxd watchlist button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_import_letterboxd_watchlist"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Letterboxd Watchlist"
+                        android:text="Letterboxd - Watchlist"
                         android:textAllCaps="false"
-                        android:layout_marginBottom="12dp"
+                        android:layout_marginBottom="16dp"
                         app:icon="@drawable/ic_upload"
                         app:iconGravity="start"
-                        style="@style/Widget.Material3.Button.TonalButton"/>
+                        app:cornerRadius="12dp"
+                        style="@style/Widget.Material3.Button"/>
 
-                    <!-- clear all button -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/button_clear_all"
+                    <!-- divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider"
+                        android:layout_marginVertical="8dp"/>
+
+                    <!-- bottoni azioni -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/clear_all"
-                        android:textAllCaps="false"
-                        app:icon="@drawable/ic_delete"
-                        app:iconGravity="start"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        app:strokeColor="@color/error_red"
-                        android:textColor="@color/error_red"/>
+                        android:orientation="horizontal"
+                        android:gravity="center">
 
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_sync"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="8dp"
+                            android:text="Sincronizza"
+                            android:textAllCaps="false"
+                            app:icon="@drawable/ic_sync"
+                            app:iconGravity="start"
+                            style="@style/Widget.Material3.Button.OutlinedButton"/>
 
-            <!-- info card -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
-                app:cardBackgroundColor="@color/primary_blue_light">
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_clear_all"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:text="@string/clear_all"
+                            android:textAllCaps="false"
+                            app:icon="@drawable/ic_delete"
+                            app:iconGravity="start"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            app:strokeColor="@color/error_red"
+                            android:textColor="@color/error_red"/>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="ℹ️ Info"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/primary_blue"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/import_info_text"
-                        android:textSize="14sp"
-                        android:textColor="@color/text_secondary"
-                        android:lineSpacingExtra="4dp"/>
+                    </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 

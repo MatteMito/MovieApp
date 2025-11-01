@@ -24,10 +24,8 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import com.github.mikephil.charting.highlight.Highlight
 
-/**
- * fragment con grafici interattivi avanzati per analisi cinematografica
- * fix: mostra messaggio quando non ci sono film importati
- */
+//fragment con grafici interattivi avanzati per analisi cinematografica
+//fix: mostra messaggio quando non ci sono film importati
 class NotificationsFragment : Fragment() {
 
     private val TAG = "NotificationsFragment"
@@ -119,7 +117,7 @@ class NotificationsFragment : Fragment() {
         //grafico generi + testo cliccabile
         notificationsViewModel.genresData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
-                setupGenresPieChart(data)
+                setupGenresBarChart(data)
             }
         }
 
@@ -164,7 +162,7 @@ class NotificationsFragment : Fragment() {
         //grafico ratings
         notificationsViewModel.ratingsData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
-                setupRatingsBarChart(data)
+                setupRatingsPieChart(data)
             }
         }
 
@@ -230,17 +228,15 @@ class NotificationsFragment : Fragment() {
         binding.textWatchlistMovies.text = watchlist.toString()
     }
 
-    /**
-     * grafico 1: pie chart generi con click
-     */
-    private fun setupGenresPieChart(data: Map<String, Int>) {
-        val entries = data.map { PieEntry(it.value.toFloat(), it.key) }
+    //grafico 1: horizontal bar chart generi con click
+    private fun setupGenresBarChart(data: Map<String, Int>) {
+        val entries = data.entries.mapIndexed { index, entry ->
+            BarEntry(index.toFloat(), entry.value.toFloat())
+        }
 
-        val dataSet = PieDataSet(entries, "").apply {
-            colors = chartColors
-            valueTextSize = 12f
-            valueTextColor = Color.WHITE
-            sliceSpace = 2f
+        val dataSet = BarDataSet(entries, "Film per Genere").apply {
+            color = Color.parseColor("#667eea")
+            valueTextSize = 11f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return value.toInt().toString()
@@ -249,16 +245,24 @@ class NotificationsFragment : Fragment() {
         }
 
         binding.chartGenres.apply {
-            this.data = PieData(dataSet)
+            this.data = BarData(dataSet)
             description.isEnabled = false
-            legend.textSize = 10f
-            setDrawEntryLabels(false)
-            animateY(1000, Easing.EaseInOutQuad)
+            xAxis.apply {
+                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
+                position = XAxis.XAxisPosition.BOTTOM
+                granularity = 1f
+                labelRotationAngle = -45f
+                textSize = 9f
+            }
+            axisLeft.axisMinimum = 0f
+            axisRight.isEnabled = false
+            legend.isEnabled = false
+            animateX(1000)
 
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
-                    if (e is PieEntry) {
-                        val genre = e.label
+                    if (e is BarEntry) {
+                        val genre = data.keys.toList()[e.x.toInt()]
                         val movies = notificationsViewModel.getMoviesByGenre(genre)
                         showMoviesDialog("Film $genre", movies)
                     }
@@ -270,14 +274,12 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    /**
-     * grafico 2: bar chart anni con click
-     */
+    //grafico 2: bar chart anni con click
     private fun setupYearsBarChart(data: Map<Int, Int>) {
         val entries = data.map { BarEntry(it.key.toFloat(), it.value.toFloat()) }
 
         val dataSet = BarDataSet(entries, "Film per Anno").apply {
-            color = Color.parseColor("#667eea")
+            color = Color.parseColor("#764ba2")
             valueTextSize = 10f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
@@ -319,16 +321,14 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    /**
-     * grafico 3: horizontal bar chart registi con click
-     */
+    //grafico 3: horizontal bar chart registi con click
     private fun setupDirectorsBarChart(data: Map<String, Int>) {
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
         val dataSet = BarDataSet(entries, "Film per Regista").apply {
-            color = Color.parseColor("#764ba2")
+            color = Color.parseColor("#f093fb")
             valueTextSize = 11f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
@@ -367,17 +367,15 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    /**
-     * grafico 4: bar chart ratings
-     */
-    private fun setupRatingsBarChart(data: Map<String, Int>) {
-        val entries = data.entries.mapIndexed { index, entry ->
-            BarEntry(index.toFloat(), entry.value.toFloat())
-        }
+    //grafico 4: pie chart ratings
+    private fun setupRatingsPieChart(data: Map<String, Int>) {
+        val entries = data.map { PieEntry(it.value.toFloat(), it.key) }
 
-        val dataSet = BarDataSet(entries, "Distribuzione Voti").apply {
-            color = Color.parseColor("#f093fb")
-            valueTextSize = 11f
+        val dataSet = PieDataSet(entries, "").apply {
+            colors = chartColors
+            valueTextSize = 12f
+            valueTextColor = Color.WHITE
+            sliceSpace = 2f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return value.toInt().toString()
@@ -386,24 +384,16 @@ class NotificationsFragment : Fragment() {
         }
 
         binding.chartRatings.apply {
-            this.data = BarData(dataSet)
+            this.data = PieData(dataSet)
             description.isEnabled = false
-            xAxis.apply {
-                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
-                position = XAxis.XAxisPosition.BOTTOM
-                granularity = 1f
-            }
-            axisLeft.axisMinimum = 0f
-            axisRight.isEnabled = false
-            legend.isEnabled = false
-            animateY(1000)
+            legend.textSize = 10f
+            setDrawEntryLabels(false)
+            animateY(1000, Easing.EaseInOutQuad)
             invalidate()
         }
     }
 
-    /**
-     * grafico 5: bar chart paesi con click
-     */
+    //grafico 5: bar chart paesi con click
     private fun setupCountriesBarChart(data: Map<String, Int>) {
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
@@ -449,9 +439,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    /**
-     * grafico 6: bar chart decenni con click
-     */
+    //grafico 6: bar chart decenni con click
     private fun setupDecadesBarChart(data: Map<String, Int>) {
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
@@ -496,9 +484,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    /**
-     * grafico 7: punteggio medio per genere
-     */
+    //grafico 7: punteggio medio per genere
     private fun setupGenreRatingsChart(data: Map<String, Float>) {
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value)
@@ -535,9 +521,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    /**
-     * grafico 8: valutazione media per decennio
-     */
+    //grafico 8: valutazione media per decennio
     private fun setupDecadeRatingsChart(data: Map<String, Float>) {
         val entries = data.entries.mapIndexed { index, entry ->
             Entry(index.toFloat(), entry.value)
@@ -580,11 +564,9 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    /**
-     * grafico 9: scatter plot durata vs valutazione
-     */
+    //grafico 9: scatter plot durata vs valutazione
     private fun setupRuntimeVsRatingScatterChart(data: List<Pair<Int, Float>>) {
-        val entries = data.map { ScatterChart.ScatterShape.CIRCLE
+        val entries = data.map {
             Entry(it.first.toFloat(), it.second)
         }
 
@@ -621,9 +603,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    /**
-     * dialog per mostrare lista film
-     */
+    //dialog per mostrare lista film
     private fun showMoviesDialog(title: String, movies: List<com.example.movieapp.data.models.Movie>) {
         if (movies.isEmpty()) {
             AlertDialog.Builder(requireContext())
@@ -650,7 +630,7 @@ class NotificationsFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         notificationsViewModel.refreshData()
-        Log.d(TAG, "Fragment resumed - dati statistiche ricaricati")
+        Log.d(TAG, "fragment resumed - dati statistiche ricaricati")
     }
 
     override fun onDestroyView() {

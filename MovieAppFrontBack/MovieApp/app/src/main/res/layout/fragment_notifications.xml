@@ -14,6 +14,16 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- header sezione -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Le Tue Statistiche"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="16dp"/>
+
         <!-- card statistiche riepilogo -->
         <androidx.cardview.widget.CardView
             android:id="@+id/stats_card"
@@ -33,8 +43,8 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="📊 Riepilogo"
-                    android:textSize="18sp"
+                    android:text="Riepilogo"
+                    android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginBottom="16dp"/>
@@ -156,7 +166,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🎬"
+                    android:text="📊"
                     android:textSize="48sp"
                     android:layout_marginBottom="16dp"/>
 
@@ -172,10 +182,10 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/import_movies_to_see_stats"
+                    android:text="Importa i tuoi film per vedere i grafici"
                     android:textSize="14sp"
                     android:textColor="@color/text_secondary"
-                    android:textAlignment="center"/>
+                    android:gravity="center"/>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
@@ -207,7 +217,7 @@
                     android:id="@+id/text_total_watch_time"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textSize="16sp"
+                    android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="@color/primary_blue"
                     android:padding="8dp"
@@ -228,20 +238,20 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="🎬 Genere più visto: Action (45 film)"
+                    tools:text="🎬 Genere preferito: Action (45 film)"
                     tools:visibility="visible"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🎭 Generi Cinematografici"
+                    android:text="Generi"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp"/>
 
-                <com.github.mikephil.charting.charts.PieChart
+                <com.github.mikephil.charting.charts.HorizontalBarChart
                     android:id="@+id/chart_genres"
                     android:layout_width="match_parent"
                     android:layout_height="300dp"
@@ -259,13 +269,13 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="📅 Anno con più film: 2020 (28 film)"
+                    tools:text="📅 Anno preferito: 2019 (23 film)"
                     tools:visibility="visible"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="📅 Film per Anno"
+                    android:text="Anni"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -278,7 +288,24 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 3: registi + testo cliccabile -->
+                <!-- grafico 3: rating -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Valutazioni"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"/>
+
+                <com.github.mikephil.charting.charts.PieChart
+                    android:id="@+id/chart_ratings"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp"
+                    android:layout_marginBottom="24dp"/>
+
+                <!-- grafico 4: registi + testo cliccabile -->
                 <TextView
                     android:id="@+id/text_top_director"
                     android:layout_width="match_parent"
@@ -296,37 +323,37 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🎥 Registi Più Visti"
+                    android:text="Registi"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp"/>
 
-                <com.github.mikephil.charting.charts.BarChart
+                <com.github.mikephil.charting.charts.HorizontalBarChart
                     android:id="@+id/chart_directors"
                     android:layout_width="match_parent"
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 4: ratings -->
+                <!-- grafico 5: runtime -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="⭐ Le Tue Valutazioni"
+                    android:text="Durata"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp"/>
 
-                <com.github.mikephil.charting.charts.BarChart
-                    android:id="@+id/chart_ratings"
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/chart_runtime"
                     android:layout_width="match_parent"
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 5: paesi + testo cliccabile -->
+                <!-- grafico 6: paesi + testo cliccabile -->
                 <TextView
                     android:id="@+id/text_top_country"
                     android:layout_width="match_parent"
@@ -338,13 +365,13 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="🌍 Paese principale: United States (150 film)"
+                    tools:text="🌍 Paese preferito: USA (150 film)"
                     tools:visibility="visible"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🌍 Paesi di Produzione"
+                    android:text="Paesi"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -357,7 +384,7 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 6: decenni + testo cliccabile -->
+                <!-- grafico 7: decenni + testo cliccabile -->
                 <TextView
                     android:id="@+id/text_top_decade"
                     android:layout_width="match_parent"
@@ -375,7 +402,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="📆 Film per Decennio"
+                    android:text="Decenni"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -388,11 +415,11 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 7: punteggio medio per genere -->
+                <!-- grafico 8: punteggio medio per genere -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="📊 Punteggio Medio per Genere"
+                    android:text="Punteggio Medio per Genere"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -405,11 +432,11 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 8: valutazione media per decennio -->
+                <!-- grafico 9: valutazione media per decennio -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="📈 Valutazione Media per Decennio"
+                    android:text="Valutazione Media per Decennio"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -422,11 +449,11 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 9: durata vs valutazione scatter -->
+                <!-- grafico 10: durata vs valutazione scatter -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="⏱️ Durata vs Valutazione"
+                    android:text="Durata vs Valutazione"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"

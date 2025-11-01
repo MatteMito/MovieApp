@@ -4,9 +4,10 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/container"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/background">
 
-    <!-- top app bar con logo -->
+    <!-- top app bar -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar_layout"
         android:layout_width="0dp"
@@ -15,7 +16,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:elevation="4dp"
-        android:background="@drawable/gradient_primary">
+        android:background="@color/white">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -41,9 +42,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/app_name"
+                android:textColor="@color/text_primary"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                android:textColor="@color/white"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -52,18 +53,16 @@
             <!-- icona menu a destra -->
             <ImageView
                 android:id="@+id/toolbar_menu"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@android:drawable/ic_menu_myplaces"
-                android:padding="8dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:tint="@color/white"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_menu"
+                android:clickable="true"
+                android:focusable="true"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
-                android:contentDescription="Menu"
-                android:clickable="true"
-                android:focusable="true"/>
+                app:tint="@color/text_primary"
+                android:contentDescription="Menu"/>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
