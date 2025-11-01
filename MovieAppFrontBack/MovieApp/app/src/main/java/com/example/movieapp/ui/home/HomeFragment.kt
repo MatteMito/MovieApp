@@ -13,13 +13,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.example.movieapp.R
 import com.example.movieapp.databinding.FragmentHomeBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.launch
 
 /**
  * homefragment con import in background
- * fix: bottone elimina tutti funzionante
+ * fix: progress 0-100% completo, bottoni riabilitati automaticamente, refresh stats
  */
 class HomeFragment : Fragment() {
 
@@ -45,7 +47,6 @@ class HomeFragment : Fragment() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.data?.let { uri ->
-                //fix: usa pendingImportType invece di pendingImport
                 pendingImportType?.let { type ->
                     processFile(uri, type)
                     pendingImportType = null
@@ -88,7 +89,7 @@ class HomeFragment : Fragment() {
             showLetterboxdWatchlistHelp()
         }
 
-        //fix: bottone elimina tutti funzionante
+        //bottone elimina tutti
         binding.buttonClearAll.setOnClickListener {
             Log.d(TAG, "click: clear all")
             showClearAllConfirmation()
@@ -113,31 +114,60 @@ class HomeFragment : Fragment() {
             Log.d(TAG, "movies aggiornati: ${movies.size} film")
         }
 
-        //messages
-        homeViewModel.message.observe(viewLifecycleOwner) { message ->
-            if (message.isNotEmpty()) {
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-                Log.d(TAG, "message: $message")
-            }
-        }
-
-        //import in corso
+        //import in corso - mostra/nascondi progress bar
         homeViewModel.isImporting.observe(viewLifecycleOwner) { isImporting ->
-            binding.progressBarImport.isVisible = isImporting
+            binding.importProgressContainer.isVisible = isImporting
             enableImportButtons(!isImporting)
 
-            Log.d(TAG, "isImporting: $isImporting")
+            Log.d(TAG, "isImporting: $isImporting (bottoni ${if (isImporting) "disabilitati" else "abilitati"})")
 
+            //fix: quando import finisce, riabilita bottoni e nascondi progressbar
             if (!isImporting) {
-                binding.progressBarImport.progress = 0
+                binding.importProgressContainer.isVisible = false
+                enableImportButtons(true)
+                //refresh stats per avere contatori aggiornati
+                homeViewModel.refreshFromBackend()
+                Log.d(TAG, "import completato -> bottoni riabilitati + stats aggiornate")
             }
         }
 
-        //progress percentuale
+        //progress percentuale - aggiorna progress bar e testo (NO MAPPING QUI, GIA' FATTO NEL WORKER!)
         homeViewModel.importProgress.observe(viewLifecycleOwner) { progress ->
-            if (progress > 0) {
-                binding.progressBarImport.progress = progress
-                Log.d(TAG, "import progress: $progress%")
+            binding.progressBarImport.progress = progress
+
+            val statusText = when {
+                progress == 0 -> "Preparazione import..."
+                progress < 10 -> "Lettura file: $progress%"
+                progress < 40 -> "Caricamento: $progress%"
+                progress < 100 -> "Enrichment: $progress%"
+                else -> "Completato!"
+            }
+
+            binding.textImportStatus.text = statusText
+            Log.d(TAG, "import progress: $progress%")
+        }
+
+        //osserva websocket updates in tempo reale (SOLO PER LOG, PROGRESS GIA' GESTITO DAL WORKER)
+        viewLifecycleOwner.lifecycleScope.launch {
+            homeViewModel.observeWebSocketUpdates().collect { update ->
+                if (update != null && binding.importProgressContainer.isVisible) {
+                    //aggiorna solo il testo con info dettagliate, NON il progress
+                    val detailText = when (update.type) {
+                        "started" -> "Inizio enrichment: ${update.total} film"
+                        "progress" -> "${update.currentMovie}"
+                        "completed" -> "Enrichment completato!"
+                        "error" -> "Errore: ${update.message}"
+                        else -> "Import in corso..."
+                    }
+
+                    //mostra dettaglio film corrente sotto la percentuale
+                    if (update.type == "progress") {
+                        val mainText = "Enrichment: ${update.processed}/${update.total} (${update.percentage}%)"
+                        binding.textImportStatus.text = "$mainText\n$detailText"
+                    }
+
+                    Log.d(TAG, "websocket update: ${update.type} - ${update.processed}/${update.total}")
+                }
             }
         }
     }
@@ -154,7 +184,7 @@ class HomeFragment : Fragment() {
         binding.textWatchedMovies.text = watched.toString()
         binding.textWatchlistMovies.text = watchlist.toString()
 
-        Log.d(TAG, "stats: total=$total, watched=$watched, watchlist=$watchlist")
+        Log.d(TAG, "stats aggiornate: total=$total, watched=$watched, watchlist=$watchlist")
     }
 
     /**
@@ -166,6 +196,8 @@ class HomeFragment : Fragment() {
         binding.buttonImportLetterboxdWatched.isEnabled = enabled
         binding.buttonImportLetterboxdWatchlist.isEnabled = enabled
         binding.buttonClearAll.isEnabled = enabled
+
+        Log.d(TAG, "bottoni import: ${if (enabled) "abilitati" else "disabilitati"}")
     }
 
     //dialog helper per import imdb watched
@@ -173,13 +205,12 @@ class HomeFragment : Fragment() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Import IMDb Watched")
             .setMessage(
-                "1. vai su www.imdb.com/list/ratings\n" +
-                        "2. clicca sui tre puntini in alto a destra\n" +
-                        "3. seleziona 'Export'\n" +
-                        "4. salva il file ratings.csv"
+                "1. vai su imdb.com/list/ratings\n" +
+                        "2. clicca sui 3 puntini in alto a destra\n" +
+                        "3. clicca 'Export'\n" +
+                        "4. seleziona il file scaricato"
             )
             .setPositiveButton("Seleziona File") { _, _ ->
-                //fix: salva solo il tipo
                 pendingImportType = ImportType.IMDB_WATCHED
                 launchFilePicker()
             }
@@ -192,13 +223,12 @@ class HomeFragment : Fragment() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Import IMDb Watchlist")
             .setMessage(
-                "1. vai su www.imdb.com/list/watchlist\n" +
-                        "2. clicca sui tre puntini in alto a destra\n" +
-                        "3. seleziona 'Export'\n" +
-                        "4. salva il file watchlist.csv"
+                "1. vai su imdb.com/list/watchlist\n" +
+                        "2. clicca sui 3 puntini in alto a destra\n" +
+                        "3. clicca 'Export'\n" +
+                        "4. seleziona il file scaricato"
             )
             .setPositiveButton("Seleziona File") { _, _ ->
-                //fix: salva solo il tipo
                 pendingImportType = ImportType.IMDB_WATCHLIST
                 launchFilePicker()
             }
@@ -212,12 +242,11 @@ class HomeFragment : Fragment() {
             .setTitle("Import Letterboxd Watched")
             .setMessage(
                 "1. vai su letterboxd.com/settings/data\n" +
-                        "2. clicca su 'Export your data'\n" +
+                        "2. clicca 'Export Your Data'\n" +
                         "3. scarica il file zip\n" +
                         "4. estrai e seleziona diary.csv"
             )
             .setPositiveButton("Seleziona File") { _, _ ->
-                //fix: salva solo il tipo
                 pendingImportType = ImportType.LETTERBOXD_WATCHED
                 launchFilePicker()
             }
@@ -231,12 +260,11 @@ class HomeFragment : Fragment() {
             .setTitle("Import Letterboxd Watchlist")
             .setMessage(
                 "1. vai su letterboxd.com/settings/data\n" +
-                        "2. clicca su 'Export your data'\n" +
+                        "2. clicca 'Export Your Data'\n" +
                         "3. scarica il file zip\n" +
                         "4. estrai e seleziona watchlist.csv"
             )
             .setPositiveButton("Seleziona File") { _, _ ->
-                //fix: salva solo il tipo
                 pendingImportType = ImportType.LETTERBOXD_WATCHLIST
                 launchFilePicker()
             }
@@ -244,71 +272,59 @@ class HomeFragment : Fragment() {
             .show()
     }
 
-    /**
-     * fix: mostra dialog conferma eliminazione tutti i film
-     */
+    //mostra dialog conferma elimina tutti
     private fun showClearAllConfirmation() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("⚠️ Elimina tutti i film")
-            .setMessage(
-                "Sei sicuro di voler eliminare TUTTI i film importati?\n\n" +
-                        "Questa operazione:\n" +
-                        "• Eliminerà tutti i film visti e da vedere\n" +
-                        "• Eliminerà tutte le statistiche\n" +
-                        "• Non può essere annullata\n\n" +
-                        "Dovrai importare nuovamente i film."
-            )
-            .setPositiveButton("Elimina Tutto") { _, _ ->
-                Log.d(TAG, "conferma: eliminazione tutti i film")
+            .setTitle("Elimina Tutti i Film")
+            .setMessage("Sei sicuro di voler eliminare tutti i film? Questa azione non può essere annullata.")
+            .setPositiveButton("Elimina") { _, _ ->
                 homeViewModel.clearAllMovies()
             }
             .setNegativeButton("Annulla", null)
-            .setIcon(android.R.drawable.ic_dialog_alert)
             .show()
     }
 
-    //lancia file picker
+    //apri file picker
     private fun launchFilePicker() {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "*/*"
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/csv", "text/comma-separated-values", "application/csv"))
         }
         pickFileLauncher.launch(intent)
     }
 
     //processa file selezionato
     private fun processFile(uri: Uri, type: ImportType) {
-        val csvType = when (type) {
-            ImportType.IMDB_WATCHED -> "IMDB_WATCHED"
-            ImportType.IMDB_WATCHLIST -> "IMDB_WATCHLIST"
-            ImportType.LETTERBOXD_WATCHED -> "LETTERBOXD_WATCHED"
-            ImportType.LETTERBOXD_WATCHLIST -> "LETTERBOXD_WATCHLIST"
-        }
-
-        val filePath = copyUriToInternalStorage(uri)
-        if (filePath != null) {
-            homeViewModel.startImport(requireContext(), filePath, csvType)
-        } else {
-            Toast.makeText(requireContext(), "Errore lettura file", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    //copia uri file in storage interno
-    private fun copyUriToInternalStorage(uri: Uri): String? {
-        return try {
+        try {
             val inputStream = requireContext().contentResolver.openInputStream(uri)
-            val tempFile = java.io.File(requireContext().cacheDir, "temp_import.csv")
-
-            inputStream?.use { input ->
-                tempFile.outputStream().use { output ->
-                    input.copyTo(output)
-                }
+            if (inputStream == null) {
+                Toast.makeText(requireContext(), "Errore lettura file", Toast.LENGTH_SHORT).show()
+                return
             }
 
-            tempFile.absolutePath
+            //copia file in cache
+            val cacheFile = java.io.File(requireContext().cacheDir, "import_${System.currentTimeMillis()}.csv")
+            cacheFile.outputStream().use { output ->
+                inputStream.copyTo(output)
+            }
+            inputStream.close()
+
+            val csvType = when (type) {
+                ImportType.IMDB_WATCHED -> "IMDB_WATCHED"
+                ImportType.IMDB_WATCHLIST -> "IMDB_WATCHLIST"
+                ImportType.LETTERBOXD_WATCHED -> "LETTERBOXD_WATCHED"
+                ImportType.LETTERBOXD_WATCHLIST -> "LETTERBOXD_WATCHLIST"
+            }
+
+            Log.d(TAG, "avvio import: ${cacheFile.absolutePath}, tipo: $csvType")
+            homeViewModel.startImport(requireContext(), cacheFile.absolutePath, csvType)
+
+            Toast.makeText(requireContext(), "Import avviato in background", Toast.LENGTH_SHORT).show()
+
         } catch (e: Exception) {
-            Log.e(TAG, "errore copia file: ${e.message}", e)
-            null
+            Log.e(TAG, "errore processFile", e)
+            Toast.makeText(requireContext(), "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 

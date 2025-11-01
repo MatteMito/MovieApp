@@ -99,7 +99,7 @@ export declare class MoviesService {
     batchUpload(watchlist: Movie[], watched: Movie[], userId: string): Promise<BatchResult>;
     batchUploadWithUserAssociation(userId: string, watchlist: Movie[], watched: Movie[]): Promise<BatchUploadResult>;
     getUserMovies(userId: string, filters: {
-        status?: string;
+        status?: 'watched' | 'watchlist';
         query?: string;
         genre?: string;
         year?: number;

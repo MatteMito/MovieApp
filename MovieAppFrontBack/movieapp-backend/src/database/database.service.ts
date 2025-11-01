@@ -101,6 +101,27 @@ export class DatabaseService {
 
   async saveMovie(movie: Movie): Promise<Movie> {
     try {
+      //controlla se esiste giÃ  un film con questo tmdb_id
+      if (movie.tmdb_id) {
+        const existing = await this.movieRepository.findOne({
+          where: { tmdb_id: movie.tmdb_id }
+        });
+
+        if (existing) {
+          //aggiorna film esistente invece di inserirne uno nuovo
+          this.logger.debug(`aggiornamento film esistente: ${movie.title} (tmdb_id: ${movie.tmdb_id})`);
+          
+          const entity = this.movieToEntity({
+            ...movie,
+            id: existing.id, //usa id esistente
+          });
+          
+          const saved = await this.movieRepository.save(entity);
+          return this.entityToMovie(saved);
+        }
+      }
+
+      //film nuovo, inseriscilo
       const entity = this.movieToEntity(movie);
       const saved = await this.movieRepository.save(entity);
       

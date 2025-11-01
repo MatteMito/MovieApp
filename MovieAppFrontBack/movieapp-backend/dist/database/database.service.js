@@ -98,6 +98,20 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
     }
     async saveMovie(movie) {
         try {
+            if (movie.tmdb_id) {
+                const existing = await this.movieRepository.findOne({
+                    where: { tmdb_id: movie.tmdb_id }
+                });
+                if (existing) {
+                    this.logger.debug(`aggiornamento film esistente: ${movie.title} (tmdb_id: ${movie.tmdb_id})`);
+                    const entity = this.movieToEntity({
+                        ...movie,
+                        id: existing.id,
+                    });
+                    const saved = await this.movieRepository.save(entity);
+                    return this.entityToMovie(saved);
+                }
+            }
             const entity = this.movieToEntity(movie);
             const saved = await this.movieRepository.save(entity);
             this.logger.debug(`film salvato: ${movie.title}`);

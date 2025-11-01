@@ -1,8 +1,4 @@
-// file: app/src/main/java/com/example/movieapp/data/network/ApiService.kt
-// api service completo con tutte le funzionalita
-
 package com.example.movieapp.data.network
-
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
@@ -808,6 +804,7 @@ object ApiService {
 
             Log.d(TAG, "eliminazione tutti i film per user $userId")
 
+            //chiama DELETE /movies/user/{userId}/all
             val response = apiInterface.deleteAllUserMovies(userId)
 
             if (response.isSuccessful && response.body()?.success == true) {

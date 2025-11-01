@@ -26,7 +26,7 @@ export declare class MoviesController {
     getMovieById(id: string): Promise<ApiResponse>;
     searchMovies(query?: string, genre?: string, year?: string, director?: string, minRating?: string, maxRating?: string, watched?: string, sortBy?: string, sortOrder?: 'ASC' | 'DESC', limit?: string, offset?: string): Promise<ApiResponse>;
     getAllMovies(userId?: string): Promise<ApiResponse>;
-    deleteAllMovies(userId?: string): Promise<ApiResponse>;
+    deleteAllUserMovies(userId: string): Promise<ApiResponse>;
     initializeApp(userId?: string): Promise<ApiResponse>;
 }
 export {};

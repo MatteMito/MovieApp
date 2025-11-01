@@ -15,14 +15,16 @@ import com.example.movieapp.data.repository.ImportWorker
 import com.example.movieapp.data.repository.MovieRepository
 import com.example.movieapp.data.network.WebSocketService
 import com.example.movieapp.data.network.ApiService
+import com.example.movieapp.data.network.EnrichmentUpdate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * viewmodel per homefragment
- * gestisce import e statistiche
+ * fix: progress 100%, refresh automatico con stats aggiornate, bottoni riabilitati
  */
 class HomeViewModel : ViewModel() {
 
@@ -49,7 +51,7 @@ class HomeViewModel : ViewModel() {
     fun initialize(context: Context) {
         repository = MovieRepository.getInstance(context)
 
-        //fix: osserva movies dal repository SENZA suspend
+        //osserva movies dal repository
         repository.movies.observeForever { moviesList ->
             _movies.value = moviesList
             Log.d(TAG, "movies aggiornati da repository: ${moviesList.size}")
@@ -57,9 +59,13 @@ class HomeViewModel : ViewModel() {
 
         //carica iniziale
         loadMovies()
+    }
 
-        //osserva websocket progress
-        observeWebSocketProgress()
+    /**
+     * espone websocket updates per la ui
+     */
+    fun observeWebSocketUpdates(): StateFlow<EnrichmentUpdate?> {
+        return webSocketService.enrichmentUpdates
     }
 
     /**
@@ -69,7 +75,6 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
 
-            //usa movies dal repository
             val movies = repository.movies.value ?: emptyList()
             _movies.value = movies
 
@@ -86,18 +91,17 @@ class HomeViewModel : ViewModel() {
             _isLoading.value = true
 
             try {
+                Log.d(TAG, "refresh from backend...")
                 val success = repository.refreshFromBackend()
                 if (success) {
-                    //usa movies dal repository
                     val movies = repository.movies.value ?: emptyList()
                     _movies.value = movies
                     Log.d(TAG, "refresh completato: ${movies.size} film")
                 } else {
-                    _message.value = "errore refresh backend"
+                    Log.e(TAG, "errore refresh backend")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "errore refresh: ${e.message}", e)
-                _message.value = "errore refresh: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
@@ -112,8 +116,9 @@ class HomeViewModel : ViewModel() {
             try {
                 Log.d(TAG, "avvio import: $filePath, tipo: $csvType")
 
-                //reset progress
+                //reset progress e mostra import
                 _importProgress.value = 0
+                _isImporting.value = true
 
                 //connetti websocket per progress real-time
                 webSocketService.connect()
@@ -130,107 +135,69 @@ class HomeViewModel : ViewModel() {
                     .build()
 
                 val workManager = WorkManager.getInstance(context)
+
+                //avvia worker con unique work (cancella precedenti se esistono)
                 workManager.enqueueUniqueWork(
-                    "import_movies",
+                    "movie_import",
                     ExistingWorkPolicy.REPLACE,
                     workRequest
                 )
 
-                Log.d(TAG, "work enqueued: ${workRequest.id}")
-
-                //osserva progress
-                observeWorkProgress(workManager, workRequest.id.toString())
-
-                withContext(Dispatchers.Main) {
-                    _isImporting.value = true
-                }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "errore avvio import: ${e.message}", e)
-                withContext(Dispatchers.Main) {
-                    _message.value = "errore: ${e.message}"
-                }
-            }
-        }
-    }
-
-    /**
-     * osserva progress del worker
-     */
-    private fun observeWorkProgress(workManager: WorkManager, workId: String) {
-        viewModelScope.launch(Dispatchers.Main) {
-            workManager.getWorkInfoByIdLiveData(java.util.UUID.fromString(workId))
-                .observeForever { workInfo ->
+                //osserva progress worker
+                workManager.getWorkInfoByIdLiveData(workRequest.id).observeForever { workInfo ->
                     if (workInfo != null) {
-                        Log.d(TAG, "work state: ${workInfo.state}, progress: ${workInfo.progress.getInt(ImportWorker.KEY_PROGRESS, 0)}")
-
                         when (workInfo.state) {
                             WorkInfo.State.RUNNING -> {
                                 val progress = workInfo.progress.getInt(ImportWorker.KEY_PROGRESS, 0)
                                 _importProgress.value = progress
+                                Log.d(TAG, "worker progress: $progress%")
                             }
                             WorkInfo.State.SUCCEEDED -> {
-                                _isImporting.value = false
+                                Log.d(TAG, "worker completato con successo")
                                 _importProgress.value = 100
-                                _message.value = "Import completato!"
-                                Log.d(TAG, "import worker succeeded")
 
-                                //refresh automatico dopo import
+                                //aspetta 1 secondo poi termina import
                                 viewModelScope.launch {
                                     delay(1000)
+                                    _isImporting.value = false
+
+                                    //refresh automatico per aggiornare stats
                                     refreshFromBackend()
+
+                                    Log.d(TAG, "import terminato -> isImporting=false, stats aggiornate")
                                 }
                             }
                             WorkInfo.State.FAILED -> {
+                                Log.e(TAG, "worker fallito")
+                                val errorMsg = workInfo.outputData.getString(ImportWorker.KEY_MESSAGE)
+                                _message.value = "Errore import: $errorMsg"
                                 _isImporting.value = false
                                 _importProgress.value = 0
-                                val errorMsg = workInfo.outputData.getString(ImportWorker.KEY_MESSAGE) ?: "Import fallito"
-                                _message.value = errorMsg
-                                Log.e(TAG, "import worker failed: $errorMsg")
                             }
                             WorkInfo.State.CANCELLED -> {
+                                Log.w(TAG, "worker cancellato")
                                 _isImporting.value = false
                                 _importProgress.value = 0
-                                _message.value = "Import annullato"
-                                Log.w(TAG, "import worker cancelled")
                             }
                             else -> {
-                                Log.d(TAG, "work state: ${workInfo.state}")
+                                Log.d(TAG, "worker state: ${workInfo.state}")
                             }
                         }
                     }
                 }
-        }
-    }
 
-    /**
-     * osserva websocket progress per enrichment real-time
-     */
-    private fun observeWebSocketProgress() {
-        viewModelScope.launch {
-            webSocketService.enrichmentUpdates.collect { update ->
-                update?.let {
-                    //progress enrichment tra 40-95%
-                    val currentProgress = _importProgress.value ?: 40
+                Log.d(TAG, "worker avviato con id: ${workRequest.id}")
 
-                    if (update.total > 0) {
-                        //mappa enrichment progress su 40-95%
-                        val enrichmentPercent = (update.processed.toFloat() / update.total * 100).toInt()
-                        val mappedProgress = 40 + (enrichmentPercent * 55 / 100)
-
-                        //aggiorna solo se progress aumenta
-                        if (mappedProgress > currentProgress) {
-                            _importProgress.value = mappedProgress
-                            Log.d(TAG, "websocket progress: ${update.processed}/${update.total} -> $mappedProgress%")
-                        }
-                    }
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "errore startImport: ${e.message}", e)
+                _message.value = "Errore avvio import: ${e.message}"
+                _isImporting.value = false
             }
         }
     }
 
     /**
-     * fix: elimina tutti i film dell'utente
+     * elimina tutti i film
      */
     fun clearAllMovies() {
         viewModelScope.launch {
@@ -238,34 +205,26 @@ class HomeViewModel : ViewModel() {
                 _isLoading.value = true
                 Log.d(TAG, "eliminazione tutti i film...")
 
-                withContext(Dispatchers.IO) {
-                    val result = ApiService.deleteAllUserMovies()
+                //usa il metodo deleteAllUserMovies di ApiService
+                val result = ApiService.deleteAllUserMovies()
 
-                    if (result.isSuccess) {
-                        //aggiorna ui
-                        withContext(Dispatchers.Main) {
-                            _movies.value = emptyList()
-                            _message.value = "tutti i film eliminati"
-                            Log.d(TAG, "tutti i film eliminati con successo")
-                        }
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            _message.value = "errore eliminazione film"
-                            Log.e(TAG, "errore eliminazione film")
-                        }
-                    }
+                if (result.isSuccess) {
+                    //refresh dal backend per aggiornare lista vuota
+                    repository.refreshFromBackend()
+                    _movies.value = emptyList()
+                    _message.value = "Tutti i film eliminati"
+                    Log.d(TAG, "tutti i film eliminati con successo")
+                } else {
+                    _message.value = "Errore eliminazione film"
+                    Log.e(TAG, "errore eliminazione film: ${result.exceptionOrNull()?.message}")
                 }
+
             } catch (e: Exception) {
                 Log.e(TAG, "errore clearAllMovies: ${e.message}", e)
-                _message.value = "errore: ${e.message}"
+                _message.value = "Errore: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        Log.d(TAG, "viewmodel cleared")
     }
 }

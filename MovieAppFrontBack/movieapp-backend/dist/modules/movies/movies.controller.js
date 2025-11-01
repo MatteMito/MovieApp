@@ -287,29 +287,23 @@ let MoviesController = MoviesController_1 = class MoviesController {
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async deleteAllMovies(userId) {
+    async deleteAllUserMovies(userId) {
         try {
-            if (!userId) {
-                throw new common_1.HttpException({
-                    success: false,
-                    message: 'userId richiesto negli headers (x-user-id)',
-                    timestamp: new Date().toISOString(),
-                }, common_1.HttpStatus.BAD_REQUEST);
-            }
-            this.logger.log(`🗑️ richiesta eliminazione tutti i film per user ${userId}`);
+            this.logger.log(`🗑️ richiesta eliminazione associazioni film per user ${userId}`);
             const result = await this.moviesService.deleteAllMovies(userId);
+            this.logger.log(`✅ eliminate ${result.deleted} associazioni film`);
             return {
                 success: true,
                 data: result,
-                message: `eliminati ${result.deleted} film`,
+                message: `eliminate ${result.deleted} associazioni film`,
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
-            this.logger.error(`errore eliminazione film: ${error.message}`);
+            this.logger.error(`❌ errore eliminazione associazioni: ${error.message}`);
             throw new common_1.HttpException({
                 success: false,
-                message: 'errore eliminazione film',
+                message: `errore eliminazione associazioni: ${error.message}`,
                 timestamp: new Date().toISOString(),
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -436,12 +430,12 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], MoviesController.prototype, "getAllMovies", null);
 __decorate([
-    (0, common_1.Delete)('all'),
-    __param(0, (0, common_1.Headers)('x-user-id')),
+    (0, common_1.Delete)('user/:userId/all'),
+    __param(0, (0, common_1.Param)('userId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], MoviesController.prototype, "deleteAllMovies", null);
+], MoviesController.prototype, "deleteAllUserMovies", null);
 __decorate([
     (0, common_1.Get)('initialize'),
     __param(0, (0, common_1.Headers)('x-user-id')),

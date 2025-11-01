@@ -484,41 +484,33 @@ export class MoviesController {
   }
 
   /**
-   * DELETE /api/v1/movies/all
-   * elimina tutti i film
+   * DELETE /api/v1/movies/user/:userId/all
+   * elimina SOLO le associazioni user_movies per un utente specifico
    */
-  @Delete('all')
-  async deleteAllMovies(@Headers('x-user-id') userId?: string): Promise<ApiResponse> {
+  @Delete('user/:userId/all')
+  async deleteAllUserMovies(
+    @Param('userId') userId: string,
+  ): Promise<ApiResponse> {
     try {
-      // Se non c'è userId negli headers, restituisci errore
-      if (!userId) {
-        throw new HttpException(
-          {
-            success: false,
-            message: 'userId richiesto negli headers (x-user-id)',
-            timestamp: new Date().toISOString(),
-          },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      this.logger.log(`🗑️ richiesta eliminazione tutti i film per user ${userId}`);
+      this.logger.log(`🗑️ richiesta eliminazione associazioni film per user ${userId}`);
 
       const result = await this.moviesService.deleteAllMovies(userId);
+
+      this.logger.log(`✅ eliminate ${result.deleted} associazioni film`);
 
       return {
         success: true,
         data: result,
-        message: `eliminati ${result.deleted} film`,
+        message: `eliminate ${result.deleted} associazioni film`,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore eliminazione film: ${error.message}`);
+      this.logger.error(`❌ errore eliminazione associazioni: ${error.message}`);
 
       throw new HttpException(
         {
           success: false,
-          message: 'errore eliminazione film',
+          message: `errore eliminazione associazioni: ${error.message}`,
           timestamp: new Date().toISOString(),
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
