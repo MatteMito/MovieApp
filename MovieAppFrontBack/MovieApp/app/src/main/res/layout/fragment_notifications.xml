@@ -573,6 +573,57 @@
                     android:layout_width="match_parent"
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
+
+                <!-- grafico 11: film popolari vs film di qualità -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Film Popolari vs Film di Qualità"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="I film più popolari sono anche i migliori?"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp"/>
+
+                <com.github.mikephil.charting.charts.ScatterChart
+                    android:id="@+id/chart_popularity_vs_rating"
+                    android:layout_width="match_parent"
+                    android:layout_height="350dp"
+                    android:layout_marginBottom="24dp"/>
+
+                <!-- grafico 12: evoluzione popolarità -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Evoluzione Popolarità nel Tempo"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Come è cambiata la popolarità dei film nel tempo"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp"/>
+
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/chart_popularity_trend"
+                    android:layout_width="match_parent"
+                    android:layout_height="350dp"
+                    android:layout_marginBottom="8dp"/>
+
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 

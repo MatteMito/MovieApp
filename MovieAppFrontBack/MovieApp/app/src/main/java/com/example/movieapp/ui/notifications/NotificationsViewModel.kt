@@ -67,6 +67,13 @@ class NotificationsViewModel : ViewModel() {
     private val _originalLanguagesData = MutableLiveData<Map<String, Int>>()
     val originalLanguagesData: LiveData<Map<String, Int>> = _originalLanguagesData
 
+    //grafici avanzati (solo quelli mantenuti)
+    private val _popularityVsRatingData = MutableLiveData<List<Pair<Double, Double>>>()
+    val popularityVsRatingData: LiveData<List<Pair<Double, Double>>> = _popularityVsRatingData
+
+    private val _popularityTrendData = MutableLiveData<Map<String, Double>>()
+    val popularityTrendData: LiveData<Map<String, Double>> = _popularityTrendData
+
     //statistiche top cliccabili
     private val _topGenre = MutableLiveData<Pair<String, Int>>()
     val topGenre: LiveData<Pair<String, Int>> = _topGenre
@@ -165,6 +172,10 @@ class NotificationsViewModel : ViewModel() {
             calculateRuntimeRangesData(allMovies)
             calculateOriginalLanguagesData(allMovies)
 
+            //grafici avanzati (solo quelli mantenuti)
+            calculatePopularityVsRatingData(allMovies)
+            calculatePopularityTrendData(allMovies)
+
             //calcola tempo totale (solo film visti)
             val watchedMovies = allMovies.filter { it.isWatched }
             val totalMinutes = watchedMovies.mapNotNull { it.runtime }.sum()
@@ -261,7 +272,6 @@ class NotificationsViewModel : ViewModel() {
         val actorsMap = mutableMapOf<String, MutableList<Movie>>()
 
         movies.forEach { movie ->
-            //prende TUTTI gli attori dalla lista
             movie.actors.forEach { actor ->
                 if (actor.isNotEmpty() && actor != "N/A") {
                     actorsMap.getOrPut(actor) { mutableListOf() }.add(movie)
@@ -561,6 +571,51 @@ class NotificationsViewModel : ViewModel() {
         }
 
         Log.d(TAG, "============ LANGUAGES DEBUG END ============")
+    }
+
+    //scatter plot: popolarità vs rating
+    private fun calculatePopularityVsRatingData(movies: List<Movie>) {
+        Log.d(TAG, "calculatePopularityVsRatingData: totale film = ${movies.size}")
+
+        val moviesWithData = movies.filter { movie ->
+            movie.tmdbRating != null && movie.tmdbRating!! > 0 &&
+                    movie.popularity != null && movie.popularity!! > 0
+        }
+
+        val data = moviesWithData.map { movie ->
+            Pair(movie.popularity!!, movie.tmdbRating!!)
+        }
+
+        Log.d(TAG, "popularity vs rating: ${data.size} punti")
+        _popularityVsRatingData.postValue(data)
+    }
+
+    //line chart: trend popolarità per decade
+    private fun calculatePopularityTrendData(movies: List<Movie>) {
+        Log.d(TAG, "calculatePopularityTrendData: totale film = ${movies.size}")
+
+        val moviesWithData = movies.filter { movie ->
+            movie.year != null &&
+                    movie.popularity != null &&
+                    movie.popularity!! > 0
+        }
+
+        val decadePopularity = moviesWithData
+            .groupBy { movie -> "${(movie.year!! / 10) * 10}s" }
+            .mapValues { (_, moviesList) ->
+                val popularities = moviesList.mapNotNull { it.popularity }
+                if (popularities.isNotEmpty()) {
+                    popularities.average()
+                } else {
+                    0.0
+                }
+            }
+            .toList()
+            .sortedBy { it.first }
+            .toMap()
+
+        Log.d(TAG, "popularity trend by decade: $decadePopularity")
+        _popularityTrendData.postValue(decadePopularity)
     }
 
     //funzioni per recuperare film per categoria

@@ -107,7 +107,7 @@ data class EnrichedMovieDto(
     val originalLanguage: String? = null,
 
     @SerializedName("popularity")
-    val popularity: Double? = null
+    val popularity: Double? = null,
 )
 
 data class FailedMovie(
@@ -958,7 +958,7 @@ object ApiService {
 
             productionCountries = dto.productionCountries,
             originalLanguage = dto.originalLanguage,
-            popularity = dto.popularity
+            popularity = dto.popularity,
         )
     }
 

@@ -13,7 +13,9 @@ import com.example.movieapp.R
 import com.example.movieapp.databinding.FragmentNotificationsBinding
 import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.charts.BarChart
+import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.charts.PieChart
+import com.github.mikephil.charting.charts.ScatterChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
@@ -231,7 +233,6 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //testo combinazioni generi
         notificationsViewModel.topGenreCombination.observe(viewLifecycleOwner) { (combo, count) ->
             binding.textTopGenreCombination.text = "🎭 combinazione più frequente: ${combo.first} + ${combo.second} ($count film)"
             binding.textTopGenreCombination.visibility = View.VISIBLE
@@ -248,7 +249,6 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //testo durata
         notificationsViewModel.longestMovies.observe(viewLifecycleOwner) { movies ->
             if (movies.isNotEmpty()) {
                 val longest = movies.first()
@@ -279,6 +279,20 @@ class NotificationsFragment : Fragment() {
             binding.textTopOriginalLanguage.visibility = View.VISIBLE
             binding.textTopOriginalLanguage.setOnClickListener {
                 showMoviesDialog("Film in $language", notificationsViewModel.getMoviesByOriginalLanguage(language))
+            }
+        }
+
+        //grafico scatter popolarità vs rating
+        notificationsViewModel.popularityVsRatingData.observe(viewLifecycleOwner) { data ->
+            if (data.isNotEmpty()) {
+                setupPopularityVsRatingScatter(data)
+            }
+        }
+
+        //grafico trend popolarità
+        notificationsViewModel.popularityTrendData.observe(viewLifecycleOwner) { data ->
+            if (data.isNotEmpty()) {
+                setupPopularityTrendLineChart(data)
             }
         }
     }
@@ -517,7 +531,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico tmdb ratings (voti da 1 a 10)
+    //grafico tmdb ratings - SOLO NUMERI come generi
     private fun setupTmdbRatingsPieChart(data: Map<String, Int>) {
         Log.d(TAG, "setupTmdbRatingsPieChart chiamato con data: $data")
 
@@ -526,8 +540,8 @@ class NotificationsFragment : Fragment() {
             data[rating]?.let { rating to it }
         }
 
-        val entries = orderedData.map { (rating, count) ->
-            PieEntry(count.toFloat(), "$rating⭐")
+        val entries = orderedData.map { (_, count) ->
+            PieEntry(count.toFloat(), "")
         }
 
         Log.d(TAG, "entries create: ${entries.size}")
@@ -547,16 +561,24 @@ class NotificationsFragment : Fragment() {
         binding.chartRatings.apply {
             this.data = PieData(dataSet)
             description.isEnabled = false
-            legend.textSize = 10f
-            setDrawEntryLabels(true)
-            setEntryLabelColor(Color.BLACK)
-            setEntryLabelTextSize(10f)
+            legend.apply {
+                textSize = 10f
+                isWordWrapEnabled = true
+                setCustom(orderedData.mapIndexed { index, (rating, _) ->
+                    com.github.mikephil.charting.components.LegendEntry().apply {
+                        label = "$rating⭐"
+                        formColor = chartColors[index % chartColors.size]
+                    }
+                })
+            }
+            setDrawEntryLabels(false)
             animateY(1000, Easing.EaseInOutQuad)
 
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is PieEntry) {
-                        val rating = e.label?.replace("⭐", "")?.toIntOrNull() ?: 0
+                        val index = entries.indexOf(e)
+                        val rating = orderedData[index].first.toInt()
                         val movies = notificationsViewModel.getMoviesByTmdbRating(rating)
                         showMoviesDialog("Film valutati $rating⭐", movies)
                     }
@@ -823,14 +845,11 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico lingue originali
+    //grafico lingue originali - SOLO NUMERI come generi
     private fun setupOriginalLanguagesPieChart(data: Map<String, Int>) {
         Log.d(TAG, "setupOriginalLanguagesPieChart: data size = ${data.size}")
 
-        val entries = data.map {
-            Log.d(TAG, "lingua: ${it.key}, count: ${it.value}")
-            PieEntry(it.value.toFloat(), it.key)
-        }
+        val entries = data.map { PieEntry(it.value.toFloat(), "") }
 
         val dataSet = PieDataSet(entries, "").apply {
             colors = chartColors
@@ -847,16 +866,24 @@ class NotificationsFragment : Fragment() {
         binding.chartOriginalLanguages.apply {
             this.data = PieData(dataSet)
             description.isEnabled = false
-            legend.textSize = 10f
-            setDrawEntryLabels(true)
-            setEntryLabelColor(Color.BLACK)
-            setEntryLabelTextSize(9f)
+            legend.apply {
+                textSize = 10f
+                isWordWrapEnabled = true
+                setCustom(data.keys.mapIndexed { index, language ->
+                    com.github.mikephil.charting.components.LegendEntry().apply {
+                        label = language
+                        formColor = chartColors[index % chartColors.size]
+                    }
+                })
+            }
+            setDrawEntryLabels(false)
             animateY(1000, Easing.EaseInOutQuad)
 
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is PieEntry) {
-                        val language = e.label ?: ""
+                        val index = entries.indexOf(e)
+                        val language = data.keys.toList()[index]
                         val movies = notificationsViewModel.getMoviesByOriginalLanguage(language)
                         showMoviesDialog("Film in $language", movies)
                     }
@@ -865,6 +892,102 @@ class NotificationsFragment : Fragment() {
             })
 
             Log.d(TAG, "chart lingue originali configurato con ${entries.size} entries")
+            invalidate()
+        }
+    }
+
+    //scatter plot: film popolari vs film di qualità
+    private fun setupPopularityVsRatingScatter(data: List<Pair<Double, Double>>) {
+        Log.d(TAG, "setupPopularityVsRatingScatter: ${data.size} punti")
+
+        val entries = data.map { (popularity, rating) ->
+            Entry(popularity.toFloat(), rating.toFloat())
+        }
+
+        val dataSet = ScatterDataSet(entries, "Film").apply {
+            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
+            scatterShapeSize = 10f
+            color = Color.parseColor("#667eea")
+            setDrawValues(false)
+        }
+
+        binding.chartPopularityVsRating.apply {
+            this.data = ScatterData(dataSet)
+            description.text = "Scopri se i film più popolari sono anche i migliori"
+            description.textSize = 9f
+
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                setDrawGridLines(true)
+                gridColor = Color.parseColor("#E0E0E0")
+                textSize = 9f
+            }
+
+            axisLeft.apply {
+                axisMinimum = 0f
+                axisMaximum = 10f
+                setDrawGridLines(true)
+                gridColor = Color.parseColor("#E0E0E0")
+            }
+
+            axisRight.isEnabled = false
+            legend.textSize = 10f
+
+            animateXY(1000, 1000)
+            invalidate()
+        }
+    }
+
+    //line chart: trend popolarità per decade
+    private fun setupPopularityTrendLineChart(data: Map<String, Double>) {
+        Log.d(TAG, "setupPopularityTrendLineChart: $data")
+
+        val sortedData = data.toList().sortedBy { it.first }
+        val entries = sortedData.mapIndexed { index, (_, avgPopularity) ->
+            Entry(index.toFloat(), avgPopularity.toFloat())
+        }
+
+        val dataSet = LineDataSet(entries, "Popolarità Media").apply {
+            color = Color.parseColor("#667eea")
+            setCircleColor(Color.parseColor("#667eea"))
+            lineWidth = 3f
+            circleRadius = 5f
+            setDrawValues(true)
+            valueTextSize = 10f
+            valueTextColor = Color.parseColor("#667eea")
+            mode = LineDataSet.Mode.CUBIC_BEZIER
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return String.format("%.1f", value)
+                }
+            }
+        }
+
+        binding.chartPopularityTrend.apply {
+            this.data = LineData(dataSet)
+            description.text = "Come è cambiata la popolarità dei film nel tempo"
+            description.textSize = 9f
+
+            xAxis.apply {
+                valueFormatter = IndexAxisValueFormatter(sortedData.map { it.first })
+                position = XAxis.XAxisPosition.BOTTOM
+                granularity = 1f
+                labelCount = sortedData.size
+                labelRotationAngle = -45f
+                textSize = 9f
+                setDrawGridLines(false)
+            }
+
+            axisLeft.apply {
+                setDrawGridLines(true)
+                gridColor = Color.parseColor("#E0E0E0")
+                textSize = 9f
+            }
+
+            axisRight.isEnabled = false
+            legend.textSize = 10f
+
+            animateX(1500)
             invalidate()
         }
     }
