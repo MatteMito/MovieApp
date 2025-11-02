@@ -26,15 +26,32 @@
                 android:elevation="4dp"
                 android:paddingTop="16dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp"
                     android:layout_marginBottom="8dp"
-                    android:text="Le Tue Liste"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary"/>
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Le Tue Liste"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"/>
+
+                    <ImageButton
+                        android:id="@+id/btn_filter"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:src="@drawable/ic_filter"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="filtri"/>
+
+                </LinearLayout>
 
                 <!-- tabs -->
                 <com.google.android.material.tabs.TabLayout

@@ -1,6 +1,3 @@
-//file: app/src/main/java/com/example/movieapp/ui/social/CreateListDialogFragment.kt
-//dialog per creare nuova lista senza film
-
 package com.example.movieapp.ui.social
 
 import android.os.Bundle
@@ -40,56 +37,37 @@ class CreateListDialogFragment : DialogFragment() {
     }
 
     private fun setupViews() {
-        //close button
-        binding.btnClose.setOnClickListener {
-            dismiss()
-        }
-
-        //switch pubblico/privato
-        binding.switchPublic.setOnCheckedChangeListener { _, isChecked ->
-            binding.tvVisibility.text = if (isChecked) "Pubblica" else "Privata"
-        }
-
-        //nascondi sezione film
-        binding.tvAddMoviesTitle.visibility = View.GONE
-        binding.etSearchMovie.visibility = View.GONE
-        binding.progressAutocomplete.visibility = View.GONE
-        binding.recyclerSearchResults.visibility = View.GONE
-        binding.tvSelectedCount.visibility = View.GONE
-        binding.tvSelectedMovies.visibility = View.GONE
-
-        //create button
+        //bottone crea
         binding.btnCreate.setOnClickListener {
             createList()
+        }
+
+        //bottone annulla - verifica se esiste nel layout
+        binding.root.findViewById<View>(com.example.movieapp.R.id.btnCancel)?.setOnClickListener {
+            dismiss()
         }
     }
 
     private fun createList() {
-        val name = binding.etListName.text.toString().trim()
-        val description = binding.etListDescription.text.toString().trim()
+        val name = binding.etListName.text?.toString()?.trim()
+        val description = binding.etListDescription.text?.toString()?.trim()
         val isPublic = binding.switchPublic.isChecked
 
-        if (name.isEmpty()) {
-            binding.etListName.error = "nome richiesto"
+        if (name.isNullOrBlank()) {
+            Toast.makeText(requireContext(), "Inserisci un nome per la lista", Toast.LENGTH_SHORT).show()
             return
         }
 
-        binding.progressCreate.visibility = View.VISIBLE
-        binding.btnCreate.isEnabled = false
-
         viewModel.createList(
             name = name,
-            description = description.ifEmpty { null },
+            description = description?.ifBlank { null },
             isPublic = isPublic,
-            movieIds = emptyList(),
-            onSuccess = { list ->
-                Toast.makeText(context, "Lista creata: ${list.name}", Toast.LENGTH_SHORT).show()
+            onSuccess = { newList ->
+                Toast.makeText(requireContext(), "Lista creata!", Toast.LENGTH_SHORT).show()
                 dismiss()
             },
             onError = { error ->
-                Toast.makeText(context, "Errore: $error", Toast.LENGTH_LONG).show()
-                binding.progressCreate.visibility = View.GONE
-                binding.btnCreate.isEnabled = true
+                Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
             }
         )
     }

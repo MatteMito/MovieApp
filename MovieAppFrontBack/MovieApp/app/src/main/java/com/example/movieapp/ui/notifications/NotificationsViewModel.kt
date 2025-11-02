@@ -416,22 +416,6 @@ class NotificationsViewModel : ViewModel() {
         val topDecadeEntry = decadesMap.maxByOrNull { it.value.size }
         topDecadeEntry?.let {
             _topDecade.postValue(Pair(it.key, it.value.size))
-
-            val description = when {
-                it.key.startsWith("192") -> "cinema muto e primi sonori"
-                it.key.startsWith("193") -> "età d'oro di hollywood"
-                it.key.startsWith("194") -> "dopoguerra e neorealismo"
-                it.key.startsWith("195") -> "nascita della nouvelle vague"
-                it.key.startsWith("196") -> "new hollywood e sperimentazione"
-                it.key.startsWith("197") -> "blockbuster e nuovi effetti speciali"
-                it.key.startsWith("198") -> "cinema d'autore e action movie"
-                it.key.startsWith("199") -> "cgi e cinema indipendente"
-                it.key.startsWith("200") -> "superhero e franchise"
-                it.key.startsWith("201") -> "streaming e cinema digitale"
-                it.key.startsWith("202") -> "era post-pandemica"
-                else -> "periodo cinematografico"
-            }
-            _decadeDescription.postValue(description)
         }
     }
 

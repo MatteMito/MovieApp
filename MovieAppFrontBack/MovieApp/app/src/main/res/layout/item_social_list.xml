@@ -39,7 +39,7 @@
 
             <!-- badge pubblico/privato -->
             <TextView
-                android:id="@+id/badgePublic"
+                android:id="@+id/badgeVisibility"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
@@ -52,10 +52,22 @@
                 android:textColor="@android:color/white"
                 android:textSize="10sp"
                 android:textStyle="bold"
-                android:visibility="visible"
                 tools:text="PUBBLICA"/>
 
         </LinearLayout>
+
+        <!-- username creatore (per liste pubbliche) -->
+        <TextView
+            android:id="@+id/tvUsername"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@username"
+            android:textColor="@color/primary"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:text="@mario_rossi"/>
 
         <!-- descrizione -->
         <TextView
@@ -89,15 +101,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
-                android:text="0"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
-                android:text="film"
+                android:text="0 film"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"/>
 
@@ -108,28 +112,15 @@
                 android:layout_weight="1"/>
 
             <!-- followers -->
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@drawable/ic_notifications"
-                app:tint="@color/text_secondary"/>
-
             <TextView
-                android:id="@+id/tvFollowersCount"
+                android:id="@+id/tvFollowers"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:text="0"
+                android:text="0 follower"
                 android:textColor="@color/text_secondary"
-                android:textSize="14sp"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
-                android:text="follower"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"/>
+                android:textSize="14sp"
+                android:visibility="gone"
+                tools:visibility="visible"/>
 
         </LinearLayout>
 
@@ -141,15 +132,15 @@
             android:orientation="horizontal"
             android:gravity="end">
 
-            <!-- bottone copy (solo per liste pubbliche) -->
-            <ImageButton
-                android:id="@+id/btnCopy"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_add"
-                android:contentDescription="copia lista"
-                app:tint="@color/primary"
+            <!-- bottone edit (solo per le mie liste) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnEdit"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Modifica"
+                android:textAllCaps="false"
+                app:icon="@drawable/ic_filter"
                 android:visibility="gone"
                 tools:visibility="visible"/>
 
@@ -163,6 +154,31 @@
                 android:src="@drawable/ic_delete"
                 android:contentDescription="elimina lista"
                 app:tint="@android:color/holo_red_light"
+                android:visibility="gone"
+                tools:visibility="visible"/>
+
+            <!-- bottone copia (solo per liste pubbliche) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCopy"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Copia"
+                android:textAllCaps="false"
+                app:icon="@drawable/ic_add"
+                android:visibility="gone"
+                tools:visibility="visible"/>
+
+            <!-- bottone follow (solo per liste pubbliche) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFollow"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Segui"
+                android:textAllCaps="false"
+                app:icon="@drawable/ic_add"
                 android:visibility="gone"
                 tools:visibility="visible"/>
 

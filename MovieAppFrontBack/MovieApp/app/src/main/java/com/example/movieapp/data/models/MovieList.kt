@@ -1,5 +1,5 @@
-// file: app/src/main/java/com/example/movieapp/data/models/MovieList.kt
-// model movielist completo
+//file: app/src/main/java/com/example/movieapp/data/models/MovieList.kt
+//data class per lista con username
 
 package com.example.movieapp.data.models
 
@@ -33,19 +33,12 @@ data class MovieList(
     @SerializedName("follower_ids")
     val followerIds: List<String> = emptyList(),
 
+    @SerializedName("username")
+    val username: String? = null,
+
     @SerializedName("created_at")
     val createdAt: String? = null,
 
     @SerializedName("updated_at")
     val updatedAt: String? = null
-) {
-    fun getMovieCount(): Int = movies.size
-
-    fun isFollowedBy(userId: String): Boolean {
-        return followerIds.contains(userId)
-    }
-
-    fun getVisibilityText(): String {
-        return if (isPublic) "Pubblica" else "Privata"
-    }
-}
+)

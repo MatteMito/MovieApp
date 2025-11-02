@@ -24,7 +24,7 @@
             android:textColor="@color/text_primary"
             android:layout_marginBottom="16dp"/>
 
-        <!-- card statistiche riepilogo -->
+        <!-- card statistiche riepilogo - STILE HOME -->
         <androidx.cardview.widget.CardView
             android:id="@+id/stats_card"
             android:layout_width="match_parent"
@@ -32,7 +32,7 @@
             android:layout_marginBottom="16dp"
             app:cardCornerRadius="16dp"
             app:cardElevation="4dp"
-            app:cardBackgroundColor="@color/white">
+            app:cardBackgroundColor="@color/primary_blue">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -44,10 +44,10 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Riepilogo"
-                    android:textSize="16sp"
+                    android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="@color/text_primary"
-                    android:layout_marginBottom="12dp"/>
+                    android:textColor="@color/white"
+                    android:layout_marginBottom="16dp"/>
 
                 <GridLayout
                     android:layout_width="match_parent"
@@ -60,24 +60,28 @@
                         android:layout_height="wrap_content"
                         android:layout_columnWeight="1"
                         android:orientation="vertical"
-                        android:gravity="center">
+                        android:gravity="center"
+                        android:background="@drawable/stats_card_background"
+                        android:padding="16dp"
+                        android:layout_margin="4dp">
 
                         <TextView
                             android:id="@+id/text_total_movies"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textSize="28sp"
+                            android:textSize="32sp"
                             android:textStyle="bold"
-                            android:textColor="@color/primary_blue"
+                            android:textColor="@color/white"
                             tools:text="150"/>
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/total_movies"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"/>
+                            android:textSize="11sp"
+                            android:textColor="@color/white"
+                            android:alpha="0.9"/>
                     </LinearLayout>
 
                     <LinearLayout
@@ -85,24 +89,28 @@
                         android:layout_height="wrap_content"
                         android:layout_columnWeight="1"
                         android:orientation="vertical"
-                        android:gravity="center">
+                        android:gravity="center"
+                        android:background="@drawable/stats_card_background"
+                        android:padding="16dp"
+                        android:layout_margin="4dp">
 
                         <TextView
                             android:id="@+id/text_watched_movies"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textSize="28sp"
+                            android:textSize="32sp"
                             android:textStyle="bold"
-                            android:textColor="@color/primary_blue"
+                            android:textColor="@color/white"
                             tools:text="120"/>
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/watched_movies"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"/>
+                            android:textSize="11sp"
+                            android:textColor="@color/white"
+                            android:alpha="0.9"/>
                     </LinearLayout>
 
                     <LinearLayout
@@ -110,24 +118,28 @@
                         android:layout_height="wrap_content"
                         android:layout_columnWeight="1"
                         android:orientation="vertical"
-                        android:gravity="center">
+                        android:gravity="center"
+                        android:background="@drawable/stats_card_background"
+                        android:padding="16dp"
+                        android:layout_margin="4dp">
 
                         <TextView
                             android:id="@+id/text_watchlist_movies"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0"
-                            android:textSize="28sp"
+                            android:textSize="32sp"
                             android:textStyle="bold"
-                            android:textColor="@color/primary_blue"
+                            android:textColor="@color/white"
                             tools:text="30"/>
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/watchlist_movies"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary"/>
+                            android:textSize="11sp"
+                            android:textColor="@color/white"
+                            android:alpha="0.9"/>
                     </LinearLayout>
                 </GridLayout>
 
@@ -137,7 +149,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="14sp"
-                    android:textColor="@color/text_primary"
+                    android:textColor="@color/white"
                     android:layout_marginTop="16dp"
                     android:visibility="gone"
                     tools:text="⏱️ Durata Totale Film: 15 ore e 8 minuti"
@@ -445,17 +457,6 @@
                     tools:visibility="visible"/>
 
                 <TextView
-                    android:id="@+id/text_decade_description"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
-                    android:padding="8dp"
-                    android:visibility="gone"
-                    tools:text="streaming e cinema digitale"
-                    tools:visibility="visible"/>
-
-                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Film per Decennio"
@@ -574,23 +575,15 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 11: film popolari vs film di qualità -->
+                <!-- grafico 11: popolarità e qualità -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Film Popolari vs Film di Qualità"
+                    android:text="Popolarità e Qualità"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="8dp"
-                    android:layout_marginBottom="8dp"/>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="I film più popolari sono anche i migliori?"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
                     android:layout_marginBottom="8dp"/>
 
                 <com.github.mikephil.charting.charts.ScatterChart
@@ -599,23 +592,15 @@
                     android:layout_height="350dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 12: evoluzione popolarità -->
+                <!-- grafico 12: trend popolarità -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Evoluzione Popolarità nel Tempo"
+                    android:text="Trend Popolarità"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="8dp"
-                    android:layout_marginBottom="8dp"/>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Come è cambiata la popolarità dei film nel tempo"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
                     android:layout_marginBottom="8dp"/>
 
                 <com.github.mikephil.charting.charts.LineChart

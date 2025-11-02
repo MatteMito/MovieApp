@@ -6,10 +6,12 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:padding="24dp"
+    android:background="@color/white">
 
-    <!-- titolo -->
+    <!-- titolo dinamico -->
     <TextView
+        android:id="@+id/tvTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Modifica Lista"
@@ -23,6 +25,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Nome Lista"
+        android:layout_marginBottom="16dp"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -37,87 +40,65 @@
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
         android:hint="Descrizione (opzionale)"
+        android:layout_marginBottom="16dp"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etListDescription"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="top|start"
             android:inputType="textMultiLine"
-            android:lines="3"
-            android:maxLines="5" />
+            android:minLines="3"
+            android:maxLines="5"
+            android:gravity="top|start" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- visibilita -->
+    <!-- switch pubblico/privato -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
         android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:layout_marginBottom="24dp">
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Visibilità"
+            android:text="Lista Pubblica"
             android:textSize="16sp"
-            android:textColor="@color/text_primary"
-            android:textStyle="bold" />
+            android:textColor="@color/text_primary"/>
 
-        <TextView
-            android:id="@+id/tvVisibility"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:text="Privata"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp" />
-
-        <androidx.appcompat.widget.SwitchCompat
+        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/switchPublic"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"/>
 
     </LinearLayout>
-
-    <!-- progress -->
-    <ProgressBar
-        android:id="@+id/progressSave"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="16dp"
-        android:visibility="gone" />
 
     <!-- bottoni -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
         android:orientation="horizontal"
         android:gravity="end">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCancel"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
             android:text="Annulla"
-            android:textAllCaps="false"
-            style="@style/Widget.MaterialComponents.Button.TextButton"/>
+            android:textAllCaps="false"/>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSave"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
             android:text="Salva"
-            android:textAllCaps="false"
-            app:backgroundTint="@color/primary"
-            app:cornerRadius="8dp"/>
+            android:textAllCaps="false"/>
 
     </LinearLayout>
 

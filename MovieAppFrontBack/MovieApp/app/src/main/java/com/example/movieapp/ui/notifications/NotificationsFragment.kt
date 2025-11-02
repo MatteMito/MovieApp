@@ -913,7 +913,7 @@ class NotificationsFragment : Fragment() {
 
         binding.chartPopularityVsRating.apply {
             this.data = ScatterData(dataSet)
-            description.text = "Scopri se i film più popolari sono anche i migliori"
+            description.text = "Relazione tra popolarità e valutazione"
             description.textSize = 9f
 
             xAxis.apply {
@@ -965,7 +965,7 @@ class NotificationsFragment : Fragment() {
 
         binding.chartPopularityTrend.apply {
             this.data = LineData(dataSet)
-            description.text = "Come è cambiata la popolarità dei film nel tempo"
+            description.text = "Evoluzione della popolarità per decade"
             description.textSize = 9f
 
             xAxis.apply {

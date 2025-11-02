@@ -1,5 +1,5 @@
 //file: app/src/main/java/com/example/movieapp/ui/social/ListMoviesAdapter.kt
-//adapter per film in una lista con bottone rimuovi
+//adapter per film in una lista con poster, titolo, anno, regista, generi
 
 package com.example.movieapp.ui.social
 
@@ -64,6 +64,7 @@ class ListMoviesAdapter(
                         .load(movie.posterUrl)
                         .placeholder(R.drawable.ic_home)
                         .error(R.drawable.ic_home)
+                        .centerCrop()
                         .into(ivMoviePoster)
                 } else {
                     ivMoviePoster.setImageResource(R.drawable.ic_home)

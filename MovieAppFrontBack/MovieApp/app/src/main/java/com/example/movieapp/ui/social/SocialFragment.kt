@@ -1,18 +1,18 @@
-//file: app/src/main/java/com/example/movieapp/ui/social/SocialFragment.kt
-//fragment principale per liste sociali
-
 package com.example.movieapp.ui.social
 
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.movieapp.R
+import com.example.movieapp.data.models.MovieList
 import com.example.movieapp.databinding.FragmentSocialBinding
 import com.google.android.material.tabs.TabLayout
 
@@ -69,18 +69,22 @@ class SocialFragment : Fragment() {
         //setup adapters
         myListsAdapter = SocialListAdapter(
             onListClick = { list ->
-                showListOptionsDialog(list.id, list.name, true)
+                openListDetail(list.id, list.name, true)
             },
+            onEditClick = { list -> showEditListDialog(list) },
             onDeleteClick = { list -> confirmDeleteList(list.id) },
+            onFollowClick = null,
             onCopyClick = null
         )
 
         publicListsAdapter = SocialListAdapter(
             onListClick = { list ->
-                showListOptionsDialog(list.id, list.name, false)
+                openListDetail(list.id, list.name, false)
             },
+            onEditClick = null,
             onDeleteClick = null,
-            onCopyClick = { list -> copyList(list.id, list.name) }
+            onFollowClick = { list -> followList(list) },
+            onCopyClick = { list -> copyList(list) }
         )
 
         binding.recyclerMyLists.apply {
@@ -96,6 +100,11 @@ class SocialFragment : Fragment() {
         //swipe refresh
         binding.swipeRefresh.setOnRefreshListener {
             viewModel.refreshLists()
+        }
+
+        //bottone filtri
+        binding.btnFilter.setOnClickListener {
+            showFilterMenu(it)
         }
 
         //show my lists by default
@@ -139,35 +148,38 @@ class SocialFragment : Fragment() {
     }
 
     private fun showCreateListDialog() {
-        val dialog = CreateListDialogFragment()
+        val dialog = EditListDialogFragment.newInstance(
+            listId = null,
+            currentName = "",
+            currentDescription = "",
+            isPublic = false
+        )
         dialog.show(childFragmentManager, "CreateListDialog")
     }
 
-    private fun showListOptionsDialog(listId: String, listName: String, isOwner: Boolean) {
-        androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            .setTitle("Apri: $listName")
-            .setMessage("Vuoi aprire questa lista?")
-            .setPositiveButton("Apri") { _, _ ->
-                navigateToListDetail(listId, listName, isOwner)
-            }
-            .setNegativeButton("Annulla", null)
-            .show()
+    private fun showEditListDialog(list: MovieList) {
+        val dialog = EditListDialogFragment.newInstance(
+            listId = list.id,
+            currentName = list.name,
+            currentDescription = list.description ?: "",
+            isPublic = list.isPublic
+        )
+        dialog.show(childFragmentManager, "EditListDialog")
     }
 
-    private fun navigateToListDetail(listId: String, listName: String, isOwner: Boolean) {
-        val bundle = Bundle().apply {
-            putString("listId", listId)
-            putString("listName", listName)
-            putBoolean("isOwner", isOwner)
-        }
-
-        findNavController().navigate(R.id.listDetailFragment, bundle)
+    private fun openListDetail(listId: String, listName: String, isOwner: Boolean) {
+        val bundle = bundleOf(
+            "listId" to listId,
+            "listName" to listName,
+            "isOwner" to isOwner
+        )
+        findNavController().navigate(R.id.action_social_to_listDetail, bundle)
     }
 
     private fun confirmDeleteList(listId: String) {
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Elimina Lista")
-            .setMessage("Vuoi eliminare questa lista?")
+            .setMessage("Vuoi eliminare questa lista? Questa azione non può essere annullata.")
             .setPositiveButton("Elimina") { _, _ ->
                 deleteList(listId)
             }
@@ -176,34 +188,81 @@ class SocialFragment : Fragment() {
     }
 
     private fun deleteList(listId: String) {
-        viewModel.deleteList(
-            listId = listId,
+        viewModel.deleteList(listId,
             onSuccess = {
-                Toast.makeText(context, "Lista eliminata", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Lista eliminata", Toast.LENGTH_SHORT).show()
+                viewModel.refreshLists()
             },
             onError = { error ->
-                Toast.makeText(context, "Errore: $error", Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
             }
         )
     }
 
-    private fun copyList(listId: String, originalName: String) {
-        val newName = "Copia di $originalName"
-        viewModel.copyList(
-            listId = listId,
-            newName = newName,
+    private fun followList(list: MovieList) {
+        viewModel.followList(list.id,
+            onSuccess = {
+                Toast.makeText(requireContext(), "Ora segui: ${list.name}", Toast.LENGTH_SHORT).show()
+                viewModel.refreshLists()
+            },
+            onError = { error ->
+                Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
+            }
+        )
+    }
+
+    private fun copyList(list: MovieList) {
+        //mostra dialog per nome personalizzato
+        val input = android.widget.EditText(requireContext())
+        input.hint = "Nome nuova lista (opzionale)"
+        input.setText("${list.name} (copia)")
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Copia Lista")
+            .setMessage("Vuoi copiare questa lista nella tua collezione privata?")
+            .setView(input)
+            .setPositiveButton("Copia") { _, _ ->
+                val newName = input.text.toString().trim().ifBlank { null }
+                executeCopyList(list.id, newName)
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun executeCopyList(listId: String, newName: String?) {
+        viewModel.copyList(listId, newName,
             onSuccess = { copiedList ->
-                Toast.makeText(context, "Lista copiata: ${copiedList.name}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Lista copiata: ${copiedList.name}", Toast.LENGTH_SHORT).show()
+                viewModel.refreshLists()
+                //passa alla tab le mie liste
+                binding.tabLayout.getTabAt(0)?.select()
             },
             onError = { error ->
-                Toast.makeText(context, "Errore: $error", Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
             }
         )
     }
 
-    override fun onResume() {
-        super.onResume()
-        viewModel.refreshLists()
+    private fun showFilterMenu(anchor: View) {
+        val popup = PopupMenu(requireContext(), anchor)
+        popup.menu.add(0, 1, 0, "Nome (A-Z)")
+        popup.menu.add(0, 2, 0, "Nome (Z-A)")
+        popup.menu.add(0, 3, 0, "Più recenti")
+        popup.menu.add(0, 4, 0, "Più vecchie")
+        popup.menu.add(0, 5, 0, "Più popolari")
+
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                1 -> viewModel.applySortFilter(SocialViewModel.SortType.NAME_ASC)
+                2 -> viewModel.applySortFilter(SocialViewModel.SortType.NAME_DESC)
+                3 -> viewModel.applySortFilter(SocialViewModel.SortType.DATE_DESC)
+                4 -> viewModel.applySortFilter(SocialViewModel.SortType.DATE_ASC)
+                5 -> viewModel.applySortFilter(SocialViewModel.SortType.POPULARITY)
+            }
+            true
+        }
+
+        popup.show()
     }
 
     override fun onDestroyView() {

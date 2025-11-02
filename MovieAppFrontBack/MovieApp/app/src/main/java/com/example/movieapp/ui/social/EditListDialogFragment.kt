@@ -1,6 +1,3 @@
-//file: app/src/main/java/com/example/movieapp/ui/social/EditListDialogFragment.kt
-//dialog per modificare nome e descrizione lista
-
 package com.example.movieapp.ui.social
 
 import android.os.Bundle
@@ -9,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.ViewModelProvider
 import com.example.movieapp.databinding.DialogEditListBinding
 
@@ -17,16 +15,17 @@ class EditListDialogFragment : DialogFragment() {
     private var _binding: DialogEditListBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var viewModel: ListDetailViewModel
+    private val socialViewModel: SocialViewModel by activityViewModels()
+    private lateinit var detailViewModel: ListDetailViewModel
 
-    private var listId: String = ""
+    private var listId: String? = null
     private var currentName: String = ""
     private var currentDescription: String = ""
     private var isPublic: Boolean = false
 
     companion object {
         fun newInstance(
-            listId: String,
+            listId: String?,
             currentName: String,
             currentDescription: String,
             isPublic: Boolean
@@ -46,7 +45,7 @@ class EditListDialogFragment : DialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
-            listId = it.getString("listId") ?: ""
+            listId = it.getString("listId")
             currentName = it.getString("currentName") ?: ""
             currentDescription = it.getString("currentDescription") ?: ""
             isPublic = it.getBoolean("isPublic")
@@ -60,68 +59,74 @@ class EditListDialogFragment : DialogFragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = DialogEditListBinding.inflate(inflater, container, false)
-        viewModel = ViewModelProvider(requireParentFragment())[ListDetailViewModel::class.java]
+        detailViewModel = ViewModelProvider(this)[ListDetailViewModel::class.java]
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupViews()
-    }
-
-    private fun setupViews() {
         //imposta valori correnti
         binding.etListName.setText(currentName)
         binding.etListDescription.setText(currentDescription)
         binding.switchPublic.isChecked = isPublic
-        binding.tvVisibility.text = if (isPublic) "Pubblica" else "Privata"
 
-        //switch
-        binding.switchPublic.setOnCheckedChangeListener { _, isChecked ->
-            binding.tvVisibility.text = if (isChecked) "Pubblica" else "Privata"
+        //cambia titolo se e' creazione o modifica
+        binding.tvTitle.text = if (listId == null) "Crea Lista" else "Modifica Lista"
+
+        //bottone salva
+        binding.btnSave.setOnClickListener {
+            saveList()
         }
 
         //bottone annulla
         binding.btnCancel.setOnClickListener {
             dismiss()
         }
-
-        //bottone salva
-        binding.btnSave.setOnClickListener {
-            saveChanges()
-        }
     }
 
-    private fun saveChanges() {
-        val newName = binding.etListName.text.toString().trim()
-        val newDescription = binding.etListDescription.text.toString().trim()
-        val newIsPublic = binding.switchPublic.isChecked
+    private fun saveList() {
+        val name = binding.etListName.text?.toString()?.trim()
+        val description = binding.etListDescription.text?.toString()?.trim()
+        val isPublic = binding.switchPublic.isChecked
 
-        if (newName.isEmpty()) {
-            binding.etListName.error = "nome richiesto"
+        if (name.isNullOrBlank()) {
+            Toast.makeText(requireContext(), "Inserisci un nome per la lista", Toast.LENGTH_SHORT).show()
             return
         }
 
-        binding.progressSave.visibility = View.VISIBLE
-        binding.btnSave.isEnabled = false
+        val currentListId = listId
 
-        viewModel.updateList(
-            listId = listId,
-            name = newName,
-            description = newDescription.ifEmpty { null },
-            isPublic = newIsPublic,
-            onSuccess = {
-                Toast.makeText(context, "Lista aggiornata", Toast.LENGTH_SHORT).show()
-                viewModel.loadList(listId)
-                dismiss()
-            },
-            onError = { error ->
-                Toast.makeText(context, "Errore: $error", Toast.LENGTH_LONG).show()
-                binding.progressSave.visibility = View.GONE
-                binding.btnSave.isEnabled = true
-            }
-        )
+        if (currentListId == null) {
+            //crea nuova lista
+            socialViewModel.createList(
+                name = name,
+                description = description?.ifBlank { null },
+                isPublic = isPublic,
+                onSuccess = { newList ->
+                    Toast.makeText(requireContext(), "Lista creata!", Toast.LENGTH_SHORT).show()
+                    dismiss()
+                },
+                onError = { error ->
+                    Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
+                }
+            )
+        } else {
+            //aggiorna lista esistente
+            detailViewModel.updateList(
+                listId = currentListId,
+                name = name,
+                description = description?.ifBlank { null },
+                isPublic = isPublic,
+                onSuccess = {
+                    Toast.makeText(requireContext(), "Lista aggiornata!", Toast.LENGTH_SHORT).show()
+                    dismiss()
+                },
+                onError = { error ->
+                    Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
+                }
+            )
+        }
     }
 
     override fun onDestroyView() {

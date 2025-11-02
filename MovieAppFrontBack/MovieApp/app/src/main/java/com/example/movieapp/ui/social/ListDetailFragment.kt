@@ -1,5 +1,5 @@
 //file: app/src/main/java/com/example/movieapp/ui/social/ListDetailFragment.kt
-//fragment per dettaglio lista con autocomplete
+//fragment per dettaglio lista con autocomplete semplificato
 
 package com.example.movieapp.ui.social
 
@@ -80,7 +80,7 @@ class ListDetailFragment : Fragment() {
             adapter = moviesAdapter
         }
 
-        //setup search recyclerview
+        //setup search recyclerview con click diretto
         searchAdapter = SearchMovieAdapter { movie ->
             addMovieToList(movie)
         }
