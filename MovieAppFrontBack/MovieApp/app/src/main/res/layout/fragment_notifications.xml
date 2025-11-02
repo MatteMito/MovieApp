@@ -390,6 +390,16 @@
 
                 <!-- grafico 6: paesi -->
                 <TextView
+                    android:id="@+id/text_countries_empty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nessun paese di produzione disponibile"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_secondary"
+                    android:visibility="gone"
+                    android:layout_marginBottom="16dp"/>
+
+                <TextView
                     android:id="@+id/text_top_country"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -431,24 +441,24 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="📆 decennio preferito: 2010s (55 film)"
+                    tools:text="📆 decennio preferito: 2010s (65 film)"
                     tools:visibility="visible"/>
 
                 <TextView
                     android:id="@+id/text_decade_description"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textSize="12sp"
                     android:textColor="@color/text_secondary"
+                    android:padding="8dp"
                     android:visibility="gone"
-                    android:layout_marginBottom="8dp"
-                    tools:text="il tuo decennio preferito è 2010s, il dominio dei supereroi!"
+                    tools:text="streaming e cinema digitale"
                     tools:visibility="visible"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Decenni"
+                    android:text="Film per Decennio"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -473,13 +483,13 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="🎭 combinazione più frequente: action + thriller (22 film)"
+                    tools:text="🎭 combinazione più frequente: action + thriller (23 film)"
                     tools:visibility="visible"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Combinazioni di Generi"
+                    android:text="Combinazioni Generi"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -504,7 +514,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="⏱️ film più lungo: the irishman (209 min)"
+                    tools:text="⏱️ film più lungo: the lord of the rings (201 min)"
                     tools:visibility="visible"/>
 
                 <TextView
@@ -523,35 +533,21 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 10: lingue -->
-                <TextView
-                    android:id="@+id/text_top_language"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="14sp"
-                    android:textColor="@color/text_primary"
-                    android:padding="8dp"
-                    android:visibility="gone"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?android:attr/selectableItemBackground"
-                    tools:text="🌐 lingua principale: inglese (120 film)"
-                    tools:visibility="visible"/>
-
+                <!-- grafico 10: scatter rating vs anno -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Lingue"
+                    android:text="Rating per Anno"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp"/>
 
-                <com.github.mikephil.charting.charts.PieChart
-                    android:id="@+id/chart_languages"
+                <com.github.mikephil.charting.charts.ScatterChart
+                    android:id="@+id/chart_rating_vs_year"
                     android:layout_width="match_parent"
-                    android:layout_height="300dp"
+                    android:layout_height="350dp"
                     android:layout_marginBottom="8dp"/>
 
             </LinearLayout>

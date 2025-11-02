@@ -14,6 +14,7 @@ import com.example.movieapp.databinding.FragmentNotificationsBinding
 import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.PieChart
+import com.github.mikephil.charting.charts.ScatterChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
@@ -170,11 +171,13 @@ class NotificationsFragment : Fragment() {
 
         //grafico ratings
         notificationsViewModel.ratingsData.observe(viewLifecycleOwner) { data ->
+            Log.d(TAG, "ratingsData observer: size = ${data.size}, data = $data")
             if (data.isNotEmpty()) {
                 binding.textRatingsEmpty.visibility = View.GONE
                 binding.chartRatings.visibility = View.VISIBLE
                 setupRatingsPieChart(data)
             } else {
+                Log.w(TAG, "ratingsData vuoto, mostra messaggio")
                 binding.textRatingsEmpty.visibility = View.VISIBLE
                 binding.chartRatings.visibility = View.GONE
             }
@@ -182,8 +185,15 @@ class NotificationsFragment : Fragment() {
 
         //grafico paesi
         notificationsViewModel.countriesData.observe(viewLifecycleOwner) { data ->
+            Log.d(TAG, "countriesData observer: size = ${data.size}, data = $data")
             if (data.isNotEmpty()) {
+                binding.textCountriesEmpty.visibility = View.GONE
+                binding.chartCountries.visibility = View.VISIBLE
                 setupCountriesBarChart(data)
+            } else {
+                Log.w(TAG, "countriesData vuoto, mostra messaggio")
+                binding.textCountriesEmpty.visibility = View.VISIBLE
+                binding.chartCountries.visibility = View.GONE
             }
         }
 
@@ -251,29 +261,21 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico lingue
-        notificationsViewModel.languagesData.observe(viewLifecycleOwner) { data ->
+        //grafico scatter rating vs anno
+        notificationsViewModel.ratingVsYearData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
-                setupLanguagesPieChart(data)
-            }
-        }
-
-        notificationsViewModel.topLanguage.observe(viewLifecycleOwner) { (language, count) ->
-            binding.textTopLanguage.text = "🌐 lingua principale: $language ($count film)"
-            binding.textTopLanguage.visibility = View.VISIBLE
-            binding.textTopLanguage.setOnClickListener {
-                showMoviesDialog("Film in $language", notificationsViewModel.getMoviesByLanguage(language))
+                setupRatingVsYearScatterChart(data)
             }
         }
     }
 
-    //grafico generi con numero film all'interno
+    //grafico generi - solo numeri senza etichette
     private fun setupGenresPieChart(data: Map<String, Int>) {
-        val entries = data.map { PieEntry(it.value.toFloat(), it.key) }
+        val entries = data.map { PieEntry(it.value.toFloat(), "") }
 
         val dataSet = PieDataSet(entries, "").apply {
             colors = chartColors
-            valueTextSize = 11f
+            valueTextSize = 14f
             valueTextColor = Color.WHITE
             sliceSpace = 2f
             valueFormatter = object : ValueFormatter() {
@@ -289,16 +291,22 @@ class NotificationsFragment : Fragment() {
             legend.apply {
                 textSize = 10f
                 isWordWrapEnabled = true
+                //crea entries personalizzate per la legenda
+                setCustom(data.keys.mapIndexed { index, genre ->
+                    com.github.mikephil.charting.components.LegendEntry().apply {
+                        label = genre
+                        formColor = chartColors[index % chartColors.size]
+                    }
+                })
             }
-            setDrawEntryLabels(true)
-            setEntryLabelColor(Color.BLACK)
-            setEntryLabelTextSize(9f)
+            setDrawEntryLabels(false)
             animateY(1000, Easing.EaseInOutQuad)
 
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is PieEntry) {
-                        val genre = e.label ?: ""
+                        val index = entries.indexOf(e)
+                        val genre = data.keys.toList()[index]
                         val movies = notificationsViewModel.getMoviesByGenre(genre)
                         showMoviesDialog("Film $genre", movies)
                     }
@@ -310,15 +318,14 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico anni con numeri sopra le colonne
+    //grafico anni
     private fun setupYearsBarChart(data: Map<Int, Int>) {
-        val sortedData = data.toList().sortedBy { it.first }
-        val entries = sortedData.mapIndexed { index, pair ->
-            BarEntry(index.toFloat(), pair.second.toFloat())
+        val entries = data.entries.mapIndexed { index, entry ->
+            BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
         val dataSet = BarDataSet(entries, "").apply {
-            color = Color.parseColor("#764ba2")
+            color = Color.parseColor("#667eea")
             valueTextSize = 10f
             valueTextColor = Color.WHITE
             valueFormatter = object : ValueFormatter() {
@@ -331,13 +338,14 @@ class NotificationsFragment : Fragment() {
         binding.chartYears.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
-            setVisibleXRangeMaximum(15f)
+            setVisibleXRangeMaximum(10f)
             xAxis.apply {
-                valueFormatter = IndexAxisValueFormatter(sortedData.map { it.first.toString() })
+                valueFormatter = IndexAxisValueFormatter(data.keys.map { it.toString() })
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
+                labelCount = data.size
                 labelRotationAngle = -45f
-                textSize = 10f
+                textSize = 9f
                 setDrawGridLines(false)
             }
             axisLeft.apply {
@@ -360,7 +368,7 @@ class NotificationsFragment : Fragment() {
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is BarEntry) {
-                        val year = sortedData[e.x.toInt()].first
+                        val year = data.keys.toList()[e.x.toInt()]
                         val movies = notificationsViewModel.getMoviesByYear(year)
                         showMoviesDialog("Film del $year", movies)
                     }
@@ -372,15 +380,15 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico registi con numeri sopra le colonne
+    //grafico registi
     private fun setupDirectorsBarChart(data: Map<String, Int>) {
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
         val dataSet = BarDataSet(entries, "").apply {
-            color = Color.parseColor("#f093fb")
-            valueTextSize = 11f
+            color = Color.parseColor("#764ba2")
+            valueTextSize = 10f
             valueTextColor = Color.WHITE
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
@@ -392,7 +400,7 @@ class NotificationsFragment : Fragment() {
         binding.chartDirectors.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
-            setVisibleXRangeMaximum(8f)
+            setVisibleXRangeMaximum(10f)
             xAxis.apply {
                 valueFormatter = IndexAxisValueFormatter(data.keys.toList())
                 position = XAxis.XAxisPosition.BOTTOM
@@ -434,15 +442,15 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico attori con numeri sopra le colonne
+    //grafico attori
     private fun setupActorsBarChart(data: Map<String, Int>) {
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
         val dataSet = BarDataSet(entries, "").apply {
-            color = Color.parseColor("#4facfe")
-            valueTextSize = 11f
+            color = Color.parseColor("#f093fb")
+            valueTextSize = 10f
             valueTextColor = Color.WHITE
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
@@ -454,7 +462,7 @@ class NotificationsFragment : Fragment() {
         binding.chartActors.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
-            setVisibleXRangeMaximum(8f)
+            setVisibleXRangeMaximum(10f)
             xAxis.apply {
                 valueFormatter = IndexAxisValueFormatter(data.keys.toList())
                 position = XAxis.XAxisPosition.BOTTOM
@@ -498,8 +506,12 @@ class NotificationsFragment : Fragment() {
 
     //grafico valutazioni
     private fun setupRatingsPieChart(data: Map<String, Int>) {
+        Log.d(TAG, "setupRatingsPieChart chiamato con data: $data")
+
         val sortedData = data.toList().sortedBy { it.first.toIntOrNull() ?: 0 }
         val entries = sortedData.map { PieEntry(it.second.toFloat(), "${it.first}⭐") }
+
+        Log.d(TAG, "entries create: ${entries.size}")
 
         val dataSet = PieDataSet(entries, "").apply {
             colors = chartColors
@@ -533,12 +545,15 @@ class NotificationsFragment : Fragment() {
                 override fun onNothingSelected() {}
             })
 
+            Log.d(TAG, "chart ratings configurato")
             invalidate()
         }
     }
 
-    //grafico paesi semplificato
+    //grafico paesi
     private fun setupCountriesBarChart(data: Map<String, Int>) {
+        Log.d(TAG, "setupCountriesBarChart chiamato con data: $data")
+
         val entries = data.entries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
@@ -595,15 +610,15 @@ class NotificationsFragment : Fragment() {
                 override fun onNothingSelected() {}
             })
 
+            Log.d(TAG, "chart countries configurato")
             invalidate()
         }
     }
 
-    //grafico decenni con numeri sopra le colonne
+    //grafico decenni
     private fun setupDecadesBarChart(data: Map<String, Int>) {
-        val sortedData = data.toList().sortedBy { it.first }
-        val entries = sortedData.mapIndexed { index, pair ->
-            BarEntry(index.toFloat(), pair.second.toFloat())
+        val entries = data.entries.mapIndexed { index, entry ->
+            BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
         val dataSet = BarDataSet(entries, "").apply {
@@ -620,13 +635,13 @@ class NotificationsFragment : Fragment() {
         binding.chartDecades.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
-            setVisibleXRangeMaximum(12f)
             xAxis.apply {
-                valueFormatter = IndexAxisValueFormatter(sortedData.map { it.first })
+                valueFormatter = IndexAxisValueFormatter(data.keys.toList())
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
+                labelCount = data.size
                 labelRotationAngle = -45f
-                textSize = 10f
+                textSize = 9f
                 setDrawGridLines(false)
             }
             axisLeft.apply {
@@ -649,7 +664,7 @@ class NotificationsFragment : Fragment() {
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is BarEntry) {
-                        val decade = sortedData[e.x.toInt()].first
+                        val decade = data.keys.toList()[e.x.toInt()]
                         val movies = notificationsViewModel.getMoviesByDecade(decade)
                         showMoviesDialog("Film degli anni $decade", movies)
                     }
@@ -661,15 +676,16 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico combinazioni generi con numeri sopra le colonne
+    //grafico combinazioni generi
     private fun setupGenreCombinationsChart(data: Map<Pair<String, String>, Int>) {
-        val labels = data.keys.map { "${it.first} + ${it.second}" }
-        val entries = data.values.mapIndexed { index, value ->
-            BarEntry(index.toFloat(), value.toFloat())
+        val entries = data.entries.mapIndexed { index, entry ->
+            BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
+        val labels = data.keys.map { "${it.first} + ${it.second}" }
+
         val dataSet = BarDataSet(entries, "").apply {
-            color = Color.parseColor("#a8edea")
+            color = Color.parseColor("#38f9d7")
             valueTextSize = 10f
             valueTextColor = Color.WHITE
             valueFormatter = object : ValueFormatter() {
@@ -682,7 +698,7 @@ class NotificationsFragment : Fragment() {
         binding.chartGenreCombinations.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
-            setVisibleXRangeMaximum(8f)
+            setVisibleXRangeMaximum(10f)
             xAxis.apply {
                 valueFormatter = IndexAxisValueFormatter(labels)
                 position = XAxis.XAxisPosition.BOTTOM
@@ -724,16 +740,13 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico durata con numeri sopra le colonne
+    //grafico fasce durata
     private fun setupRuntimeRangesChart(data: Map<String, Int>) {
-        val orderedData = listOf(
-            "0-60 min", "60-90 min", "90-120 min", "120-150 min", "150-180 min", "180+ min"
-        ).mapNotNull { range ->
-            data[range]?.let { range to it }
-        }
+        val orderedData = listOf("< 90 min", "90-120 min", "120-150 min", "> 150 min")
+            .mapNotNull { range -> data[range]?.let { range to it } }
 
-        val entries = orderedData.mapIndexed { index, pair ->
-            BarEntry(index.toFloat(), pair.second.toFloat())
+        val entries = orderedData.mapIndexed { index, (_, count) ->
+            BarEntry(index.toFloat(), count.toFloat())
         }
 
         val dataSet = BarDataSet(entries, "").apply {
@@ -754,6 +767,7 @@ class NotificationsFragment : Fragment() {
                 valueFormatter = IndexAxisValueFormatter(orderedData.map { it.first })
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
+                labelCount = orderedData.size
                 labelRotationAngle = -45f
                 textSize = 9f
                 setDrawGridLines(false)
@@ -790,53 +804,48 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico lingue
-    private fun setupLanguagesPieChart(data: Map<String, Int>) {
-        Log.d(TAG, "setupLanguagesPieChart: data size = ${data.size}")
+    //grafico scatter plot rating vs anno
+    private fun setupRatingVsYearScatterChart(data: List<Triple<Int, Double, String>>) {
+        Log.d(TAG, "setupRatingVsYearScatterChart: ${data.size} film con rating e anno")
 
-        if (data.isEmpty()) {
-            Log.w(TAG, "lingue data vuoto")
-            return
+        val entries = data.map { (year, rating, _) ->
+            ScatterChart.ScatterShape.CIRCLE
+            Entry(year.toFloat(), rating.toFloat())
         }
 
-        val entries = data.map {
-            Log.d(TAG, "lingua: ${it.key}, count: ${it.value}")
-            PieEntry(it.value.toFloat(), it.key)
+        val dataSet = ScatterDataSet(entries, "Rating vs Anno").apply {
+            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
+            scatterShapeSize = 12f
+            color = Color.parseColor("#667eea")
+            setDrawValues(false)
         }
 
-        val dataSet = PieDataSet(entries, "").apply {
-            colors = chartColors
-            valueTextSize = 11f
-            valueTextColor = Color.WHITE
-            sliceSpace = 2f
-            valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString()
-                }
+        binding.chartRatingVsYear.apply {
+            this.data = ScatterData(dataSet)
+            description.text = "distribuzione rating per anno"
+            description.textSize = 10f
+
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                setDrawGridLines(true)
+                gridColor = Color.parseColor("#E0E0E0")
+                textSize = 9f
             }
-        }
 
-        binding.chartLanguages.apply {
-            this.data = PieData(dataSet)
-            description.isEnabled = false
-            legend.textSize = 10f
-            setDrawEntryLabels(true)
-            setEntryLabelColor(Color.BLACK)
-            setEntryLabelTextSize(9f)
-            animateY(1000, Easing.EaseInOutQuad)
+            axisLeft.apply {
+                axisMinimum = 0f
+                axisMaximum = 10f
+                setDrawGridLines(true)
+                gridColor = Color.parseColor("#E0E0E0")
+            }
 
-            setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
-                override fun onValueSelected(e: Entry?, h: Highlight?) {
-                    if (e is PieEntry) {
-                        val language = e.label ?: ""
-                        val movies = notificationsViewModel.getMoviesByLanguage(language)
-                        showMoviesDialog("Film in $language", movies)
-                    }
-                }
-                override fun onNothingSelected() {}
-            })
+            axisRight.isEnabled = false
+            legend.apply {
+                textSize = 10f
+                form = com.github.mikephil.charting.components.Legend.LegendForm.CIRCLE
+            }
 
-            Log.d(TAG, "chart lingue configurato con ${entries.size} entries")
+            animateXY(1000, 1000)
             invalidate()
         }
     }

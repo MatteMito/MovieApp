@@ -64,8 +64,9 @@ class NotificationsViewModel : ViewModel() {
     private val _runtimeRangesData = MutableLiveData<Map<String, Int>>()
     val runtimeRangesData: LiveData<Map<String, Int>> = _runtimeRangesData
 
-    private val _languagesData = MutableLiveData<Map<String, Int>>()
-    val languagesData: LiveData<Map<String, Int>> = _languagesData
+    //grafico finale creativo (scatter plot rating vs anno)
+    private val _ratingVsYearData = MutableLiveData<List<Triple<Int, Double, String>>>()
+    val ratingVsYearData: LiveData<List<Triple<Int, Double, String>>> = _ratingVsYearData
 
     //statistiche top cliccabili
     private val _topGenre = MutableLiveData<Pair<String, Int>>()
@@ -85,9 +86,6 @@ class NotificationsViewModel : ViewModel() {
 
     private val _topDecade = MutableLiveData<Pair<String, Int>>()
     val topDecade: LiveData<Pair<String, Int>> = _topDecade
-
-    private val _topLanguage = MutableLiveData<Pair<String, Int>>()
-    val topLanguage: LiveData<Pair<String, Int>> = _topLanguage
 
     private val _topGenreCombination = MutableLiveData<Pair<Pair<String, String>, Int>>()
     val topGenreCombination: LiveData<Pair<Pair<String, String>, Int>> = _topGenreCombination
@@ -109,7 +107,6 @@ class NotificationsViewModel : ViewModel() {
     private val ratingMoviesMap = mutableMapOf<Int, List<Movie>>()
     private val genreCombinationMoviesMap = mutableMapOf<Pair<String, String>, List<Movie>>()
     private val runtimeRangeMoviesMap = mutableMapOf<String, List<Movie>>()
-    private val languageMoviesMap = mutableMapOf<String, List<Movie>>()
 
     private lateinit var repository: MovieRepository
 
@@ -167,14 +164,14 @@ class NotificationsViewModel : ViewModel() {
             calculateDecadesData(allMovies)
             calculateGenreCombinationsData(allMovies)
             calculateRuntimeRangesData(allMovies)
-            calculateLanguagesData(allMovies)
+            calculateRatingVsYearData(moviesWithRating)
 
-            //calcola tempo totale
+            //calcola tempo totale (solo film visti)
             val watchedMovies = allMovies.filter { it.isWatched }
             val totalMinutes = watchedMovies.mapNotNull { it.runtime }.sum()
             val hours = totalMinutes / 60
             val minutes = totalMinutes % 60
-            _totalWatchTime.postValue("$hours ore e $minutes minuti")
+            _totalWatchTime.postValue("$hours ore e $minutes minuti - Durata totale film")
 
             Log.d(TAG, "=== statistiche calcolate ===")
         }
@@ -220,6 +217,8 @@ class NotificationsViewModel : ViewModel() {
 
         val yearsCounts = yearsMap.mapValues { it.value.size }
             .toList()
+            .sortedByDescending { it.first }
+            .take(15)
             .sortedBy { it.first }
             .toMap()
 
@@ -263,7 +262,7 @@ class NotificationsViewModel : ViewModel() {
         val actorsMap = mutableMapOf<String, MutableList<Movie>>()
 
         movies.forEach { movie ->
-            movie.actors.take(5).forEach { actor ->
+            movie.actors.forEach { actor ->
                 if (actor.isNotEmpty() && actor != "N/A") {
                     actorsMap.getOrPut(actor) { mutableListOf() }.add(movie)
                 }
@@ -288,10 +287,19 @@ class NotificationsViewModel : ViewModel() {
     }
 
     private fun calculateRatingsData(moviesWithRating: List<Movie>) {
+        Log.d(TAG, "calculateRatingsData: film con rating = ${moviesWithRating.size}")
+
+        if (moviesWithRating.isEmpty()) {
+            Log.w(TAG, "nessun film con rating disponibile")
+            _ratingsData.postValue(emptyMap())
+            return
+        }
+
         val ratingsMap = mutableMapOf<Int, MutableList<Movie>>()
 
         moviesWithRating.forEach { movie ->
             movie.userRating?.toInt()?.let { rating ->
+                Log.d(TAG, "film: ${movie.title}, rating: $rating")
                 ratingsMap.getOrPut(rating) { mutableListOf() }.add(movie)
             }
         }
@@ -302,18 +310,30 @@ class NotificationsViewModel : ViewModel() {
         val ratingsCounts = ratingsMap.mapValues { it.value.size }
             .mapKeys { it.key.toString() }
 
+        Log.d(TAG, "ratings calcolati: $ratingsCounts")
         _ratingsData.postValue(ratingsCounts)
     }
 
     private fun calculateCountriesData(movies: List<Movie>) {
+        Log.d(TAG, "calculateCountriesData: totale film = ${movies.size}")
+
         val countriesMap = mutableMapOf<String, MutableList<Movie>>()
 
         movies.forEach { movie ->
-            movie.productionCountries.forEach { country ->
-                if (country.isNotEmpty() && country != "N/A") {
-                    countriesMap.getOrPut(country) { mutableListOf() }.add(movie)
+            Log.d(TAG, "film: ${movie.title}, paesi: ${movie.productionCountries}")
+
+            if (movie.productionCountries.isNotEmpty()) {
+                movie.productionCountries.forEach { country ->
+                    if (country.isNotEmpty() && country != "N/A") {
+                        countriesMap.getOrPut(country) { mutableListOf() }.add(movie)
+                    }
                 }
             }
+        }
+
+        Log.d(TAG, "countriesMap size: ${countriesMap.size}")
+        countriesMap.forEach { (country, moviesList) ->
+            Log.d(TAG, "paese: $country, film: ${moviesList.size}")
         }
 
         countryMoviesMap.clear()
@@ -325,6 +345,7 @@ class NotificationsViewModel : ViewModel() {
             .take(10)
             .toMap()
 
+        Log.d(TAG, "paesi calcolati: $countriesCounts")
         _countriesData.postValue(countriesCounts)
 
         val topCountryEntry = countriesMap.maxByOrNull { it.value.size }
@@ -338,9 +359,8 @@ class NotificationsViewModel : ViewModel() {
 
         movies.forEach { movie ->
             movie.year?.let { year ->
-                val decade = (year / 10) * 10
-                val decadeLabel = "${decade}s"
-                decadesMap.getOrPut(decadeLabel) { mutableListOf() }.add(movie)
+                val decade = "${(year / 10) * 10}s"
+                decadesMap.getOrPut(decade) { mutableListOf() }.add(movie)
             }
         }
 
@@ -358,88 +378,84 @@ class NotificationsViewModel : ViewModel() {
         topDecadeEntry?.let {
             _topDecade.postValue(Pair(it.key, it.value.size))
 
-            val decadeNum = it.key.removeSuffix("s").toIntOrNull()
-            val description = when (decadeNum) {
-                1920 -> "l'era del cinema muto e i primi film sonori"
-                1930 -> "l'età d'oro di Hollywood"
-                1940 -> "il cinema durante la seconda guerra mondiale"
-                1950 -> "l'epoca del technicolor e del cinemascope"
-                1960 -> "la nouvelle vague e il cinema d'autore"
-                1970 -> "l'età del New Hollywood"
-                1980 -> "l'epoca dei blockbuster"
-                1990 -> "il cinema indipendente e digitale"
-                2000 -> "l'era delle saghe cinematografiche"
-                2010 -> "il dominio dei supereroi"
-                2020 -> "il cinema moderno"
-                else -> "un decennio importante"
+            val description = when {
+                it.key.startsWith("192") -> "cinema muto e primi sonori"
+                it.key.startsWith("193") -> "età d'oro di hollywood"
+                it.key.startsWith("194") -> "dopoguerra e neorealismo"
+                it.key.startsWith("195") -> "nascita della nouvelle vague"
+                it.key.startsWith("196") -> "new hollywood e sperimentazione"
+                it.key.startsWith("197") -> "blockbuster e nuovi effetti speciali"
+                it.key.startsWith("198") -> "cinema d'autore e action movie"
+                it.key.startsWith("199") -> "cgi e cinema indipendente"
+                it.key.startsWith("200") -> "superhero e franchise"
+                it.key.startsWith("201") -> "streaming e cinema digitale"
+                it.key.startsWith("202") -> "era post-pandemica"
+                else -> "periodo cinematografico"
             }
-
-            _decadeDescription.postValue("il tuo decennio preferito è ${it.key}, $description!")
+            _decadeDescription.postValue(description)
         }
     }
 
     private fun calculateGenreCombinationsData(movies: List<Movie>) {
-        val combinations = mutableMapOf<Pair<String, String>, MutableList<Movie>>()
+        val combinationsMap = mutableMapOf<Pair<String, String>, MutableList<Movie>>()
 
         movies.forEach { movie ->
-            val genres = movie.genres
-
-            for (i in genres.indices) {
-                for (j in i + 1 until genres.size) {
-                    val genre1 = genres[i]
-                    val genre2 = genres[j]
-                    val pair = if (genre1 < genre2) Pair(genre1, genre2) else Pair(genre2, genre1)
-                    combinations.getOrPut(pair) { mutableListOf() }.add(movie)
+            if (movie.genres.size >= 2) {
+                for (i in 0 until movie.genres.size - 1) {
+                    for (j in i + 1 until movie.genres.size) {
+                        val genre1 = movie.genres[i]
+                        val genre2 = movie.genres[j]
+                        val pair = if (genre1 < genre2) Pair(genre1, genre2) else Pair(genre2, genre1)
+                        combinationsMap.getOrPut(pair) { mutableListOf() }.add(movie)
+                    }
                 }
             }
         }
 
         genreCombinationMoviesMap.clear()
-        genreCombinationMoviesMap.putAll(combinations.mapValues { it.value.toList() })
+        genreCombinationMoviesMap.putAll(combinationsMap.mapValues { it.value.distinct() })
 
-        val topCombinations = combinations.mapValues { it.value.size }
+        val combinationsCounts = combinationsMap.mapValues { it.value.distinct().size }
             .toList()
             .sortedByDescending { it.second }
-            .take(15)
+            .take(10)
             .toMap()
 
-        _genreCombinationsData.postValue(topCombinations)
+        _genreCombinationsData.postValue(combinationsCounts)
 
-        val topCombinationEntry = combinations.maxByOrNull { it.value.size }
-        topCombinationEntry?.let {
-            _topGenreCombination.postValue(Pair(it.key, it.value.size))
+        val topCombination = combinationsMap.maxByOrNull { it.value.distinct().size }
+        topCombination?.let {
+            _topGenreCombination.postValue(Pair(it.key, it.value.distinct().size))
         }
     }
 
     private fun calculateRuntimeRangesData(movies: List<Movie>) {
+        val moviesWithRuntime = movies.filter { it.runtime != null && it.runtime!! > 0 }
+
         val rangesMap = mutableMapOf<String, MutableList<Movie>>()
 
-        movies.forEach { movie ->
-            movie.runtime?.let { runtime ->
-                val range = when {
-                    runtime < 60 -> "0-60 min"
-                    runtime < 90 -> "60-90 min"
-                    runtime < 120 -> "90-120 min"
-                    runtime < 150 -> "120-150 min"
-                    runtime < 180 -> "150-180 min"
-                    else -> "180+ min"
-                }
-                rangesMap.getOrPut(range) { mutableListOf() }.add(movie)
+        moviesWithRuntime.forEach { movie ->
+            val runtime = movie.runtime!!
+            val range = when {
+                runtime < 90 -> "< 90 min"
+                runtime < 120 -> "90-120 min"
+                runtime < 150 -> "120-150 min"
+                else -> "> 150 min"
             }
+            rangesMap.getOrPut(range) { mutableListOf() }.add(movie)
         }
 
         runtimeRangeMoviesMap.clear()
         runtimeRangeMoviesMap.putAll(rangesMap.mapValues { it.value.toList() })
 
-        val orderedRanges = listOf("0-60 min", "60-90 min", "90-120 min", "120-150 min", "150-180 min", "180+ min")
-        val rangesCounts = orderedRanges.mapNotNull { range ->
-            rangesMap[range]?.let { range to it.size }
-        }.toMap()
+        val orderedRanges = listOf("< 90 min", "90-120 min", "120-150 min", "> 150 min")
+        val rangesCounts = orderedRanges.associateWith { range ->
+            rangesMap[range]?.size ?: 0
+        }.filter { it.value > 0 }
 
         _runtimeRangesData.postValue(rangesCounts)
 
-        //calcola film più lunghi
-        val longestMoviesList = movies
+        val longestMoviesList = moviesWithRuntime
             .filter { it.runtime != null && it.runtime!! > 0 }
             .sortedByDescending { it.runtime }
             .take(10)
@@ -447,55 +463,12 @@ class NotificationsViewModel : ViewModel() {
         _longestMovies.postValue(longestMoviesList)
     }
 
-    private fun calculateLanguagesData(movies: List<Movie>) {
-        val languagesMap = mutableMapOf<String, MutableList<Movie>>()
+    private fun calculateRatingVsYearData(moviesWithRating: List<Movie>) {
+        val data = moviesWithRating
+            .filter { it.year != null && it.userRating != null && it.userRating!! > 0 }
+            .map { Triple(it.year!!, it.userRating!!, it.title) }
 
-        Log.d(TAG, "calculateLanguagesData: totale film = ${movies.size}")
-
-        movies.forEach { movie ->
-            val lang = movie.originalLanguage
-            Log.d(TAG, "film: ${movie.title}, lingua: $lang")
-
-            if (lang != null && lang.isNotEmpty() && lang != "N/A") {
-                val langName = when (lang.trim().uppercase()) {
-                    "EN" -> "Inglese"
-                    "IT" -> "Italiano"
-                    "FR" -> "Francese"
-                    "ES" -> "Spagnolo"
-                    "DE" -> "Tedesco"
-                    "JA" -> "Giapponese"
-                    "KO" -> "Coreano"
-                    "ZH" -> "Cinese"
-                    "PT" -> "Portoghese"
-                    "RU" -> "Russo"
-                    else -> lang.trim().uppercase()
-                }
-                languagesMap.getOrPut(langName) { mutableListOf() }.add(movie)
-            }
-        }
-
-        Log.d(TAG, "languagesMap size: ${languagesMap.size}")
-        languagesMap.forEach { (lang, movies) ->
-            Log.d(TAG, "lingua: $lang, film: ${movies.size}")
-        }
-
-        languageMoviesMap.clear()
-        languageMoviesMap.putAll(languagesMap.mapValues { it.value.toList() })
-
-        val languagesCounts = languagesMap.mapValues { it.value.size }
-            .toList()
-            .sortedByDescending { it.second }
-            .take(10)
-            .toMap()
-
-        _languagesData.postValue(languagesCounts)
-
-        val topLanguageEntry = languagesMap.maxByOrNull { it.value.size }
-        topLanguageEntry?.let {
-            _topLanguage.postValue(Pair(it.key, it.value.size))
-        }
-
-        Log.d(TAG, "lingue calcolate: ${languagesCounts.size}")
+        _ratingVsYearData.postValue(data)
     }
 
     //funzioni per recuperare film per categoria
@@ -508,5 +481,4 @@ class NotificationsViewModel : ViewModel() {
     fun getMoviesByDecade(decade: String): List<Movie> = decadeMoviesMap[decade] ?: emptyList()
     fun getMoviesByGenreCombination(pair: Pair<String, String>): List<Movie> = genreCombinationMoviesMap[pair] ?: emptyList()
     fun getMoviesByRuntimeRange(range: String): List<Movie> = runtimeRangeMoviesMap[range] ?: emptyList()
-    fun getMoviesByLanguage(language: String): List<Movie> = languageMoviesMap[language] ?: emptyList()
 }
