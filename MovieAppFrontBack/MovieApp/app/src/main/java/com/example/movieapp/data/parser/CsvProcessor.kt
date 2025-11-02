@@ -27,7 +27,6 @@ class CsvProcessor {
         return try {
             val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
 
-            //apache commons csv con auto-detect delimiter
             val csvFormat = CSVFormat.DEFAULT
                 .builder()
                 .setHeader()
@@ -46,7 +45,6 @@ class CsvProcessor {
 
             csvParser.forEach { record ->
                 try {
-                    //verifica headers imdb
                     val hasRequiredHeaders = listOf(
                         "Title", "Year", "Your Rating", "Date Rated"
                     ).all { header ->
@@ -58,7 +56,6 @@ class CsvProcessor {
                         return@forEach
                     }
 
-                    //estrai campi con fallback case-insensitive
                     val title = getField(record, csvParser.headerNames, "Title", "title")
                     val yearStr = getField(record, csvParser.headerNames, "Year", "year")
                     val ratingStr = getField(record, csvParser.headerNames, "Your Rating", "your rating", "rating")
@@ -70,7 +67,6 @@ class CsvProcessor {
                         return@forEach
                     }
 
-                    //parse year con validazione
                     val year = try {
                         yearStr?.toIntOrNull()?.let { y ->
                             if (y in 1888..2030) y else null
@@ -79,8 +75,7 @@ class CsvProcessor {
                         null
                     }
 
-                    //parse rating con validazione (0-10)
-                    val userRating = try {
+                    val rating = try {
                         ratingStr?.toDoubleOrNull()?.let { r ->
                             if (r in 0.0..10.0) r else null
                         }
@@ -88,17 +83,16 @@ class CsvProcessor {
                         null
                     }
 
-                    //parse director
                     val director = directorStr?.takeIf { it.isNotBlank() }
 
                     val movie = Movie(
                         id = generateMovieId(title, year, DataSource.IMDB),
                         title = title.trim(),
                         year = year,
-                        userRating = userRating,
-                        dateRated = dateRated?.trim(),
                         director = director,
-                        isWatched = true,
+                        userRating = rating,
+                        dateRated = dateRated,
+                        isWatched = true,  // ✅ CORRETTO! imdb ratings = film visti
                         source = DataSource.IMDB
                     )
 
@@ -106,7 +100,7 @@ class CsvProcessor {
                     successfulRows++
 
                     if (successfulRows <= 5) {
-                        Log.d(TAG, "✓ parsed: ${movie.title} (${movie.year}) - rating: ${movie.userRating}")
+                        Log.d(TAG, "parsed: ${movie.title} (${movie.year}) - VISTO")
                     }
 
                 } catch (e: Exception) {
@@ -120,13 +114,8 @@ class CsvProcessor {
             reader.close()
 
             Log.d(TAG, "=== parsing completato ===")
-            Log.d(TAG, "successo: $successfulRows film")
+            Log.d(TAG, "successo: $successfulRows film VISTI")
             Log.d(TAG, "errori: ${errors.size}")
-
-            if (movies.isEmpty() && errors.isNotEmpty()) {
-                Log.e(TAG, "❌ nessun film valido trovato")
-                errors.forEach { Log.e(TAG, "  • $it") }
-            }
 
             CsvParseResult(
                 movies = movies,
@@ -136,7 +125,7 @@ class CsvProcessor {
             )
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ errore parsing imdb ratings", e)
+            Log.e(TAG, "errore parsing imdb ratings", e)
             CsvParseResult(
                 movies = emptyList(),
                 successfulRows = 0,
@@ -173,7 +162,6 @@ class CsvProcessor {
 
             csvParser.forEach { record ->
                 try {
-                    //verifica headers watchlist
                     val hasRequiredHeaders = listOf(
                         "Title", "Year"
                     ).all { header ->
@@ -209,7 +197,7 @@ class CsvProcessor {
                         title = title.trim(),
                         year = year,
                         director = director,
-                        isWatched = false,
+                        isWatched = false,  // ✅ CORRETTO! watchlist = da vedere
                         source = DataSource.IMDB
                     )
 
@@ -217,7 +205,7 @@ class CsvProcessor {
                     successfulRows++
 
                     if (successfulRows <= 5) {
-                        Log.d(TAG, "✓ parsed: ${movie.title} (${movie.year})")
+                        Log.d(TAG, "parsed: ${movie.title} (${movie.year}) - DA VEDERE")
                     }
 
                 } catch (e: Exception) {
@@ -231,7 +219,7 @@ class CsvProcessor {
             reader.close()
 
             Log.d(TAG, "=== parsing completato ===")
-            Log.d(TAG, "successo: $successfulRows film")
+            Log.d(TAG, "successo: $successfulRows film DA VEDERE")
             Log.d(TAG, "errori: ${errors.size}")
 
             CsvParseResult(
@@ -242,7 +230,7 @@ class CsvProcessor {
             )
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ errore parsing imdb watchlist", e)
+            Log.e(TAG, "errore parsing imdb watchlist", e)
             CsvParseResult(
                 movies = emptyList(),
                 successfulRows = 0,
@@ -279,24 +267,12 @@ class CsvProcessor {
 
             csvParser.forEach { record ->
                 try {
-                    //verifica headers letterboxd
-                    val hasRequiredHeaders = listOf(
-                        "Name", "Year"
-                    ).all { header ->
-                        csvParser.headerNames.any { it.equals(header, ignoreCase = true) }
-                    }
-
-                    if (!hasRequiredHeaders && movies.isEmpty()) {
-                        errors.add("file non valido: headers letterboxd mancanti")
-                        return@forEach
-                    }
-
-                    val title = getField(record, csvParser.headerNames, "Name", "name", "title")
+                    val name = getField(record, csvParser.headerNames, "Name", "name", "title")
                     val yearStr = getField(record, csvParser.headerNames, "Year", "year")
                     val ratingStr = getField(record, csvParser.headerNames, "Rating", "rating")
                     val watchedDate = getField(record, csvParser.headerNames, "Watched Date", "watched date", "date")
 
-                    if (title.isNullOrBlank()) {
+                    if (name.isNullOrBlank()) {
                         errors.add("riga ${record.recordNumber}: titolo vuoto")
                         return@forEach
                     }
@@ -309,22 +285,21 @@ class CsvProcessor {
                         null
                     }
 
-                    //letterboxd usa rating 0-5 stelle, converti a 0-10
-                    val userRating = try {
+                    val rating = try {
                         ratingStr?.toDoubleOrNull()?.let { r ->
-                            if (r in 0.0..5.0) r * 2.0 else null
+                            (r * 2).coerceIn(0.0, 10.0)
                         }
                     } catch (e: Exception) {
                         null
                     }
 
                     val movie = Movie(
-                        id = generateMovieId(title, year, DataSource.LETTERBOXD),
-                        title = title.trim(),
+                        id = generateMovieId(name, year, DataSource.LETTERBOXD),
+                        title = name.trim(),
                         year = year,
-                        userRating = userRating,
-                        dateRated = watchedDate?.trim(),
-                        isWatched = true,
+                        userRating = rating,
+                        dateRated = watchedDate,
+                        isWatched = true,  // ✅ CORRETTO! letterboxd diary = film visti
                         source = DataSource.LETTERBOXD
                     )
 
@@ -332,7 +307,7 @@ class CsvProcessor {
                     successfulRows++
 
                     if (successfulRows <= 5) {
-                        Log.d(TAG, "✓ parsed: ${movie.title} (${movie.year}) - rating: ${movie.userRating}")
+                        Log.d(TAG, "parsed: ${movie.title} (${movie.year}) - VISTO")
                     }
 
                 } catch (e: Exception) {
@@ -346,7 +321,7 @@ class CsvProcessor {
             reader.close()
 
             Log.d(TAG, "=== parsing completato ===")
-            Log.d(TAG, "successo: $successfulRows film")
+            Log.d(TAG, "successo: $successfulRows film VISTI")
             Log.d(TAG, "errori: ${errors.size}")
 
             CsvParseResult(
@@ -357,7 +332,7 @@ class CsvProcessor {
             )
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ errore parsing letterboxd diary", e)
+            Log.e(TAG, "errore parsing letterboxd diary", e)
             CsvParseResult(
                 movies = emptyList(),
                 successfulRows = 0,
@@ -394,21 +369,10 @@ class CsvProcessor {
 
             csvParser.forEach { record ->
                 try {
-                    val hasRequiredHeaders = listOf(
-                        "Name", "Year"
-                    ).all { header ->
-                        csvParser.headerNames.any { it.equals(header, ignoreCase = true) }
-                    }
-
-                    if (!hasRequiredHeaders && movies.isEmpty()) {
-                        errors.add("file non valido: headers letterboxd watchlist mancanti")
-                        return@forEach
-                    }
-
-                    val title = getField(record, csvParser.headerNames, "Name", "name", "title")
+                    val name = getField(record, csvParser.headerNames, "Name", "name", "title")
                     val yearStr = getField(record, csvParser.headerNames, "Year", "year")
 
-                    if (title.isNullOrBlank()) {
+                    if (name.isNullOrBlank()) {
                         errors.add("riga ${record.recordNumber}: titolo vuoto")
                         return@forEach
                     }
@@ -422,10 +386,10 @@ class CsvProcessor {
                     }
 
                     val movie = Movie(
-                        id = generateMovieId(title, year, DataSource.LETTERBOXD),
-                        title = title.trim(),
+                        id = generateMovieId(name, year, DataSource.LETTERBOXD),
+                        title = name.trim(),
                         year = year,
-                        isWatched = false,
+                        isWatched = false,  // ✅ CORRETTO! watchlist = da vedere
                         source = DataSource.LETTERBOXD
                     )
 
@@ -433,7 +397,7 @@ class CsvProcessor {
                     successfulRows++
 
                     if (successfulRows <= 5) {
-                        Log.d(TAG, "✓ parsed: ${movie.title} (${movie.year})")
+                        Log.d(TAG, "parsed: ${movie.title} (${movie.year}) - DA VEDERE")
                     }
 
                 } catch (e: Exception) {
@@ -447,7 +411,7 @@ class CsvProcessor {
             reader.close()
 
             Log.d(TAG, "=== parsing completato ===")
-            Log.d(TAG, "successo: $successfulRows film")
+            Log.d(TAG, "successo: $successfulRows film DA VEDERE")
             Log.d(TAG, "errori: ${errors.size}")
 
             CsvParseResult(
@@ -458,7 +422,7 @@ class CsvProcessor {
             )
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ errore parsing letterboxd watchlist", e)
+            Log.e(TAG, "errore parsing letterboxd watchlist", e)
             CsvParseResult(
                 movies = emptyList(),
                 successfulRows = 0,
@@ -467,6 +431,7 @@ class CsvProcessor {
             )
         }
     }
+
     //HELPER FUNCTIONS
 
     /**

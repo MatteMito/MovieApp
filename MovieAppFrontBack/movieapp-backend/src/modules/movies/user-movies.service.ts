@@ -167,7 +167,7 @@ export class UserMoviesService {
 
       const userMovies = await query.getMany();
 
-      //conversione con is_watched corretto
+      // ✅ CONVERSIONE CON is_watched CORRETTO
       const movies: Movie[] = userMovies.map(um => ({
         id: um.movie.id,
         title: um.movie.title,
@@ -199,15 +199,12 @@ export class UserMoviesService {
         keywords: um.movie.keywords,
         certification: um.movie.certification,
         trailer_url: um.movie.trailer_url,
-        
-        //campi utente con is_watched corretto
         user_rating: um.userRating,
         watched_date: um.watchedDate?.toISOString(),
         is_watched: um.status === MovieStatus.WATCHED,
       }));
 
       this.logger.debug(`recuperati ${movies.length} film per utente ${userId}`);
-
       return movies;
     } catch (error) {
       this.logger.error(`errore getUserMovies: ${error.message}`);

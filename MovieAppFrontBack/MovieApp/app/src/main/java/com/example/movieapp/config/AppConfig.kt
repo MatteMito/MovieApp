@@ -18,8 +18,8 @@ object AppConfig {
 
     // ===== TIMEOUT CONNESSIONI (secondi) =====
     const val CONNECT_TIMEOUT = 30L
-    const val READ_TIMEOUT = 30L
-    const val WRITE_TIMEOUT = 30L
+    const val READ_TIMEOUT = 600L
+    const val WRITE_TIMEOUT = 180L
 
     // ===== SHARED PREFERENCES =====
     const val REPO_PREFS_NAME = "movieapp_repository_v1"

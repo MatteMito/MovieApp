@@ -76,19 +76,27 @@ data class EnrichedMovieDto(
     val id: String,
     val title: String,
     val year: Int?,
+    @SerializedName("tmdb_id")
     val tmdbId: Int?,
     val genres: List<String>,
     val director: String?,
     @SerializedName("actors")
     val cast: List<String>,
     val overview: String?,
+    @SerializedName("poster_url")
     val posterUrl: String?,
+    @SerializedName("backdrop_url")
     val backdropUrl: String?,
+    @SerializedName("tmdb_rating")
     val tmdbRating: Double?,
+    @SerializedName("vote_count")
     val voteCount: Int?,
     val runtime: Int?,
+    @SerializedName("user_rating")
     val userRating: Double?,
+    @SerializedName("watched_date")
     val watchedDate: String?,
+    @SerializedName("is_watched")
     val isWatched: Boolean,
     val source: String
 )
