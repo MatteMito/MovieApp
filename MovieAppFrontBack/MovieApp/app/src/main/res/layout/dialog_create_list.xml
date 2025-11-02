@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- file: app/src/main/res/layout/dialog_create_list.xml -->
+<!--file: app/src/main/res/layout/dialog_create_list.xml-->
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -86,114 +86,81 @@
                     android:maxLines="5" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- switch pubblico/privato -->
+            <!-- visibilita -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="24dp"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="12dp"
-                android:background="@drawable/card_background">
+                android:gravity="center_vertical">
 
                 <TextView
-                    android:id="@+id/tvVisibility"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Privata"
-                    android:textColor="@color/text_primary"
+                    android:text="Visibilità"
                     android:textSize="16sp"
+                    android:textColor="@color/text_primary"
                     android:textStyle="bold" />
 
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switchPublic"
+                <TextView
+                    android:id="@+id/tvVisibility"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:checked="false" />
+                    android:layout_marginEnd="8dp"
+                    android:text="Privata"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchPublic"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
             </LinearLayout>
 
-            <!-- divider -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="16dp"
-                android:background="@color/divider" />
-
-            <!-- sezione aggiungi film -->
+            <!-- spacer per elementi nascosti -->
             <TextView
+                android:id="@+id/tvAddMoviesTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Aggiungi Film"
-                android:textColor="@color/text_primary"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:visibility="gone" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Cerca e seleziona i film da aggiungere alla lista"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp" />
-
-            <!-- search box -->
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/etSearchMovie"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:hint="Cerca film..."
-                app:endIconMode="clear_text"
+                android:visibility="gone"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
                 <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etSearchMovie"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="text"
-                    android:maxLines="1" />
+                    android:layout_height="wrap_content" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- progress autocomplete -->
             <ProgressBar
                 android:id="@+id/progressAutocomplete"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="8dp"
                 android:visibility="gone" />
 
-            <!-- risultati ricerca -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerSearchResults"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:maxHeight="200dp"
-                android:visibility="gone"
-                android:background="@drawable/card_background"
-                android:elevation="2dp" />
+                android:visibility="gone" />
 
-            <!-- film selezionati -->
             <TextView
                 android:id="@+id/tvSelectedCount"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="0 film selezionati"
-                android:textColor="@color/primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/tvSelectedMovies"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text=""
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp" />
+                android:visibility="gone" />
 
             <!-- spacer -->
             <View

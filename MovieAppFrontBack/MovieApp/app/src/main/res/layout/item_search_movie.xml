@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- file: app/src/main/res/layout/item_search_movie.xml -->
-<!-- item per risultati autocomplete -->
-<androidx.cardview.widget.CardView
+<!--file: app/src/main/res/layout/item_search_movie.xml-->
+<com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="4dp"
-    app:cardBackgroundColor="@color/card_background"
     app:cardCornerRadius="8dp"
-    app:cardElevation="2dp">
+    app:cardElevation="2dp"
+    app:strokeWidth="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -21,13 +21,13 @@
         <!-- poster -->
         <ImageView
             android:id="@+id/ivMoviePoster"
-            android:layout_width="40dp"
-            android:layout_height="60dp"
+            android:layout_width="50dp"
+            android:layout_height="75dp"
             android:scaleType="centerCrop"
-            android:contentDescription="poster"
-            android:background="@color/divider" />
+            android:contentDescription="poster film"
+            tools:src="@drawable/ic_home"/>
 
-        <!-- info -->
+        <!-- info film -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -39,33 +39,24 @@
                 android:id="@+id/tvMovieTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Titolo Film"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
-                android:maxLines="1"
-                android:ellipsize="end" />
+                android:textColor="@color/text_primary"
+                android:maxLines="2"
+                android:ellipsize="end"
+                tools:text="The Shawshank Redemption"/>
 
             <TextView
                 android:id="@+id/tvMovieYear"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="2020"
+                android:layout_marginTop="4dp"
+                android:textSize="14sp"
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+                tools:text="1994"/>
 
         </LinearLayout>
 
-        <!-- add icon -->
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginStart="8dp"
-            android:src="@drawable/ic_add"
-            android:contentDescription="aggiungi"
-            app:tint="@color/primary" />
-
     </LinearLayout>
 
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>

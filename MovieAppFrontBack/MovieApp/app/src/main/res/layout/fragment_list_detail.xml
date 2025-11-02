@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FILE: app/src/main/res/layout/fragment_list_detail.xml -->
-<!-- Layout per dettaglio lista -->
-
+<!--file: app/src/main/res/layout/fragment_list_detail.xml-->
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -33,32 +31,184 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Descrizione -->
+            <!-- header con badge e descrizione -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/badgeVisibility"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/badge_public_background"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:text="PUBBLICA"
+                    android:textColor="@android:color/white"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:visibility="visible"/>
+
+            </LinearLayout>
+
+            <!-- descrizione -->
             <TextView
                 android:id="@+id/text_description"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textSize="14sp"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/text_secondary"
                 android:layout_marginBottom="16dp"
                 android:visibility="gone"
                 tools:visibility="visible"
                 tools:text="Una collezione dei migliori film che ho visto"/>
 
-            <!-- Contatore film -->
+            <!-- contatore film -->
             <TextView
                 android:id="@+id/text_movie_count"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="?attr/colorPrimary"
+                android:textColor="@color/primary"
                 android:layout_marginBottom="12dp"
                 tools:text="12 film"/>
 
-            <!-- Progress Bar -->
+            <!-- bottoni modifica e elimina -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp"
+                android:gravity="center_vertical">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnEditList"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="Modifica"
+                    android:textAllCaps="false"
+                    app:icon="@drawable/ic_filter"
+                    app:backgroundTint="@color/primary"
+                    app:cornerRadius="8dp"
+                    android:visibility="gone"
+                    tools:visibility="visible"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnDeleteList"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Elimina"
+                    android:textAllCaps="false"
+                    app:icon="@drawable/ic_delete"
+                    app:backgroundTint="@android:color/holo_red_light"
+                    app:cornerRadius="8dp"
+                    android:visibility="gone"
+                    tools:visibility="visible"/>
+
+            </LinearLayout>
+
+            <!-- search container -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/searchContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:strokeWidth="0dp"
+                tools:visibility="visible">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <!-- header search -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Cerca film da aggiungere"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary"/>
+
+                        <ImageButton
+                            android:id="@+id/btnCloseSearch"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:src="@drawable/ic_back"
+                            android:contentDescription="chiudi ricerca"
+                            app:tint="@color/text_secondary"/>
+
+                    </LinearLayout>
+
+                    <!-- search input -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:hint="Cerca film..."
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etSearchMovie"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text"
+                            android:maxLines="1"/>
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- progress search -->
+                    <ProgressBar
+                        android:id="@+id/progressSearch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_margin="16dp"
+                        android:visibility="gone"
+                        tools:visibility="visible"/>
+
+                    <!-- recyclerview search results -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerSearchResults"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:maxHeight="300dp"
+                        android:visibility="gone"
+                        tools:visibility="visible"
+                        tools:listitem="@layout/item_search_movie"
+                        tools:itemCount="3"/>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- progress bar -->
             <ProgressBar
-                android:id="@+id/progress_bar"
+                android:id="@+id/progressBar"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
@@ -66,7 +216,7 @@
                 android:visibility="gone"
                 tools:visibility="visible"/>
 
-            <!-- RecyclerView Film -->
+            <!-- recyclerview film -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recycler_movies"
                 android:layout_width="match_parent"
@@ -74,7 +224,7 @@
                 tools:listitem="@layout/item_list_movie"
                 tools:itemCount="5"/>
 
-            <!-- Empty State -->
+            <!-- empty state -->
             <TextView
                 android:id="@+id/text_empty"
                 android:layout_width="match_parent"
@@ -82,7 +232,7 @@
                 android:padding="48dp"
                 android:gravity="center"
                 android:textSize="16sp"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/text_secondary"
                 android:visibility="gone"
                 tools:visibility="visible"
                 android:text="Nessun film nella lista\n\nTocca + per aggiungerne uno!"/>
@@ -90,7 +240,7 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- FAB Aggiungi Film -->
+    <!-- fab aggiungi film -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_add_movie"
         android:layout_width="wrap_content"
@@ -98,6 +248,8 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         app:srcCompat="@drawable/ic_add"
-        android:contentDescription="Aggiungi film"/>
+        android:contentDescription="aggiungi film"
+        android:visibility="gone"
+        tools:visibility="visible"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

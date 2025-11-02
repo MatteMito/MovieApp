@@ -1,5 +1,5 @@
-// file: app/src/main/java/com/example/movieapp/ui/social/SocialFragment.kt
-// fragment principale per liste sociali
+//file: app/src/main/java/com/example/movieapp/ui/social/SocialFragment.kt
+//fragment principale per liste sociali
 
 package com.example.movieapp.ui.social
 
@@ -10,7 +10,9 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.movieapp.R
 import com.example.movieapp.databinding.FragmentSocialBinding
 import com.google.android.material.tabs.TabLayout
 
@@ -64,31 +66,21 @@ class SocialFragment : Fragment() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        //setup recyclerviews
+        //setup adapters
         myListsAdapter = SocialListAdapter(
             onListClick = { list ->
-                //apri dettaglio lista
-                Toast.makeText(context, "Apri: ${list.name}", Toast.LENGTH_SHORT).show()
+                showListOptionsDialog(list.id, list.name, true)
             },
-            onDeleteClick = { list ->
-                deleteList(list.id)
-            },
-            onCopyClick = { list ->
-                copyList(list.id, list.name)
-            },
-            showCopyButton = false
+            onDeleteClick = { list -> confirmDeleteList(list.id) },
+            onCopyClick = null
         )
 
         publicListsAdapter = SocialListAdapter(
             onListClick = { list ->
-                //apri dettaglio lista
-                Toast.makeText(context, "Apri: ${list.name}", Toast.LENGTH_SHORT).show()
+                showListOptionsDialog(list.id, list.name, false)
             },
-            onDeleteClick = null, //non si possono eliminare liste pubbliche altrui
-            onCopyClick = { list ->
-                copyList(list.id, list.name)
-            },
-            showCopyButton = true
+            onDeleteClick = null,
+            onCopyClick = { list -> copyList(list.id, list.name) }
         )
 
         binding.recyclerMyLists.apply {
@@ -106,54 +98,81 @@ class SocialFragment : Fragment() {
             viewModel.refreshLists()
         }
 
-        //mostra le mie liste di default
+        //show my lists by default
         showMyLists()
     }
 
     private fun setupObservers() {
-        //mie liste
-        viewModel.filteredMyLists.observe(viewLifecycleOwner) { lists ->
-            myListsAdapter.submitList(lists)
-            binding.tvEmptyMyLists.visibility = if (lists.isEmpty()) View.VISIBLE else View.GONE
-        }
-
-        //liste pubbliche
-        viewModel.filteredPublicLists.observe(viewLifecycleOwner) { lists ->
-            publicListsAdapter.submitList(lists)
-            binding.tvEmptyPublicLists.visibility = if (lists.isEmpty()) View.VISIBLE else View.GONE
-        }
-
         //loading
         viewModel.loading.observe(viewLifecycleOwner) { loading ->
             binding.swipeRefresh.isRefreshing = loading
         }
 
-        //error
+        //filtered my lists
+        viewModel.filteredMyLists.observe(viewLifecycleOwner) { lists ->
+            myListsAdapter.submitList(lists)
+            binding.tvEmptyMyLists.visibility = if (lists.isEmpty()) View.VISIBLE else View.GONE
+        }
+
+        //filtered public lists
+        viewModel.filteredPublicLists.observe(viewLifecycleOwner) { lists ->
+            publicListsAdapter.submitList(lists)
+            binding.tvEmptyPublicLists.visibility = if (lists.isEmpty()) View.VISIBLE else View.GONE
+        }
+
+        //errors
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
                 Toast.makeText(context, it, Toast.LENGTH_LONG).show()
-                viewModel.clearError()
             }
         }
     }
 
     private fun showMyLists() {
-        binding.recyclerMyLists.visibility = View.VISIBLE
-        binding.recyclerPublicLists.visibility = View.GONE
-        binding.tvEmptyMyLists.visibility = if (myListsAdapter.itemCount == 0) View.VISIBLE else View.GONE
-        binding.tvEmptyPublicLists.visibility = View.GONE
+        binding.containerMyLists.visibility = View.VISIBLE
+        binding.containerPublicLists.visibility = View.GONE
     }
 
     private fun showPublicLists() {
-        binding.recyclerMyLists.visibility = View.GONE
-        binding.recyclerPublicLists.visibility = View.VISIBLE
-        binding.tvEmptyMyLists.visibility = View.GONE
-        binding.tvEmptyPublicLists.visibility = if (publicListsAdapter.itemCount == 0) View.VISIBLE else View.GONE
+        binding.containerMyLists.visibility = View.GONE
+        binding.containerPublicLists.visibility = View.VISIBLE
     }
 
     private fun showCreateListDialog() {
         val dialog = CreateListDialogFragment()
-        dialog.show(parentFragmentManager, "CreateListDialog")
+        dialog.show(childFragmentManager, "CreateListDialog")
+    }
+
+    private fun showListOptionsDialog(listId: String, listName: String, isOwner: Boolean) {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Apri: $listName")
+            .setMessage("Vuoi aprire questa lista?")
+            .setPositiveButton("Apri") { _, _ ->
+                navigateToListDetail(listId, listName, isOwner)
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun navigateToListDetail(listId: String, listName: String, isOwner: Boolean) {
+        val bundle = Bundle().apply {
+            putString("listId", listId)
+            putString("listName", listName)
+            putBoolean("isOwner", isOwner)
+        }
+
+        findNavController().navigate(R.id.listDetailFragment, bundle)
+    }
+
+    private fun confirmDeleteList(listId: String) {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Elimina Lista")
+            .setMessage("Vuoi eliminare questa lista?")
+            .setPositiveButton("Elimina") { _, _ ->
+                deleteList(listId)
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
     }
 
     private fun deleteList(listId: String) {
@@ -169,7 +188,7 @@ class SocialFragment : Fragment() {
     }
 
     private fun copyList(listId: String, originalName: String) {
-        val newName = "$originalName (Copia)"
+        val newName = "Copia di $originalName"
         viewModel.copyList(
             listId = listId,
             newName = newName,
@@ -180,6 +199,11 @@ class SocialFragment : Fragment() {
                 Toast.makeText(context, "Errore: $error", Toast.LENGTH_LONG).show()
             }
         )
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshLists()
     }
 
     override fun onDestroyView() {

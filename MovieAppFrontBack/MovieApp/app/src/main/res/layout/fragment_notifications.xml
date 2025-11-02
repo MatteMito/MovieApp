@@ -47,22 +47,20 @@
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
-                    android:layout_marginBottom="16dp"/>
+                    android:layout_marginBottom="12dp"/>
 
                 <GridLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:columnCount="3"
-                    android:rowCount="1"
-                    android:alignmentMode="alignBounds">
+                    android:rowCount="1">
 
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_columnWeight="1"
                         android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="12dp">
+                        android:gravity="center">
 
                         <TextView
                             android:id="@+id/text_total_movies"
@@ -71,7 +69,8 @@
                             android:text="0"
                             android:textSize="28sp"
                             android:textStyle="bold"
-                            android:textColor="@color/primary_blue"/>
+                            android:textColor="@color/primary_blue"
+                            tools:text="150"/>
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -86,8 +85,7 @@
                         android:layout_height="wrap_content"
                         android:layout_columnWeight="1"
                         android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="12dp">
+                        android:gravity="center">
 
                         <TextView
                             android:id="@+id/text_watched_movies"
@@ -96,7 +94,8 @@
                             android:text="0"
                             android:textSize="28sp"
                             android:textStyle="bold"
-                            android:textColor="@color/success_green"/>
+                            android:textColor="@color/primary_blue"
+                            tools:text="120"/>
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -111,8 +110,7 @@
                         android:layout_height="wrap_content"
                         android:layout_columnWeight="1"
                         android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="12dp">
+                        android:gravity="center">
 
                         <TextView
                             android:id="@+id/text_watchlist_movies"
@@ -121,7 +119,8 @@
                             android:text="0"
                             android:textSize="28sp"
                             android:textStyle="bold"
-                            android:textColor="@color/warning_orange"/>
+                            android:textColor="@color/primary_blue"
+                            tools:text="30"/>
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -132,18 +131,20 @@
                     </LinearLayout>
                 </GridLayout>
 
+                <!-- tempo totale visione -->
+                <TextView
+                    android:id="@+id/text_total_watch_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="16dp"
+                    android:visibility="gone"
+                    tools:text="⏱️ tempo totale: 15 giorni e 8 ore"
+                    tools:visibility="visible"/>
+
             </LinearLayout>
         </androidx.cardview.widget.CardView>
-
-        <!-- progress bar loading -->
-        <ProgressBar
-            android:id="@+id/progress_bar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:visibility="gone"
-            android:indeterminateTint="@color/primary_blue"
-            android:layout_marginVertical="32dp"/>
 
         <!-- messaggio nessun dato -->
         <androidx.cardview.widget.CardView
@@ -182,21 +183,45 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Importa i tuoi film per vedere i grafici"
+                    android:text="@string/import_movies_to_see_stats"
                     android:textSize="14sp"
                     android:textColor="@color/text_secondary"
-                    android:gravity="center"/>
+                    android:textAlignment="center"/>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- card loading grafici -->
+        <!-- loading grafici -->
         <androidx.cardview.widget.CardView
             android:id="@+id/card_charts_loading"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:visibility="gone"/>
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@color/white">
 
-        <!-- card grafici principale -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="48dp">
+
+                <ProgressBar
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="16dp"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/loading"
+                    android:textSize="16sp"
+                    android:textColor="@color/text_secondary"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- card grafici -->
         <androidx.cardview.widget.CardView
             android:id="@+id/card_charts"
             android:layout_width="match_parent"
@@ -210,23 +235,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:padding="16dp">
 
-                <!-- tempo totale visione -->
-                <TextView
-                    android:id="@+id/text_total_watch_time"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_blue"
-                    android:padding="8dp"
-                    android:visibility="gone"
-                    android:layout_marginBottom="16dp"
-                    tools:text="⏱️ Tempo totale: 120 ore di film visti!"
-                    tools:visibility="visible"/>
-
-                <!-- grafico 1: generi + testo cliccabile -->
+                <!-- grafico 1: generi -->
                 <TextView
                     android:id="@+id/text_top_genre"
                     android:layout_width="match_parent"
@@ -238,7 +249,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="🎬 Genere preferito: Action (45 film)"
+                    tools:text="🎬 genere più visto: action (45 film)"
                     tools:visibility="visible"/>
 
                 <TextView
@@ -251,13 +262,13 @@
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp"/>
 
-                <com.github.mikephil.charting.charts.HorizontalBarChart
+                <com.github.mikephil.charting.charts.PieChart
                     android:id="@+id/chart_genres"
                     android:layout_width="match_parent"
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 2: anni + testo cliccabile -->
+                <!-- grafico 2: anni -->
                 <TextView
                     android:id="@+id/text_top_year"
                     android:layout_width="match_parent"
@@ -269,13 +280,13 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="📅 Anno preferito: 2019 (23 film)"
+                    tools:text="📅 anno con più film: 2019 (25 film)"
                     tools:visibility="visible"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Anni"
+                    android:text="Film per Anno"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -288,7 +299,79 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 3: rating -->
+                <!-- grafico 3: registi -->
+                <TextView
+                    android:id="@+id/text_top_director"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:padding="8dp"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackground"
+                    tools:text="🎥 regista preferito: christopher nolan (12 film)"
+                    tools:visibility="visible"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Registi"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"/>
+
+                <com.github.mikephil.charting.charts.BarChart
+                    android:id="@+id/chart_directors"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp"
+                    android:layout_marginBottom="24dp"/>
+
+                <!-- grafico 4: attori -->
+                <TextView
+                    android:id="@+id/text_top_actor"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:padding="8dp"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackground"
+                    tools:text="⭐ attore preferito: tom hanks (18 film)"
+                    tools:visibility="visible"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Attori"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"/>
+
+                <com.github.mikephil.charting.charts.BarChart
+                    android:id="@+id/chart_actors"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp"
+                    android:layout_marginBottom="24dp"/>
+
+                <!-- grafico 5: valutazioni -->
+                <TextView
+                    android:id="@+id/text_ratings_empty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nessuna valutazione disponibile"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_secondary"
+                    android:visibility="gone"
+                    android:layout_marginBottom="16dp"/>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -305,55 +388,7 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 4: registi + testo cliccabile -->
-                <TextView
-                    android:id="@+id/text_top_director"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="14sp"
-                    android:textColor="@color/text_primary"
-                    android:padding="8dp"
-                    android:visibility="gone"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?android:attr/selectableItemBackground"
-                    tools:text="🎥 Regista preferito: Christopher Nolan (12 film)"
-                    tools:visibility="visible"/>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Registi"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginBottom="8dp"/>
-
-                <com.github.mikephil.charting.charts.HorizontalBarChart
-                    android:id="@+id/chart_directors"
-                    android:layout_width="match_parent"
-                    android:layout_height="300dp"
-                    android:layout_marginBottom="24dp"/>
-
-                <!-- grafico 5: runtime -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Durata"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginBottom="8dp"/>
-
-                <com.github.mikephil.charting.charts.LineChart
-                    android:id="@+id/chart_runtime"
-                    android:layout_width="match_parent"
-                    android:layout_height="300dp"
-                    android:layout_marginBottom="24dp"/>
-
-                <!-- grafico 6: paesi + testo cliccabile -->
+                <!-- grafico 6: paesi -->
                 <TextView
                     android:id="@+id/text_top_country"
                     android:layout_width="match_parent"
@@ -365,13 +400,13 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="🌍 Paese preferito: USA (150 film)"
+                    tools:text="🌍 paese principale: usa (85 film)"
                     tools:visibility="visible"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Paesi"
+                    android:text="Paesi di Produzione"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -384,7 +419,7 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 7: decenni + testo cliccabile -->
+                <!-- grafico 7: decenni -->
                 <TextView
                     android:id="@+id/text_top_decade"
                     android:layout_width="match_parent"
@@ -396,7 +431,18 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="📆 Decennio preferito: 2010s (85 film)"
+                    tools:text="📆 decennio preferito: 2010s (55 film)"
+                    tools:visibility="visible"/>
+
+                <TextView
+                    android:id="@+id/text_decade_description"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:visibility="gone"
+                    android:layout_marginBottom="8dp"
+                    tools:text="il tuo decennio preferito è 2010s, il dominio dei supereroi!"
                     tools:visibility="visible"/>
 
                 <TextView
@@ -415,11 +461,25 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 8: punteggio medio per genere -->
+                <!-- grafico 8: combinazioni generi -->
+                <TextView
+                    android:id="@+id/text_top_genre_combination"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:padding="8dp"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackground"
+                    tools:text="🎭 combinazione più frequente: action + thriller (22 film)"
+                    tools:visibility="visible"/>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Punteggio Medio per Genere"
+                    android:text="Combinazioni di Generi"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -427,44 +487,72 @@
                     android:layout_marginBottom="8dp"/>
 
                 <com.github.mikephil.charting.charts.BarChart
-                    android:id="@+id/chart_genre_ratings"
+                    android:id="@+id/chart_genre_combinations"
                     android:layout_width="match_parent"
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 9: valutazione media per decennio -->
+                <!-- grafico 9: fasce durata -->
+                <TextView
+                    android:id="@+id/text_longest_movie"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:padding="8dp"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackground"
+                    tools:text="⏱️ film più lungo: the irishman (209 min)"
+                    tools:visibility="visible"/>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Valutazione Media per Decennio"
+                    android:text="Durata Film"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp"/>
 
-                <com.github.mikephil.charting.charts.LineChart
-                    android:id="@+id/chart_decade_ratings"
+                <com.github.mikephil.charting.charts.BarChart
+                    android:id="@+id/chart_runtime_ranges"
                     android:layout_width="match_parent"
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 10: durata vs valutazione scatter -->
+                <!-- grafico 10: lingue -->
+                <TextView
+                    android:id="@+id/text_top_language"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:padding="8dp"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackground"
+                    tools:text="🌐 lingua principale: inglese (120 film)"
+                    tools:visibility="visible"/>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Durata vs Valutazione"
+                    android:text="Lingue"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp"/>
 
-                <com.github.mikephil.charting.charts.ScatterChart
-                    android:id="@+id/chart_runtime_vs_rating"
+                <com.github.mikephil.charting.charts.PieChart
+                    android:id="@+id/chart_languages"
                     android:layout_width="match_parent"
                     android:layout_height="300dp"
-                    android:layout_marginBottom="16dp"/>
+                    android:layout_marginBottom="8dp"/>
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>

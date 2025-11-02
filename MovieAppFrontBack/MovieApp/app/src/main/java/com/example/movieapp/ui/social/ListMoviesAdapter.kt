@@ -1,5 +1,5 @@
-// FILE: app/src/main/java/com/example/movieapp/ui/social/ListMoviesAdapter.kt
-// Adapter per film in una lista - COMPLETO
+//file: app/src/main/java/com/example/movieapp/ui/social/ListMoviesAdapter.kt
+//adapter per film in una lista con bottone rimuovi
 
 package com.example.movieapp.ui.social
 
@@ -37,10 +37,10 @@ class ListMoviesAdapter(
 
         fun bind(movie: Movie) {
             binding.apply {
-                // Titolo
+                //titolo
                 textTitle.text = movie.title
 
-                // Anno e regista
+                //anno e regista
                 val details = buildString {
                     if (movie.year != null) {
                         append(movie.year)
@@ -53,24 +53,24 @@ class ListMoviesAdapter(
                 textDetails.text = details
                 textDetails.isVisible = details.isNotEmpty()
 
-                // Generi
+                //generi
                 val genres = movie.genres.joinToString(", ")
                 textGenres.text = genres
                 textGenres.isVisible = genres.isNotEmpty()
 
-                // Poster
-                if (!movie.posterUrl.isNullOrEmpty()) {
-                    Glide.with(imagePoster.context)
+                //poster
+                if (movie.posterUrl != null) {
+                    Glide.with(root.context)
                         .load(movie.posterUrl)
                         .placeholder(R.drawable.ic_home)
                         .error(R.drawable.ic_home)
-                        .into(imagePoster)
+                        .into(ivMoviePoster)
                 } else {
-                    imagePoster.setImageResource(R.drawable.ic_home)
+                    ivMoviePoster.setImageResource(R.drawable.ic_home)
                 }
 
-                // Bottone rimuovi
-                buttonRemove.setOnClickListener {
+                //bottone rimuovi
+                btnRemove.setOnClickListener {
                     onRemoveClick(movie)
                 }
             }

@@ -1,5 +1,5 @@
-// file: app/src/main/java/com/example/movieapp/ui/social/SocialListAdapter.kt
-// adapter per liste con pulsanti delete e copy
+//file: app/src/main/java/com/example/movieapp/ui/social/SocialListAdapter.kt
+//adapter per liste sociali con badge pubblica/privata
 
 package com.example.movieapp.ui.social
 
@@ -9,60 +9,65 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.example.movieapp.R
 import com.example.movieapp.data.models.MovieList
 import com.example.movieapp.databinding.ItemSocialListBinding
 
 class SocialListAdapter(
     private val onListClick: (MovieList) -> Unit,
     private val onDeleteClick: ((MovieList) -> Unit)?,
-    private val onCopyClick: ((MovieList) -> Unit)?,
-    private val showCopyButton: Boolean = false
-) : ListAdapter<MovieList, SocialListAdapter.ViewHolder>(ListDiffCallback()) {
+    private val onCopyClick: ((MovieList) -> Unit)?
+) : ListAdapter<MovieList, SocialListAdapter.ListViewHolder>(ListDiffCallback()) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ListViewHolder {
         val binding = ItemSocialListBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
         )
-        return ViewHolder(binding)
+        return ListViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: ListViewHolder, position: Int) {
         holder.bind(getItem(position))
     }
 
-    inner class ViewHolder(
+    inner class ListViewHolder(
         private val binding: ItemSocialListBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(list: MovieList) {
             binding.apply {
-                //info lista
+                //nome lista
                 tvListName.text = list.name
-                tvListDescription.text = list.description ?: "Nessuna descrizione"
-                tvMovieCount.text = "${list.getMovieCount()} film"
 
-                //visibilita
-                tvVisibility.text = list.getVisibilityText()
+                //descrizione
+                tvListDescription.text = list.description ?: "Nessuna descrizione"
+                tvListDescription.visibility = View.VISIBLE
 
                 //badge pubblico/privato
                 if (list.isPublic) {
-                    badgePublic.visibility = View.VISIBLE
                     badgePublic.text = "PUBBLICA"
+                    badgePublic.visibility = View.VISIBLE
+                    badgePublic.setBackgroundResource(R.drawable.badge_public_background)
                 } else {
-                    badgePublic.visibility = View.GONE
+                    badgePublic.text = "PRIVATA"
+                    badgePublic.visibility = View.VISIBLE
+                    badgePublic.setBackgroundResource(R.drawable.badge_private_background)
                 }
 
-                //followers count (solo per liste pubbliche)
-                if (list.isPublic && list.followersCount > 0) {
-                    tvFollowers.visibility = View.VISIBLE
-                    tvFollowers.text = "${list.followersCount} follower"
-                } else {
-                    tvFollowers.visibility = View.GONE
+                //movie count
+                tvMovieCount.text = "${list.movies.size}"
+
+                //followers count
+                tvFollowersCount.text = list.followersCount.toString()
+
+                //click sulla card
+                root.setOnClickListener {
+                    onListClick(list)
                 }
 
-                //pulsante delete (solo per proprie liste)
+                //bottone delete
                 if (onDeleteClick != null) {
                     btnDelete.visibility = View.VISIBLE
                     btnDelete.setOnClickListener {
@@ -72,19 +77,14 @@ class SocialListAdapter(
                     btnDelete.visibility = View.GONE
                 }
 
-                //pulsante copy (solo per liste pubbliche altrui)
-                if (showCopyButton && onCopyClick != null) {
+                //bottone copy
+                if (onCopyClick != null) {
                     btnCopy.visibility = View.VISIBLE
                     btnCopy.setOnClickListener {
                         onCopyClick.invoke(list)
                     }
                 } else {
                     btnCopy.visibility = View.GONE
-                }
-
-                //click sulla card
-                root.setOnClickListener {
-                    onListClick(list)
                 }
             }
         }

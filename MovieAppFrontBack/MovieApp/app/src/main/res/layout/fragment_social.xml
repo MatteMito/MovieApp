@@ -2,6 +2,7 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_light">
@@ -60,12 +61,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="8dp">
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/recycler_my_lists"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"/>
+                        android:layout_height="match_parent"
+                        tools:listitem="@layout/item_social_list"
+                        tools:itemCount="3"/>
 
                     <TextView
                         android:id="@+id/tv_empty_my_lists"
@@ -75,7 +78,9 @@
                         android:text="Nessuna lista creata\n\nTocca + per crearne una!"
                         android:textSize="16sp"
                         android:textColor="@color/text_secondary"
-                        android:visibility="gone"/>
+                        android:visibility="gone"
+                        tools:visibility="gone"/>
+
                 </LinearLayout>
 
                 <!-- liste pubbliche -->
@@ -84,13 +89,15 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:orientation="vertical"
-                    android:padding="16dp"
+                    android:padding="8dp"
                     android:visibility="gone">
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/recycler_public_lists"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"/>
+                        android:layout_height="match_parent"
+                        tools:listitem="@layout/item_social_list"
+                        tools:itemCount="3"/>
 
                     <TextView
                         android:id="@+id/tv_empty_public_lists"
@@ -100,7 +107,9 @@
                         android:text="Nessuna lista pubblica disponibile"
                         android:textSize="16sp"
                         android:textColor="@color/text_secondary"
-                        android:visibility="gone"/>
+                        android:visibility="gone"
+                        tools:visibility="gone"/>
+
                 </LinearLayout>
 
             </FrameLayout>
@@ -109,15 +118,14 @@
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-    <!-- fab per creare nuova lista -->
+    <!-- fab create list -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_create_list"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:src="@drawable/ic_add"
-        app:tint="@color/white"
-        android:contentDescription="Crea nuova lista"/>
+        app:srcCompat="@drawable/ic_add"
+        android:contentDescription="crea lista"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

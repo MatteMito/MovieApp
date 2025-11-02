@@ -1,21 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FILE: app/src/main/res/layout/item_list_movie.xml -->
-<!-- Item per film nella lista -->
-
+<!--file: app/src/main/res/layout/item_list_movie.xml-->
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="12dp"
-    android:layout_marginEnd="12dp"
-    android:layout_marginTop="6dp"
-    android:layout_marginBottom="6dp"
+    android:layout_margin="8dp"
+    app:cardBackgroundColor="@color/card_background"
     app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
-    app:strokeWidth="1dp"
-    app:strokeColor="?attr/colorOutline">
+    app:cardElevation="3dp"
+    app:strokeWidth="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -23,80 +18,70 @@
         android:orientation="horizontal"
         android:padding="12dp">
 
-        <!-- Poster -->
+        <!-- poster -->
         <ImageView
-            android:id="@+id/image_poster"
+            android:id="@+id/ivMoviePoster"
             android:layout_width="60dp"
             android:layout_height="90dp"
             android:scaleType="centerCrop"
-            android:background="?attr/colorSurfaceVariant"
-            android:contentDescription="Poster"
+            android:contentDescription="poster film"
             tools:src="@drawable/ic_home"/>
 
-        <!-- Info Film -->
+        <!-- info film -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical"
             android:layout_marginStart="12dp"
-            android:layout_marginEnd="8dp">
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/text_title"
+                android:id="@+id/textTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="?attr/colorOnSurface"
+                android:textColor="@color/text_primary"
                 android:maxLines="2"
                 android:ellipsize="end"
                 tools:text="The Shawshank Redemption"/>
 
             <TextView
-                android:id="@+id/text_details"
+                android:id="@+id/textDetails"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="13sp"
-                android:textColor="?android:attr/textColorSecondary"
                 android:layout_marginTop="4dp"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
                 android:maxLines="1"
                 android:ellipsize="end"
                 tools:text="1994 • Frank Darabont"/>
 
             <TextView
-                android:id="@+id/text_genres"
+                android:id="@+id/textGenres"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
-                android:textColor="?attr/colorPrimary"
                 android:layout_marginTop="4dp"
-                android:visibility="gone"
-                tools:visibility="visible"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end"
                 tools:text="Drama, Crime"/>
 
-            <TextView
-                android:id="@+id/text_rating"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textColor="?attr/colorTertiary"
-                android:layout_marginTop="4dp"
-                android:visibility="gone"
-                tools:visibility="visible"
-                tools:text="⭐ 9.3"/>
         </LinearLayout>
 
-        <!-- Bottone Rimuovi -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/button_remove"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="✕"
-            android:textSize="18sp"
-            style="@style/Widget.Material3.Button.IconButton"
-            android:contentDescription="Rimuovi film"/>
+        <!-- bottone rimuovi -->
+        <ImageButton
+            android:id="@+id/btnRemove"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_delete"
+            android:contentDescription="rimuovi film"
+            app:tint="@android:color/holo_red_light"/>
 
     </LinearLayout>
+
 </com.google.android.material.card.MaterialCardView>

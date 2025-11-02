@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- file: app/src/main/res/layout/item_social_list.xml -->
-<!-- item card per lista -->
+<!--file: app/src/main/res/layout/item_social_list.xml-->
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
@@ -37,7 +37,7 @@
                 android:maxLines="2"
                 android:ellipsize="end" />
 
-            <!-- badge pubblico -->
+            <!-- badge pubblico/privato -->
             <TextView
                 android:id="@+id/badgePublic"
                 android:layout_width="wrap_content"
@@ -52,7 +52,8 @@
                 android:textColor="@android:color/white"
                 android:textSize="10sp"
                 android:textStyle="bold"
-                android:visibility="gone" />
+                android:visibility="visible"
+                tools:text="PUBBLICA"/>
 
         </LinearLayout>
 
@@ -81,81 +82,89 @@
                 android:layout_width="16dp"
                 android:layout_height="16dp"
                 android:src="@drawable/ic_home"
-                android:contentDescription="film"
-                app:tint="@color/primary" />
+                app:tint="@color/text_secondary"/>
 
             <TextView
                 android:id="@+id/tvMovieCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
-                android:text="0 film"
+                android:text="0"
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-
-            <!-- divider -->
-            <View
-                android:layout_width="1dp"
-                android:layout_height="12dp"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
-                android:background="@color/divider" />
-
-            <!-- visibility -->
-            <TextView
-                android:id="@+id/tvVisibility"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Privata"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-
-            <!-- followers count (solo pubbliche) -->
-            <View
-                android:id="@+id/dividerFollowers"
-                android:layout_width="1dp"
-                android:layout_height="12dp"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
-                android:background="@color/divider"
-                android:visibility="gone" />
+                android:textSize="14sp"/>
 
             <TextView
-                android:id="@+id/tvFollowers"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0 follower"
+                android:layout_marginStart="2dp"
+                android:text="film"
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:visibility="gone" />
+                android:textSize="14sp"/>
 
+            <!-- spacer -->
             <View
                 android:layout_width="0dp"
                 android:layout_height="1dp"
-                android:layout_weight="1" />
+                android:layout_weight="1"/>
 
-            <!-- copy button -->
+            <!-- followers -->
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_notifications"
+                app:tint="@color/text_secondary"/>
+
+            <TextView
+                android:id="@+id/tvFollowersCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="0"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:text="follower"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"/>
+
+        </LinearLayout>
+
+        <!-- bottoni azioni -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal"
+            android:gravity="end">
+
+            <!-- bottone copy (solo per liste pubbliche) -->
             <ImageButton
                 android:id="@+id/btnCopy"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="copia lista"
                 android:src="@drawable/ic_add"
+                android:contentDescription="copia lista"
+                app:tint="@color/primary"
                 android:visibility="gone"
-                app:tint="@color/primary" />
+                tools:visibility="visible"/>
 
-            <!-- delete button -->
+            <!-- bottone delete (solo per le mie liste) -->
             <ImageButton
                 android:id="@+id/btnDelete"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginStart="4dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="elimina lista"
                 android:src="@drawable/ic_delete"
+                android:contentDescription="elimina lista"
+                app:tint="@android:color/holo_red_light"
                 android:visibility="gone"
-                app:tint="@color/error" />
+                tools:visibility="visible"/>
 
         </LinearLayout>
 
