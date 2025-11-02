@@ -1,11 +1,9 @@
 //file: app/src/main/java/com/example/movieapp/ui/social/ListDetailFragment.kt
-//fragment per dettaglio lista con autocomplete semplificato
+//fragment per dettaglio lista con fab che apre dialog
 
 package com.example.movieapp.ui.social
 
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -27,7 +25,6 @@ class ListDetailFragment : Fragment() {
 
     private lateinit var viewModel: ListDetailViewModel
     private lateinit var moviesAdapter: ListMoviesAdapter
-    private lateinit var searchAdapter: SearchMovieAdapter
 
     private var listId: String = ""
     private var listName: String = ""
@@ -80,17 +77,7 @@ class ListDetailFragment : Fragment() {
             adapter = moviesAdapter
         }
 
-        //setup search recyclerview con click diretto
-        searchAdapter = SearchMovieAdapter { movie ->
-            addMovieToList(movie)
-        }
-
-        binding.recyclerSearchResults.apply {
-            layoutManager = LinearLayoutManager(requireContext())
-            adapter = searchAdapter
-        }
-
-        //mostra/nascondi bottoni se proprietario
+        //mostra/nascondi bottoni e fab se proprietario
         if (isOwner) {
             binding.fabAddMovie.visibility = View.VISIBLE
             binding.btnEditList.visibility = View.VISIBLE
@@ -101,37 +88,26 @@ class ListDetailFragment : Fragment() {
             binding.btnDeleteList.visibility = View.GONE
         }
 
-        //fab aggiungi film
+        //fab apre dialog aggiungi film
         binding.fabAddMovie.setOnClickListener {
-            toggleSearchMode()
+            openAddMoviesDialog()
         }
 
-        //search autocomplete
-        binding.etSearchMovie.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-
-            override fun afterTextChanged(s: Editable?) {
-                val query = s?.toString() ?: ""
-                if (query.length >= 2) {
-                    viewModel.searchMovies(query)
-                } else {
-                    viewModel.clearSearchResults()
-                }
-            }
-        })
-
-        //bottone close search
-        binding.btnCloseSearch.setOnClickListener {
-            hideSearchMode()
-        }
-
-        //bottone edit list
+        //bottone modifica lista
         binding.btnEditList.setOnClickListener {
-            showEditListDialog()
+            val list = viewModel.currentList.value
+            if (list != null) {
+                val dialog = EditListDialogFragment.newInstance(
+                    listId = list.id,
+                    currentName = list.name,
+                    currentDescription = list.description ?: "",
+                    isPublic = list.isPublic
+                )
+                dialog.show(childFragmentManager, "EditListDialog")
+            }
         }
 
-        //bottone delete list
+        //bottone elimina lista
         binding.btnDeleteList.setOnClickListener {
             confirmDeleteList()
         }
@@ -139,14 +115,12 @@ class ListDetailFragment : Fragment() {
 
     private fun setupObservers() {
         //loading
-        viewModel.loading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.isVisible = isLoading
+        viewModel.loading.observe(viewLifecycleOwner) { loading ->
+            binding.progressBar.isVisible = loading
         }
 
-        //lista dettagli
-        viewModel.list.observe(viewLifecycleOwner) { list ->
-            binding.toolbar.title = list.name
-
+        //list data
+        viewModel.currentList.observe(viewLifecycleOwner) { list ->
             binding.textDescription.text = list.description ?: "Nessuna descrizione"
             binding.textDescription.isVisible = true
 
@@ -156,19 +130,11 @@ class ListDetailFragment : Fragment() {
 
             binding.textMovieCount.text = "${list.movies.size} film"
 
+            //mostra titolo sezione film se ci sono film
+            binding.tvFilmTitle.isVisible = list.movies.isNotEmpty()
+
             moviesAdapter.submitList(list.movies)
             binding.textEmpty.isVisible = list.movies.isEmpty()
-        }
-
-        //search results
-        viewModel.searchResults.observe(viewLifecycleOwner) { movies ->
-            searchAdapter.submitList(movies)
-            binding.recyclerSearchResults.isVisible = movies.isNotEmpty()
-        }
-
-        //search loading
-        viewModel.searchLoading.observe(viewLifecycleOwner) { loading ->
-            binding.progressSearch.isVisible = loading
         }
 
         //errors
@@ -179,44 +145,14 @@ class ListDetailFragment : Fragment() {
         }
     }
 
-    private fun toggleSearchMode() {
-        if (binding.searchContainer.visibility == View.VISIBLE) {
-            hideSearchMode()
-        } else {
-            showSearchMode()
+    private fun openAddMoviesDialog() {
+        val dialog = AddMoviesDialogFragment.newInstance(listId)
+        dialog.show(childFragmentManager, "AddMoviesDialog")
+
+        //ricarica lista dopo chiusura dialog
+        childFragmentManager.setFragmentResultListener("movies_added", viewLifecycleOwner) { _, _ ->
+            viewModel.loadList(listId)
         }
-    }
-
-    private fun showSearchMode() {
-        binding.searchContainer.visibility = View.VISIBLE
-        binding.etSearchMovie.requestFocus()
-
-        //mostra tastiera
-        val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-        imm.showSoftInput(binding.etSearchMovie, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-    }
-
-    private fun hideSearchMode() {
-        binding.searchContainer.visibility = View.GONE
-        binding.etSearchMovie.text?.clear()
-        viewModel.clearSearchResults()
-
-        //nascondi tastiera
-        val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-        imm.hideSoftInputFromWindow(binding.etSearchMovie.windowToken, 0)
-    }
-
-    private fun addMovieToList(movie: Movie) {
-        viewModel.addMovie(listId, movie.id,
-            onSuccess = {
-                Toast.makeText(requireContext(), "Film aggiunto: ${movie.title}", Toast.LENGTH_SHORT).show()
-                hideSearchMode()
-                viewModel.loadList(listId)
-            },
-            onError = { error ->
-                Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
-            }
-        )
     }
 
     private fun confirmRemoveMovie(movie: Movie) {
@@ -224,35 +160,18 @@ class ListDetailFragment : Fragment() {
             .setTitle("Rimuovi Film")
             .setMessage("Vuoi rimuovere \"${movie.title}\" dalla lista?")
             .setPositiveButton("Rimuovi") { _, _ ->
-                removeMovie(movie)
+                viewModel.removeMovie(listId, movie.id,
+                    onSuccess = {
+                        Toast.makeText(requireContext(), "Film rimosso", Toast.LENGTH_SHORT).show()
+                        viewModel.loadList(listId)
+                    },
+                    onError = { error ->
+                        Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
+                    }
+                )
             }
             .setNegativeButton("Annulla", null)
             .show()
-    }
-
-    private fun removeMovie(movie: Movie) {
-        viewModel.removeMovie(listId, movie.id,
-            onSuccess = {
-                Toast.makeText(requireContext(), "Film rimosso", Toast.LENGTH_SHORT).show()
-                viewModel.loadList(listId)
-            },
-            onError = { error ->
-                Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
-            }
-        )
-    }
-
-    private fun showEditListDialog() {
-        val currentList = viewModel.list.value ?: return
-
-        val dialog = EditListDialogFragment.newInstance(
-            listId = currentList.id,
-            currentName = currentList.name,
-            currentDescription = currentList.description ?: "",
-            isPublic = currentList.isPublic
-        )
-
-        dialog.show(childFragmentManager, "EditListDialog")
     }
 
     private fun confirmDeleteList() {
@@ -260,22 +179,18 @@ class ListDetailFragment : Fragment() {
             .setTitle("Elimina Lista")
             .setMessage("Vuoi eliminare questa lista? Questa azione non può essere annullata.")
             .setPositiveButton("Elimina") { _, _ ->
-                deleteList()
+                viewModel.deleteList(listId,
+                    onSuccess = {
+                        Toast.makeText(requireContext(), "Lista eliminata", Toast.LENGTH_SHORT).show()
+                        requireActivity().onBackPressedDispatcher.onBackPressed()
+                    },
+                    onError = { error ->
+                        Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
+                    }
+                )
             }
             .setNegativeButton("Annulla", null)
             .show()
-    }
-
-    private fun deleteList() {
-        viewModel.deleteList(listId,
-            onSuccess = {
-                Toast.makeText(requireContext(), "Lista eliminata", Toast.LENGTH_SHORT).show()
-                requireActivity().onBackPressedDispatcher.onBackPressed()
-            },
-            onError = { error ->
-                Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
-            }
-        )
     }
 
     override fun onDestroyView() {

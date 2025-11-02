@@ -1,6 +1,8 @@
 package com.example.movieapp.ui.social
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -102,10 +104,26 @@ class SocialFragment : Fragment() {
             viewModel.refreshLists()
         }
 
-        //bottone filtri
+        //bottone ordina
+        binding.btnSort.setOnClickListener {
+            showSortMenu(it)
+        }
+
+        //bottone filtra (per ora stesso del sort)
         binding.btnFilter.setOnClickListener {
             showFilterMenu(it)
         }
+
+        //barra di ricerca
+        binding.etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+            override fun afterTextChanged(s: Editable?) {
+                val query = s?.toString() ?: ""
+                viewModel.applySearchFilter(query)
+            }
+        })
 
         //show my lists by default
         showMyLists()
@@ -181,29 +199,23 @@ class SocialFragment : Fragment() {
             .setTitle("Elimina Lista")
             .setMessage("Vuoi eliminare questa lista? Questa azione non può essere annullata.")
             .setPositiveButton("Elimina") { _, _ ->
-                deleteList(listId)
+                viewModel.deleteList(listId,
+                    onSuccess = {
+                        Toast.makeText(requireContext(), "Lista eliminata", Toast.LENGTH_SHORT).show()
+                    },
+                    onError = { error ->
+                        Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
+                    }
+                )
             }
             .setNegativeButton("Annulla", null)
             .show()
     }
 
-    private fun deleteList(listId: String) {
-        viewModel.deleteList(listId,
-            onSuccess = {
-                Toast.makeText(requireContext(), "Lista eliminata", Toast.LENGTH_SHORT).show()
-                viewModel.refreshLists()
-            },
-            onError = { error ->
-                Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
-            }
-        )
-    }
-
     private fun followList(list: MovieList) {
         viewModel.followList(list.id,
             onSuccess = {
-                Toast.makeText(requireContext(), "Ora segui: ${list.name}", Toast.LENGTH_SHORT).show()
-                viewModel.refreshLists()
+                Toast.makeText(requireContext(), "Lista seguita!", Toast.LENGTH_SHORT).show()
             },
             onError = { error ->
                 Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
@@ -212,14 +224,12 @@ class SocialFragment : Fragment() {
     }
 
     private fun copyList(list: MovieList) {
-        //mostra dialog per nome personalizzato
         val input = android.widget.EditText(requireContext())
-        input.hint = "Nome nuova lista (opzionale)"
-        input.setText("${list.name} (copia)")
+        input.hint = list.name
 
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Copia Lista")
-            .setMessage("Vuoi copiare questa lista nella tua collezione privata?")
+            .setMessage("Inserisci un nuovo nome (opzionale):")
             .setView(input)
             .setPositiveButton("Copia") { _, _ ->
                 val newName = input.text.toString().trim().ifBlank { null }
@@ -243,7 +253,7 @@ class SocialFragment : Fragment() {
         )
     }
 
-    private fun showFilterMenu(anchor: View) {
+    private fun showSortMenu(anchor: View) {
         val popup = PopupMenu(requireContext(), anchor)
         popup.menu.add(0, 1, 0, "Nome (A-Z)")
         popup.menu.add(0, 2, 0, "Nome (Z-A)")
@@ -258,6 +268,24 @@ class SocialFragment : Fragment() {
                 3 -> viewModel.applySortFilter(SocialViewModel.SortType.DATE_DESC)
                 4 -> viewModel.applySortFilter(SocialViewModel.SortType.DATE_ASC)
                 5 -> viewModel.applySortFilter(SocialViewModel.SortType.POPULARITY)
+            }
+            true
+        }
+
+        popup.show()
+    }
+
+    private fun showFilterMenu(anchor: View) {
+        val popup = PopupMenu(requireContext(), anchor)
+        popup.menu.add(0, 1, 0, "Tutte")
+        popup.menu.add(0, 2, 0, "Solo pubbliche")
+        popup.menu.add(0, 3, 0, "Solo private")
+
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                1 -> viewModel.applyVisibilityFilter(null)
+                2 -> viewModel.applyVisibilityFilter(true)
+                3 -> viewModel.applyVisibilityFilter(false)
             }
             true
         }

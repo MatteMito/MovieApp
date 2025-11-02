@@ -43,6 +43,17 @@
                         android:textStyle="bold"
                         android:textColor="@color/text_primary"/>
 
+                    <!-- bottone ordina -->
+                    <ImageButton
+                        android:id="@+id/btn_sort"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginEnd="8dp"
+                        android:src="@drawable/ic_filter"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="ordina"/>
+
+                    <!-- bottone filtra -->
                     <ImageButton
                         android:id="@+id/btn_filter"
                         android:layout_width="40dp"
@@ -52,6 +63,25 @@
                         android:contentDescription="filtri"/>
 
                 </LinearLayout>
+
+                <!-- barra di ricerca -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginBottom="8dp"
+                    android:hint="Cerca nelle liste..."
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/et_search"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"
+                        android:maxLines="1"
+                        android:imeOptions="actionSearch"/>
+
+                </com.google.android.material.textfield.TextInputLayout>
 
                 <!-- tabs -->
                 <com.google.android.material.tabs.TabLayout

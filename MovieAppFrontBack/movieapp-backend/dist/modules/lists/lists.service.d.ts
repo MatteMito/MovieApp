@@ -18,9 +18,7 @@ export declare class ListsService {
     getListById(listId: string, userId?: string): Promise<any>;
     createList(userId: string, createListDto: CreateListDto): Promise<any>;
     updateList(listId: string, userId: string, updateListDto: UpdateListDto): Promise<any>;
-    deleteList(listId: string, userId: string): Promise<{
-        message: string;
-    }>;
+    deleteList(listId: string, userId: string): Promise<any>;
     addMovieToList(listId: string, userId: string, movieId: string): Promise<any>;
     removeMovieFromList(listId: string, userId: string, movieId: string): Promise<any>;
     followList(listId: string, userId: string): Promise<any>;

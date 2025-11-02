@@ -1,5 +1,5 @@
 //file: app/src/main/java/com/example/movieapp/ui/social/SocialListAdapter.kt
-//adapter per liste sociali con badge pubblica/privata e copia
+//adapter per liste sociali con follower solo se pubblico
 
 package com.example.movieapp.ui.social
 
@@ -62,15 +62,15 @@ class SocialListAdapter(
                     tvUsername.visibility = View.GONE
                 }
 
-                //followers (per liste pubbliche)
-                if (onFollowClick != null || onCopyClick != null) {
+                //followers - mostra solo se lista è pubblica
+                if (list.isPublic) {
                     tvFollowers.text = "${list.followersCount} follower"
                     tvFollowers.visibility = View.VISIBLE
                 } else {
                     tvFollowers.visibility = View.GONE
                 }
 
-                //bottone modifica
+                //bottone modifica (icona)
                 if (onEditClick != null) {
                     btnEdit.visibility = View.VISIBLE
                     btnEdit.setOnClickListener { onEditClick.invoke(list) }
@@ -78,7 +78,7 @@ class SocialListAdapter(
                     btnEdit.visibility = View.GONE
                 }
 
-                //bottone elimina
+                //bottone elimina (icona)
                 if (onDeleteClick != null) {
                     btnDelete.visibility = View.VISIBLE
                     btnDelete.setOnClickListener { onDeleteClick.invoke(list) }

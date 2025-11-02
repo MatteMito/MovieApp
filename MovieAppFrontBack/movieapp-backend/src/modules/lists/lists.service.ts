@@ -1,5 +1,5 @@
 //file: src/modules/lists/lists.service.ts
-//service con username nelle liste pubbliche
+//service con fix accesso liste private
 
 import {
   Injectable,
@@ -124,7 +124,7 @@ export class ListsService {
     return result;
   }
 
-  //ottieni lista per id
+  //ottieni lista per id - fix: permetti accesso se sei owner o se lista pubblica
   async getListById(listId: string, userId?: string): Promise<any> {
     const list = await this.listRepository.findOne({ where: { id: listId } });
 
@@ -133,8 +133,11 @@ export class ListsService {
     }
 
     //verifica accesso per liste private
-    if (!list.is_public && list.user_id !== userId) {
-      throw new ForbiddenException('non hai accesso a questa lista privata');
+    //permetti se: 1) lista pubblica, 2) sei il proprietario, 3) nessun userId fornito ma lista pubblica
+    if (!list.is_public) {
+      if (!userId || list.user_id !== userId) {
+        throw new ForbiddenException('non hai accesso a questa lista privata');
+      }
     }
 
     //popola film
@@ -207,7 +210,7 @@ export class ListsService {
   }
 
   //elimina lista
-  async deleteList(listId: string, userId: string): Promise<{ message: string }> {
+  async deleteList(listId: string, userId: string): Promise<any> {
     const list = await this.listRepository.findOne({ where: { id: listId } });
 
     if (!list) {
@@ -220,6 +223,7 @@ export class ListsService {
     }
 
     await this.listRepository.remove(list);
+
     return { message: 'lista eliminata con successo' };
   }
 
@@ -240,13 +244,16 @@ export class ListsService {
       throw new ForbiddenException('non puoi modificare questa lista');
     }
 
-    //verifica che il film esista
-    const movie = await this.movieRepository.findOne({ where: { id: movieId } });
+    //verifica se film esiste
+    const movie = await this.movieRepository.findOne({
+      where: { id: movieId },
+    });
+
     if (!movie) {
-      throw new NotFoundException(`film ${movieId} non trovato`);
+      throw new NotFoundException('film non trovato');
     }
 
-    //verifica se film gia presente
+    //verifica se gia presente
     if (list.movie_ids.includes(movieId)) {
       throw new BadRequestException('film gia presente nella lista');
     }
@@ -320,15 +327,12 @@ export class ListsService {
     list.follower_ids = [...(list.follower_ids || []), userId];
     list.followers_count = list.follower_ids.length;
 
-    const saved = await this.listRepository.save(list);
+    await this.listRepository.save(list);
 
-    return {
-      message: 'lista seguita con successo',
-      list: saved,
-    };
+    return { message: 'ora segui questa lista' };
   }
 
-  //smetti di seguire una lista
+  //smetti di seguire lista
   async unfollowList(listId: string, userId: string): Promise<any> {
     const list = await this.listRepository.findOne({ where: { id: listId } });
 
@@ -336,7 +340,7 @@ export class ListsService {
       throw new NotFoundException('lista non trovata');
     }
 
-    //verifica se segui
+    //verifica se segui la lista
     if (!list.follower_ids || !list.follower_ids.includes(userId)) {
       throw new BadRequestException('non stai seguendo questa lista');
     }
@@ -345,15 +349,12 @@ export class ListsService {
     list.follower_ids = list.follower_ids.filter(id => id !== userId);
     list.followers_count = list.follower_ids.length;
 
-    const saved = await this.listRepository.save(list);
+    await this.listRepository.save(list);
 
-    return {
-      message: 'lista non seguita piu',
-      list: saved,
-    };
+    return { message: 'hai smesso di seguire questa lista' };
   }
 
-  //ottieni followers di una lista
+  //ottieni followers lista
   async getListFollowers(listId: string): Promise<any[]> {
     const list = await this.listRepository.findOne({ where: { id: listId } });
 
@@ -365,7 +366,6 @@ export class ListsService {
       return [];
     }
 
-    //ottieni info utenti followers
     const followers = await this.userRepository.find({
       where: { id: In(list.follower_ids) },
       select: ['id', 'username', 'email'],
@@ -374,13 +374,12 @@ export class ListsService {
     return followers;
   }
 
-  //copia lista pubblica e rendila privata
+  //copia lista pubblica
   async copyList(
     listId: string,
     userId: string,
     newName?: string,
   ): Promise<any> {
-    //ottieni lista originale
     const originalList = await this.listRepository.findOne({
       where: { id: listId },
     });
@@ -393,7 +392,7 @@ export class ListsService {
       throw new ForbiddenException('puoi copiare solo liste pubbliche');
     }
 
-    //crea nuova lista privata
+    //crea nuova lista privata con film copiati
     const copiedList = this.listRepository.create({
       user_id: userId,
       name: newName || `${originalList.name} (copia)`,
@@ -404,7 +403,7 @@ export class ListsService {
 
     const saved = await this.listRepository.save(copiedList);
 
-    //popola con film
+    //popola film
     const movies = await this.getMoviesForList(saved.movie_ids);
 
     return {

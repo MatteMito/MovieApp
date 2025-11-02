@@ -1,5 +1,5 @@
 //file: app/src/main/java/com/example/movieapp/ui/social/SocialViewModel.kt
-//viewmodel per socialfragment con tutte le funzionalita
+//viewmodel per socialfragment con filtri completi
 
 package com.example.movieapp.ui.social
 
@@ -32,7 +32,7 @@ class SocialViewModel : ViewModel() {
     private val _publicLists = MutableLiveData<List<MovieList>>()
     val publicLists: LiveData<List<MovieList>> = _publicLists
 
-    //livedata filtrate (per ricerca)
+    //livedata filtrate (per ricerca e ordinamento)
     private val _filteredMyLists = MutableLiveData<List<MovieList>>()
     val filteredMyLists: LiveData<List<MovieList>> = _filteredMyLists
 
@@ -46,16 +46,10 @@ class SocialViewModel : ViewModel() {
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
-    //autocomplete
-    private val _autocompleteResults = MutableLiveData<List<Movie>>()
-    val autocompleteResults: LiveData<List<Movie>> = _autocompleteResults
-
-    private val _autocompleteLoading = MutableLiveData<Boolean>()
-    val autocompleteLoading: LiveData<Boolean> = _autocompleteLoading
-
     private var context: Context? = null
     private var currentSearchQuery: String = ""
     private var currentSortType: SortType = SortType.DATE_DESC
+    private var currentVisibilityFilter: Boolean? = null //null = tutte, true = pubbliche, false = private
 
     fun initialize(context: Context) {
         this.context = context
@@ -156,13 +150,18 @@ class SocialViewModel : ViewModel() {
         applyFilters()
     }
 
+    fun applyVisibilityFilter(isPublic: Boolean?) {
+        currentVisibilityFilter = isPublic
+        applyFilters()
+    }
+
     private fun applyFilters() {
         //filtra le mie liste
         val myListsData = _myLists.value ?: emptyList()
         val filteredMyLists = filterAndSortLists(myListsData)
         _filteredMyLists.value = filteredMyLists
 
-        //filtra liste pubbliche
+        //filtra liste pubbliche (sempre pubbliche)
         val publicListsData = _publicLists.value ?: emptyList()
         val filteredPublicLists = filterAndSortLists(publicListsData)
         _filteredPublicLists.value = filteredPublicLists
@@ -171,7 +170,12 @@ class SocialViewModel : ViewModel() {
     private fun filterAndSortLists(lists: List<MovieList>): List<MovieList> {
         var result = lists
 
-        //applica ricerca
+        //applica filtro visibilità (solo per "le mie liste")
+        if (currentVisibilityFilter != null) {
+            result = result.filter { it.isPublic == currentVisibilityFilter }
+        }
+
+        //applica ricerca per nome
         if (currentSearchQuery.isNotEmpty()) {
             result = result.filter { list ->
                 list.name.lowercase().contains(currentSearchQuery) ||
@@ -325,12 +329,12 @@ class SocialViewModel : ViewModel() {
                     userId = userId,
                     newName = newName
                 )
+
                 val response = ApiService.apiInterface.copyList(listId, request)
 
                 if (response.isSuccessful && response.body() != null) {
                     val copiedList = response.body()!!
                     Log.d(TAG, "lista copiata: ${copiedList.id}")
-                    loadMyLists()
                     onSuccess(copiedList)
                 } else {
                     val errorMsg = "errore copia: ${response.code()}"
@@ -344,41 +348,5 @@ class SocialViewModel : ViewModel() {
                 _loading.value = false
             }
         }
-    }
-
-    //autocomplete film
-
-    fun searchMoviesAutocomplete(query: String) {
-        if (query.length < 2) {
-            _autocompleteResults.value = emptyList()
-            return
-        }
-
-        viewModelScope.launch {
-            try {
-                _autocompleteLoading.value = true
-
-                Log.d(TAG, "autocomplete: $query")
-                val response = ApiService.apiInterface.autocompleteMovies(query, 10)
-
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val movies = response.body()?.data ?: emptyList()
-                    _autocompleteResults.value = movies
-                    Log.d(TAG, "trovati ${movies.size} film")
-                } else {
-                    _autocompleteResults.value = emptyList()
-                    Log.e(TAG, "errore autocomplete: ${response.code()}")
-                }
-            } catch (e: Exception) {
-                _autocompleteResults.value = emptyList()
-                Log.e(TAG, "eccezione searchmoviesautocomplete", e)
-            } finally {
-                _autocompleteLoading.value = false
-            }
-        }
-    }
-
-    fun clearAutocomplete() {
-        _autocompleteResults.value = emptyList()
     }
 }

@@ -111,7 +111,7 @@
                 android:layout_height="1dp"
                 android:layout_weight="1"/>
 
-            <!-- followers -->
+            <!-- followers - visibili solo se pubblico -->
             <TextView
                 android:id="@+id/tvFollowers"
                 android:layout_width="wrap_content"
@@ -132,15 +132,15 @@
             android:orientation="horizontal"
             android:gravity="end">
 
-            <!-- bottone edit (solo per le mie liste) -->
-            <com.google.android.material.button.MaterialButton
+            <!-- bottone edit icona (solo per le mie liste) -->
+            <ImageButton
                 android:id="@+id/btnEdit"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Modifica"
-                android:textAllCaps="false"
-                app:icon="@drawable/ic_filter"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_filter"
+                android:contentDescription="modifica lista"
+                app:tint="@color/primary_blue"
                 android:visibility="gone"
                 tools:visibility="visible"/>
 

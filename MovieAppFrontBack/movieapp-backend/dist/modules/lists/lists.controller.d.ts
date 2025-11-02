@@ -8,9 +8,7 @@ export declare class ListsController {
     getListById(id: string, userId?: string): Promise<any>;
     createList(createListDto: CreateListDto): Promise<any>;
     updateList(id: string, updateListDto: UpdateListDto, userId?: string): Promise<any>;
-    deleteList(id: string, userId?: string): Promise<{
-        message: string;
-    }>;
+    deleteList(id: string, userId?: string): Promise<any>;
     addMovieToList(listId: string, addMovieDto: AddMovieToListDto, userId?: string): Promise<any>;
     removeMovieFromList(listId: string, movieId: string, userId?: string): Promise<any>;
     followList(listId: string, body: {

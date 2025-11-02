@@ -311,7 +311,8 @@ interface ApiInterface {
     @PUT("lists/{id}")
     suspend fun updateList(
         @Path("id") listId: String,
-        @Body request: UpdateListRequest
+        @Body request: UpdateListRequest,
+        @Query("userId") userId: String
     ): Response<MovieList>
 
     @GET("lists/my")
@@ -327,7 +328,8 @@ interface ApiInterface {
 
     @GET("lists/{id}")
     suspend fun getListById(
-        @Path("id") listId: String
+        @Path("id") listId: String,
+        @Query("userId") userId: String? = null
     ): Response<MovieList>
 
     @DELETE("lists/{id}")
@@ -909,7 +911,7 @@ object ApiService {
                 is_public = isPublic
             )
 
-            val response = apiInterface.updateList(listId, request)
+            val response = apiInterface.getListById(listId, null)
 
             if (response.isSuccessful) {
                 val list = response.body()

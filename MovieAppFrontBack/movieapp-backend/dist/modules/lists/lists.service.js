@@ -94,8 +94,10 @@ let ListsService = class ListsService {
         if (!list) {
             throw new common_1.NotFoundException('lista non trovata');
         }
-        if (!list.is_public && list.user_id !== userId) {
-            throw new common_1.ForbiddenException('non hai accesso a questa lista privata');
+        if (!list.is_public) {
+            if (!userId || list.user_id !== userId) {
+                throw new common_1.ForbiddenException('non hai accesso a questa lista privata');
+            }
         }
         const movies = await this.getMoviesForList(list.movie_ids);
         return {
@@ -161,9 +163,11 @@ let ListsService = class ListsService {
         if (list.user_id !== userId) {
             throw new common_1.ForbiddenException('non puoi modificare questa lista');
         }
-        const movie = await this.movieRepository.findOne({ where: { id: movieId } });
+        const movie = await this.movieRepository.findOne({
+            where: { id: movieId },
+        });
         if (!movie) {
-            throw new common_1.NotFoundException(`film ${movieId} non trovato`);
+            throw new common_1.NotFoundException('film non trovato');
         }
         if (list.movie_ids.includes(movieId)) {
             throw new common_1.BadRequestException('film gia presente nella lista');
@@ -208,11 +212,8 @@ let ListsService = class ListsService {
         }
         list.follower_ids = [...(list.follower_ids || []), userId];
         list.followers_count = list.follower_ids.length;
-        const saved = await this.listRepository.save(list);
-        return {
-            message: 'lista seguita con successo',
-            list: saved,
-        };
+        await this.listRepository.save(list);
+        return { message: 'ora segui questa lista' };
     }
     async unfollowList(listId, userId) {
         const list = await this.listRepository.findOne({ where: { id: listId } });
@@ -224,11 +225,8 @@ let ListsService = class ListsService {
         }
         list.follower_ids = list.follower_ids.filter(id => id !== userId);
         list.followers_count = list.follower_ids.length;
-        const saved = await this.listRepository.save(list);
-        return {
-            message: 'lista non seguita piu',
-            list: saved,
-        };
+        await this.listRepository.save(list);
+        return { message: 'hai smesso di seguire questa lista' };
     }
     async getListFollowers(listId) {
         const list = await this.listRepository.findOne({ where: { id: listId } });
