@@ -221,11 +221,6 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        notificationsViewModel.decadeDescription.observe(viewLifecycleOwner) { description ->
-            binding.textDecadeDescription.text = description
-            binding.textDecadeDescription.visibility = View.VISIBLE
-        }
-
         //grafico combinazioni generi
         notificationsViewModel.genreCombinationsData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
