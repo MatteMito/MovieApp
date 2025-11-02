@@ -78,10 +78,10 @@ data class EnrichedMovieDto(
     val year: Int?,
     @SerializedName("tmdb_id")
     val tmdbId: Int?,
-    val genres: List<String>,
+    val genres: List<String> = emptyList(),
     val director: String?,
     @SerializedName("actors")
-    val cast: List<String>,
+    val cast: List<String> = emptyList(),
     val overview: String?,
     @SerializedName("poster_url")
     val posterUrl: String?,
@@ -98,7 +98,16 @@ data class EnrichedMovieDto(
     val watchedDate: String?,
     @SerializedName("is_watched")
     val isWatched: Boolean,
-    val source: String
+    val source: String,
+
+    @SerializedName("production_countries")
+    val productionCountries: List<String> = emptyList(),
+
+    @SerializedName("original_language")
+    val originalLanguage: String? = null,
+
+    @SerializedName("popularity")
+    val popularity: Double? = null
 )
 
 data class FailedMovie(
@@ -945,7 +954,11 @@ object ApiService {
             posterUrl = dto.posterUrl,
             backdropUrl = dto.backdropUrl,
             tmdbRating = dto.tmdbRating,
-            voteCount = dto.voteCount
+            voteCount = dto.voteCount,
+
+            productionCountries = dto.productionCountries,
+            originalLanguage = dto.originalLanguage,
+            popularity = dto.popularity
         )
     }
 

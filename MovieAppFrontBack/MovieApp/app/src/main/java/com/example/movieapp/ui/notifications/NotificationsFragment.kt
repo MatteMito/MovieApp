@@ -14,7 +14,6 @@ import com.example.movieapp.databinding.FragmentNotificationsBinding
 import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.PieChart
-import com.github.mikephil.charting.charts.ScatterChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
@@ -169,15 +168,15 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico ratings
-        notificationsViewModel.ratingsData.observe(viewLifecycleOwner) { data ->
-            Log.d(TAG, "ratingsData observer: size = ${data.size}, data = $data")
+        //grafico tmdb ratings
+        notificationsViewModel.tmdbRatingsData.observe(viewLifecycleOwner) { data ->
+            Log.d(TAG, "tmdbRatingsData observer: size = ${data.size}, data = $data")
             if (data.isNotEmpty()) {
                 binding.textRatingsEmpty.visibility = View.GONE
                 binding.chartRatings.visibility = View.VISIBLE
-                setupRatingsPieChart(data)
+                setupTmdbRatingsPieChart(data)
             } else {
-                Log.w(TAG, "ratingsData vuoto, mostra messaggio")
+                Log.w(TAG, "tmdbRatingsData vuoto, mostra messaggio")
                 binding.textRatingsEmpty.visibility = View.VISIBLE
                 binding.chartRatings.visibility = View.GONE
             }
@@ -261,10 +260,25 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico scatter rating vs anno
-        notificationsViewModel.ratingVsYearData.observe(viewLifecycleOwner) { data ->
+        //grafico lingue originali
+        notificationsViewModel.originalLanguagesData.observe(viewLifecycleOwner) { data ->
+            Log.d(TAG, "originalLanguagesData observer: size = ${data.size}, data = $data")
             if (data.isNotEmpty()) {
-                setupRatingVsYearScatterChart(data)
+                binding.textOriginalLanguagesEmpty.visibility = View.GONE
+                binding.chartOriginalLanguages.visibility = View.VISIBLE
+                setupOriginalLanguagesPieChart(data)
+            } else {
+                Log.w(TAG, "originalLanguagesData vuoto, mostra messaggio")
+                binding.textOriginalLanguagesEmpty.visibility = View.VISIBLE
+                binding.chartOriginalLanguages.visibility = View.GONE
+            }
+        }
+
+        notificationsViewModel.topOriginalLanguage.observe(viewLifecycleOwner) { (language, count) ->
+            binding.textTopOriginalLanguage.text = "🌐 lingua originale principale: $language ($count film)"
+            binding.textTopOriginalLanguage.visibility = View.VISIBLE
+            binding.textTopOriginalLanguage.setOnClickListener {
+                showMoviesDialog("Film in $language", notificationsViewModel.getMoviesByOriginalLanguage(language))
             }
         }
     }
@@ -291,7 +305,6 @@ class NotificationsFragment : Fragment() {
             legend.apply {
                 textSize = 10f
                 isWordWrapEnabled = true
-                //crea entries personalizzate per la legenda
                 setCustom(data.keys.mapIndexed { index, genre ->
                     com.github.mikephil.charting.components.LegendEntry().apply {
                         label = genre
@@ -504,12 +517,18 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico valutazioni
-    private fun setupRatingsPieChart(data: Map<String, Int>) {
-        Log.d(TAG, "setupRatingsPieChart chiamato con data: $data")
+    //grafico tmdb ratings (voti da 1 a 10)
+    private fun setupTmdbRatingsPieChart(data: Map<String, Int>) {
+        Log.d(TAG, "setupTmdbRatingsPieChart chiamato con data: $data")
 
-        val sortedData = data.toList().sortedBy { it.first.toIntOrNull() ?: 0 }
-        val entries = sortedData.map { PieEntry(it.second.toFloat(), "${it.first}⭐") }
+        val orderedRatings = (1..10).map { it.toString() }
+        val orderedData = orderedRatings.mapNotNull { rating ->
+            data[rating]?.let { rating to it }
+        }
+
+        val entries = orderedData.map { (rating, count) ->
+            PieEntry(count.toFloat(), "$rating⭐")
+        }
 
         Log.d(TAG, "entries create: ${entries.size}")
 
@@ -538,14 +557,14 @@ class NotificationsFragment : Fragment() {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is PieEntry) {
                         val rating = e.label?.replace("⭐", "")?.toIntOrNull() ?: 0
-                        val movies = notificationsViewModel.getMoviesByRating(rating)
+                        val movies = notificationsViewModel.getMoviesByTmdbRating(rating)
                         showMoviesDialog("Film valutati $rating⭐", movies)
                     }
                 }
                 override fun onNothingSelected() {}
             })
 
-            Log.d(TAG, "chart ratings configurato")
+            Log.d(TAG, "chart tmdb ratings configurato")
             invalidate()
         }
     }
@@ -804,48 +823,48 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico scatter plot rating vs anno
-    private fun setupRatingVsYearScatterChart(data: List<Triple<Int, Double, String>>) {
-        Log.d(TAG, "setupRatingVsYearScatterChart: ${data.size} film con rating e anno")
+    //grafico lingue originali
+    private fun setupOriginalLanguagesPieChart(data: Map<String, Int>) {
+        Log.d(TAG, "setupOriginalLanguagesPieChart: data size = ${data.size}")
 
-        val entries = data.map { (year, rating, _) ->
-            ScatterChart.ScatterShape.CIRCLE
-            Entry(year.toFloat(), rating.toFloat())
+        val entries = data.map {
+            Log.d(TAG, "lingua: ${it.key}, count: ${it.value}")
+            PieEntry(it.value.toFloat(), it.key)
         }
 
-        val dataSet = ScatterDataSet(entries, "Rating vs Anno").apply {
-            setScatterShape(ScatterChart.ScatterShape.CIRCLE)
-            scatterShapeSize = 12f
-            color = Color.parseColor("#667eea")
-            setDrawValues(false)
+        val dataSet = PieDataSet(entries, "").apply {
+            colors = chartColors
+            valueTextSize = 11f
+            valueTextColor = Color.WHITE
+            sliceSpace = 2f
+            valueFormatter = object : ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return value.toInt().toString()
+                }
+            }
         }
 
-        binding.chartRatingVsYear.apply {
-            this.data = ScatterData(dataSet)
-            description.text = "distribuzione rating per anno"
-            description.textSize = 10f
+        binding.chartOriginalLanguages.apply {
+            this.data = PieData(dataSet)
+            description.isEnabled = false
+            legend.textSize = 10f
+            setDrawEntryLabels(true)
+            setEntryLabelColor(Color.BLACK)
+            setEntryLabelTextSize(9f)
+            animateY(1000, Easing.EaseInOutQuad)
 
-            xAxis.apply {
-                position = XAxis.XAxisPosition.BOTTOM
-                setDrawGridLines(true)
-                gridColor = Color.parseColor("#E0E0E0")
-                textSize = 9f
-            }
+            setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
+                override fun onValueSelected(e: Entry?, h: Highlight?) {
+                    if (e is PieEntry) {
+                        val language = e.label ?: ""
+                        val movies = notificationsViewModel.getMoviesByOriginalLanguage(language)
+                        showMoviesDialog("Film in $language", movies)
+                    }
+                }
+                override fun onNothingSelected() {}
+            })
 
-            axisLeft.apply {
-                axisMinimum = 0f
-                axisMaximum = 10f
-                setDrawGridLines(true)
-                gridColor = Color.parseColor("#E0E0E0")
-            }
-
-            axisRight.isEnabled = false
-            legend.apply {
-                textSize = 10f
-                form = com.github.mikephil.charting.components.Legend.LegendForm.CIRCLE
-            }
-
-            animateXY(1000, 1000)
+            Log.d(TAG, "chart lingue originali configurato con ${entries.size} entries")
             invalidate()
         }
     }
@@ -859,7 +878,7 @@ class NotificationsFragment : Fragment() {
 
         val movieTitles = movies.map { movie ->
             val year = movie.year?.let { " ($it)" } ?: ""
-            val rating = movie.userRating?.let { " - ⭐${String.format("%.1f", it)}" } ?: ""
+            val rating = movie.tmdbRating?.let { " - ⭐${String.format("%.1f", it)}" } ?: ""
             "${movie.title}$year$rating"
         }.toTypedArray()
 

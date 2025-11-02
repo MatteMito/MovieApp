@@ -140,7 +140,7 @@
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="16dp"
                     android:visibility="gone"
-                    tools:text="⏱️ tempo totale: 15 giorni e 8 ore"
+                    tools:text="⏱️ Durata Totale Film: 15 ore e 8 minuti"
                     tools:visibility="visible"/>
 
             </LinearLayout>
@@ -533,23 +533,46 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 10: scatter rating vs anno -->
+                <!-- grafico 10: lingue originali -->
+                <TextView
+                    android:id="@+id/text_original_languages_empty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nessuna lingua originale disponibile"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_secondary"
+                    android:visibility="gone"
+                    android:layout_marginBottom="16dp"/>
+
+                <TextView
+                    android:id="@+id/text_top_original_language"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:padding="8dp"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackground"
+                    tools:text="🌐 lingua originale principale: inglese (120 film)"
+                    tools:visibility="visible"/>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Rating per Anno"
+                    android:text="Lingue Originali"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp"/>
 
-                <com.github.mikephil.charting.charts.ScatterChart
-                    android:id="@+id/chart_rating_vs_year"
+                <com.github.mikephil.charting.charts.PieChart
+                    android:id="@+id/chart_original_languages"
                     android:layout_width="match_parent"
-                    android:layout_height="350dp"
-                    android:layout_marginBottom="8dp"/>
-
+                    android:layout_height="300dp"
+                    android:layout_marginBottom="24dp"/>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
