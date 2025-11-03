@@ -300,7 +300,7 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "calculateTmdbRatingsData: totale film = ${movies.size}")
 
         val moviesWithTmdbRating = movies.filter {
-            it.tmdbRating != null && it.tmdbRating!! > 0
+            it.tmdbRating != null && it.tmdbRating > 0
         }
 
         Log.d(TAG, "film con tmdb_rating: ${moviesWithTmdbRating.size}")
@@ -453,7 +453,7 @@ class NotificationsViewModel : ViewModel() {
     }
 
     private fun calculateRuntimeRangesData(movies: List<Movie>) {
-        val moviesWithRuntime = movies.filter { it.runtime != null && it.runtime!! > 0 }
+        val moviesWithRuntime = movies.filter { it.runtime != null && it.runtime > 0 }
 
         val rangesMap = mutableMapOf<String, MutableList<Movie>>()
 
@@ -479,7 +479,7 @@ class NotificationsViewModel : ViewModel() {
         _runtimeRangesData.postValue(rangesCounts)
 
         val longestMoviesList = moviesWithRuntime
-            .filter { it.runtime != null && it.runtime!! > 0 }
+            .filter { it.runtime != null && it.runtime > 0 }
             .sortedByDescending { it.runtime }
             .take(10)
 
@@ -562,8 +562,8 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "calculatePopularityVsRatingData: totale film = ${movies.size}")
 
         val moviesWithData = movies.filter { movie ->
-            movie.tmdbRating != null && movie.tmdbRating!! > 0 &&
-                    movie.popularity != null && movie.popularity!! > 0
+            movie.tmdbRating != null && movie.tmdbRating > 0 &&
+                    movie.popularity != null && movie.popularity > 0
         }
 
         val data = moviesWithData.map { movie ->
@@ -581,7 +581,7 @@ class NotificationsViewModel : ViewModel() {
         val moviesWithData = movies.filter { movie ->
             movie.year != null &&
                     movie.popularity != null &&
-                    movie.popularity!! > 0
+                    movie.popularity > 0
         }
 
         val decadePopularity = moviesWithData

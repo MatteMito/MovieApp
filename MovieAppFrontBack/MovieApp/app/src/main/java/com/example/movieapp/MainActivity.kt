@@ -156,13 +156,6 @@ class MainActivity : AppCompatActivity() {
      * mostra dialog di conferma logout
      */
     private fun showLogoutDialog() {
-        val currentUser = ApiService.getCurrentUser()
-
-        val displayName = when {
-            currentUser != null && !currentUser.username.isNullOrBlank() -> currentUser.username
-            currentUser != null -> currentUser.email.substringBefore("@")
-            else -> "il tuo account"
-        }
 
         val message = getString(R.string.logout_confirm_message)
 

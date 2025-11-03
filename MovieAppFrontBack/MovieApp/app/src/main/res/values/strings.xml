@@ -8,6 +8,21 @@
     <string name="title_lists">Liste</string>
     <string name="title_notifications">Statistiche</string>
 
+    <!-- authentication -->
+    <string name="login">Accedi</string>
+    <string name="register">Registrati</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="username">Nome utente</string>
+    <string name="login_button">Accedi</string>
+    <string name="register_button">Crea account</string>
+    <string name="already_have_account">Hai già un account? Accedi</string>
+    <string name="dont_have_account">Non hai un account? Registrati</string>
+    <string name="login_error">Errore di accesso</string>
+    <string name="register_error">Errore di registrazione</string>
+    <string name="login_success">Accesso effettuato</string>
+    <string name="register_success">Account creato con successo</string>
+
     <!-- home screen -->
     <string name="import_imdb_watched">Importa film visti</string>
     <string name="import_imdb_watchlist">Importa film da vedere</string>
@@ -55,7 +70,7 @@
     <string name="letterboxd_watched_help">1. Vai su Letterboxd.com\n2. Accedi al tuo account\n3. Vai su Settings > Import &amp; Export\n4. Clicca \"Export Your Data\"\n5. Scarica \"watched.csv\"\n\nSeleziona il file scaricato per importarlo.</string>
     <string name="letterboxd_watchlist_help">1. Vai su Letterboxd.com\n2. Accedi al tuo account\n3. Vai su Settings > Import &amp; Export\n4. Clicca \"Export Your Data\"\n5. Scarica \"watchlist.csv\"\n\nSeleziona il file scaricato per importarlo.</string>
 
-    <string name="import_info_text">Seleziona i file CSV da IMDb o Letterboxd per importare i tuoi film.\n\nL\'app arricchirà automaticamente i dati con TMDB (poster, dettagli, rating).\n\nDopo l\'importazione, controlla le tue statistiche nel Dashboard!</string>
+    <string name="import_info_text">Seleziona file CSV da IMDb o Letterboxd per importare i tuoi film.\n\nL\'app li arricchirà automaticamente con i dati TMDB (poster, dettagli, voti).\n\nDopo l\'importazione, guarda le tue statistiche nel Dashboard!</string>
 
     <!-- clear all -->
     <string name="clear_all_title">Eliminare tutti i film?</string>
@@ -78,25 +93,25 @@
     <string name="logout">Esci</string>
     <string name="language">Lingua</string>
     <string name="select_language">Seleziona lingua</string>
-    <string name="logout_confirm_title">Logout</string>
+    <string name="logout_confirm_title">Disconnessione</string>
     <string name="logout_confirm_message">Vuoi disconnetterti?\n\nI tuoi film rimarranno salvati.</string>
     <string name="logout_button">Esci</string>
 
     <!-- account info dialog -->
     <string name="your_account">Il tuo account:</string>
     <string name="name">Nome:</string>
-    <string name="email">Email:</string>
+    <string name="email_label">Email:</string>
     <string name="app_version_label">Versione app:</string>
 
-    <!-- liste social -->
+    <!-- social lists -->
     <string name="create_list">Crea Lista</string>
     <string name="list_name">Nome Lista</string>
     <string name="list_description">Descrizione (opzionale)</string>
     <string name="public_list">Lista Pubblica</string>
     <string name="private_list">Lista Privata</string>
     <string name="add_movies">Aggiungi Film</string>
-    <string name="search_movies">Cerca film...</string>
-    <string name="no_lists">Nessuna lista ancora</string>
+    <string name="search_movies">Cerca film…</string>
+    <string name="no_lists">Ancora nessuna lista</string>
     <string name="my_lists">Le Mie Liste</string>
     <string name="public_lists">Liste Pubbliche</string>
     <string name="copy_list">Copia Lista</string>
@@ -106,5 +121,5 @@
     <string name="followers">follower</string>
     <string name="movies_count">%d film</string>
     <string name="selected_movies">%d film selezionati</string>
-    <string name="search_movies_placeholder">Cerca e seleziona i film da aggiungere alla lista</string>
+    <string name="search_movies_placeholder">Cerca e seleziona film da aggiungere alla lista</string>
 </resources>

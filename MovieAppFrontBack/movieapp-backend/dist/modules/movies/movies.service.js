@@ -40,7 +40,7 @@ let MoviesService = MoviesService_1 = class MoviesService {
             this.logger.log('controllo inizializzazione database...');
             const moviesCount = await this.movieRepository.count();
             this.logger.log(`film presenti nel database: ${moviesCount}`);
-            if (moviesCount >= 100) {
+            if (moviesCount >= 1000) {
                 this.logger.log('database gia inizializzato');
                 return {
                     needsSync: false,
@@ -82,7 +82,7 @@ let MoviesService = MoviesService_1 = class MoviesService {
     async syncInitialMovies() {
         try {
             this.logger.log('inizio sync film popolari...');
-            const result = await this.tmdbService.syncPopularMovies(1000);
+            const result = await this.tmdbService.syncPopularMovies(10000);
             this.logger.log(`sync completato: ${result.synced} film sincronizzati, ${result.errors} errori`);
         }
         catch (error) {

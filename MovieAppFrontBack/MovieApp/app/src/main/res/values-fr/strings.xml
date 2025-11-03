@@ -8,21 +8,36 @@
     <string name="title_lists">Listes</string>
     <string name="title_notifications">Statistiques</string>
 
+    <!-- authentication -->
+    <string name="login">Connexion</string>
+    <string name="register">S\'inscrire</string>
+    <string name="email">Email</string>
+    <string name="password">Mot de passe</string>
+    <string name="username">Nom d\'utilisateur</string>
+    <string name="login_button">Se connecter</string>
+    <string name="register_button">Créer un compte</string>
+    <string name="already_have_account">Vous avez déjà un compte ? Connectez-vous</string>
+    <string name="dont_have_account">Vous n\'avez pas de compte ? Inscrivez-vous</string>
+    <string name="login_error">Erreur de connexion</string>
+    <string name="register_error">Erreur d\'inscription</string>
+    <string name="login_success">Connexion réussie</string>
+    <string name="register_success">Compte créé avec succès</string>
+
     <!-- home screen -->
     <string name="import_imdb_watched">Importer films vus</string>
-    <string name="import_imdb_watchlist">Importer films à voir</string>
+    <string name="import_imdb_watchlist">Importer liste à voir</string>
     <string name="import_letterboxd_watched">Importer films vus</string>
-    <string name="import_letterboxd_watchlist">Importer films à voir</string>
+    <string name="import_letterboxd_watchlist">Importer liste à voir</string>
     <string name="clear_all">Supprimer tous les films</string>
 
     <!-- messages -->
     <string name="loading">Chargement…</string>
     <string name="processing">Traitement de vos films…</string>
     <string name="enriching">Récupération des informations…</string>
-    <string name="success">Terminé!</string>
-    <string name="error">Quelque chose s\'est mal passé</string>
+    <string name="success">Terminé !</string>
+    <string name="error">Une erreur s\'est produite</string>
     <string name="no_data">Aucune donnée disponible</string>
-    <string name="no_movies">Aucun film pour l\'instant</string>
+    <string name="no_movies">Aucun film pour le moment</string>
     <string name="no_movies_imported">Aucun film importé</string>
     <string name="import_movies_to_see_stats">Importez vos films pour voir les statistiques</string>
 
@@ -32,7 +47,7 @@
     <string name="watchlist_movies">À voir</string>
     <string name="enriched_movies">Avec détails</string>
     <string name="watch_hours">Heures de films</string>
-    <string name="stats_completed_percentage">%d%% terminé</string>
+    <string name="stats_completed_percentage">%d%% complété</string>
 
     <!-- charts -->
     <string name="genres_chart">Vos genres préférés</string>
@@ -44,7 +59,7 @@
     <string name="cancel">Annuler</string>
     <string name="ok">OK</string>
     <string name="delete">Supprimer</string>
-    <string name="select_file">Choisir le fichier</string>
+    <string name="select_file">Sélectionner un fichier</string>
 
     <!-- help dialogs -->
     <string name="imdb_help_title">Comment exporter depuis IMDb</string>
@@ -55,11 +70,11 @@
     <string name="letterboxd_watched_help">1. Allez sur Letterboxd.com\n2. Connectez-vous à votre compte\n3. Allez dans Settings > Import &amp; Export\n4. Cliquez sur \"Export Your Data\"\n5. Téléchargez \"watched.csv\"\n\nSélectionnez le fichier téléchargé pour l\'importer.</string>
     <string name="letterboxd_watchlist_help">1. Allez sur Letterboxd.com\n2. Connectez-vous à votre compte\n3. Allez dans Settings > Import &amp; Export\n4. Cliquez sur \"Export Your Data\"\n5. Téléchargez \"watchlist.csv\"\n\nSélectionnez le fichier téléchargé pour l\'importer.</string>
 
-    <string name="import_info_text">Sélectionnez des fichiers CSV d\'IMDb ou Letterboxd pour importer vos films.\n\nL\'application les enrichira automatiquement avec les données TMDB (affiches, détails, notes).\n\nAprès l\'importation, consultez vos statistiques dans le Dashboard!</string>
+    <string name="import_info_text">Sélectionnez des fichiers CSV d\'IMDb ou Letterboxd pour importer vos films.\n\nL\'application les enrichira automatiquement avec les données TMDB (affiches, détails, notes).\n\nAprès l\'importation, consultez vos statistiques dans le Dashboard !</string>
 
     <!-- clear all -->
-    <string name="clear_all_title">Supprimer tous les films?</string>
-    <string name="clear_all_message">Cette action supprimera tous vos films de la base de données.\n\nVoulez-vous continuer?</string>
+    <string name="clear_all_title">Supprimer tous les films ?</string>
+    <string name="clear_all_message">Cette action supprimera tous vos films de la base de données.\n\nVoulez-vous continuer ?</string>
 
     <!-- backend -->
     <string name="backend_connected">Connecté</string>
@@ -72,21 +87,21 @@
     <string name="content_description_charts">Graphiques et statistiques</string>
 
     <!-- account menu -->
-    <string name="hello_user">Bonjour %s!</string>
+    <string name="hello_user">Bonjour %s !</string>
     <string name="account">Compte</string>
     <string name="account_info">Info du Compte</string>
     <string name="logout">Déconnexion</string>
     <string name="language">Langue</string>
     <string name="select_language">Sélectionner la langue</string>
     <string name="logout_confirm_title">Déconnexion</string>
-    <string name="logout_confirm_message">Voulez-vous vous déconnecter?\n\nVos films resteront sauvegardés.</string>
+    <string name="logout_confirm_message">Voulez-vous vous déconnecter ?\n\nVos films resteront sauvegardés.</string>
     <string name="logout_button">Déconnexion</string>
 
     <!-- account info dialog -->
-    <string name="your_account">Votre compte:</string>
-    <string name="name">Nom:</string>
-    <string name="email">Email:</string>
-    <string name="app_version_label">Version de l\'app:</string>
+    <string name="your_account">Votre compte :</string>
+    <string name="name">Nom :</string>
+    <string name="email_label">Email :</string>
+    <string name="app_version_label">Version de l\'app :</string>
 
     <!-- social lists -->
     <string name="create_list">Créer une Liste</string>
@@ -95,7 +110,7 @@
     <string name="public_list">Liste Publique</string>
     <string name="private_list">Liste Privée</string>
     <string name="add_movies">Ajouter des Films</string>
-    <string name="search_movies">Rechercher des films...</string>
+    <string name="search_movies">Rechercher des films…</string>
     <string name="no_lists">Aucune liste pour l\'instant</string>
     <string name="my_lists">Mes Listes</string>
     <string name="public_lists">Listes Publiques</string>

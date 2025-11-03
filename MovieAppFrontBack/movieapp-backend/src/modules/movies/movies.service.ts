@@ -109,7 +109,7 @@ export class MoviesService {
       this.logger.log(`film presenti nel database: ${moviesCount}`);
 
       //se ci sono gia film, non serve sincronizzare
-      if (moviesCount >= 100) {
+      if (moviesCount >= 1000) {
         this.logger.log('database gia inizializzato');
         return {
           needsSync: false,
@@ -160,8 +160,8 @@ export class MoviesService {
     try {
       this.logger.log('inizio sync film popolari...');
 
-      //carica top 1000 film piu popolari
-      const result = await this.tmdbService.syncPopularMovies(1000);
+      //carica top 10000 film piu popolari
+      const result = await this.tmdbService.syncPopularMovies(10000);
 
       this.logger.log(`sync completato: ${result.synced} film sincronizzati, ${result.errors} errori`);
     } catch (error) {

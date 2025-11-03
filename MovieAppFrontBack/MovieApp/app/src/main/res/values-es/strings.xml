@@ -8,22 +8,37 @@
     <string name="title_lists">Listas</string>
     <string name="title_notifications">Estadísticas</string>
 
+    <!-- authentication -->
+    <string name="login">Iniciar sesión</string>
+    <string name="register">Registrarse</string>
+    <string name="email">Email</string>
+    <string name="password">Contraseña</string>
+    <string name="username">Nombre de usuario</string>
+    <string name="login_button">Iniciar sesión</string>
+    <string name="register_button">Crear cuenta</string>
+    <string name="already_have_account">¿Ya tienes una cuenta? Inicia sesión</string>
+    <string name="dont_have_account">¿No tienes una cuenta? Regístrate</string>
+    <string name="login_error">Error de inicio de sesión</string>
+    <string name="register_error">Error de registro</string>
+    <string name="login_success">Sesión iniciada correctamente</string>
+    <string name="register_success">Cuenta creada correctamente</string>
+
     <!-- home screen -->
     <string name="import_imdb_watched">Importar películas vistas</string>
-    <string name="import_imdb_watchlist">Importar películas por ver</string>
+    <string name="import_imdb_watchlist">Importar lista de pendientes</string>
     <string name="import_letterboxd_watched">Importar películas vistas</string>
-    <string name="import_letterboxd_watchlist">Importar películas por ver</string>
+    <string name="import_letterboxd_watchlist">Importar lista de pendientes</string>
     <string name="clear_all">Eliminar todas las películas</string>
 
     <!-- messages -->
     <string name="loading">Cargando…</string>
     <string name="processing">Procesando tus películas…</string>
-    <string name="enriching">Recuperando información…</string>
-    <string name="success">¡Hecho!</string>
+    <string name="enriching">Obteniendo información…</string>
+    <string name="success">¡Listo!</string>
     <string name="error">Algo salió mal</string>
     <string name="no_data">No hay datos disponibles</string>
     <string name="no_movies">Aún no hay películas</string>
-    <string name="no_movies_imported">No hay películas importadas</string>
+    <string name="no_movies_imported">No se importaron películas</string>
     <string name="import_movies_to_see_stats">Importa tus películas para ver estadísticas</string>
 
     <!-- stats -->
@@ -44,7 +59,7 @@
     <string name="cancel">Cancelar</string>
     <string name="ok">OK</string>
     <string name="delete">Eliminar</string>
-    <string name="select_file">Elegir archivo</string>
+    <string name="select_file">Seleccionar archivo</string>
 
     <!-- help dialogs -->
     <string name="imdb_help_title">Cómo exportar desde IMDb</string>
@@ -55,7 +70,7 @@
     <string name="letterboxd_watched_help">1. Ve a Letterboxd.com\n2. Inicia sesión en tu cuenta\n3. Ve a Settings > Import &amp; Export\n4. Haz clic en \"Export Your Data\"\n5. Descarga \"watched.csv\"\n\nSelecciona el archivo descargado para importarlo.</string>
     <string name="letterboxd_watchlist_help">1. Ve a Letterboxd.com\n2. Inicia sesión en tu cuenta\n3. Ve a Settings > Import &amp; Export\n4. Haz clic en \"Export Your Data\"\n5. Descarga \"watchlist.csv\"\n\nSelecciona el archivo descargado para importarlo.</string>
 
-    <string name="import_info_text">Selecciona archivos CSV de IMDb o Letterboxd para importar tus películas.\n\nLa app las enriquecerá automáticamente con datos de TMDB (pósters, detalles, calificaciones).\n\n¡Después de la importación, revisa tus estadísticas en el Dashboard!</string>
+    <string name="import_info_text">Selecciona archivos CSV de IMDb o Letterboxd para importar tus películas.\n\nLa aplicación las enriquecerá automáticamente con datos de TMDB (pósteres, detalles, calificaciones).\n\n¡Después de importar, consulta tus estadísticas en el Dashboard!</string>
 
     <!-- clear all -->
     <string name="clear_all_title">¿Eliminar todas las películas?</string>
@@ -68,7 +83,7 @@
 
     <!-- accessibility -->
     <string name="content_description_home">Pantalla principal</string>
-    <string name="content_description_dashboard">Información</string>
+    <string name="content_description_dashboard">Panel de información</string>
     <string name="content_description_charts">Gráficos y estadísticas</string>
 
     <!-- account menu -->
@@ -85,7 +100,7 @@
     <!-- account info dialog -->
     <string name="your_account">Tu cuenta:</string>
     <string name="name">Nombre:</string>
-    <string name="email">Email:</string>
+    <string name="email_label">Email:</string>
     <string name="app_version_label">Versión de la app:</string>
 
     <!-- social lists -->
@@ -95,7 +110,7 @@
     <string name="public_list">Lista Pública</string>
     <string name="private_list">Lista Privada</string>
     <string name="add_movies">Agregar Películas</string>
-    <string name="search_movies">Buscar películas...</string>
+    <string name="search_movies">Buscar películas…</string>
     <string name="no_lists">Aún no hay listas</string>
     <string name="my_lists">Mis Listas</string>
     <string name="public_lists">Listas Públicas</string>

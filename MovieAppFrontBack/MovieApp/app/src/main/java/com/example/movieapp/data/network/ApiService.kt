@@ -901,18 +901,9 @@ object ApiService {
 
     suspend fun updateList(
         listId: String,
-        name: String? = null,
-        description: String? = null,
-        isPublic: Boolean? = null
     ): Result<MovieList> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "aggiornamento lista $listId")
-
-            val request = UpdateListRequest(
-                name = name,
-                description = description,
-                is_public = isPublic
-            )
 
             val response = apiInterface.getListById(listId, null)
 
