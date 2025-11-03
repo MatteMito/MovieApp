@@ -23,7 +23,7 @@ let MoviesController = MoviesController_1 = class MoviesController {
     }
     async healthCheck() {
         try {
-            this.logger.log('🏥 health check richiesto');
+            this.logger.log('health check richiesto');
             const health = await this.moviesService.healthCheck();
             return {
                 success: true,
@@ -44,7 +44,7 @@ let MoviesController = MoviesController_1 = class MoviesController {
     }
     async getCacheStats() {
         try {
-            this.logger.log('📊 statistiche cache richieste');
+            this.logger.log('statistiche cache richieste');
             const stats = await this.moviesService.getStats();
             return {
                 success: true,
@@ -62,9 +62,31 @@ let MoviesController = MoviesController_1 = class MoviesController {
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    async initializeApp(userId) {
+        try {
+            this.logger.log('richiesta inizializzazione app');
+            const result = await this.moviesService.initializeApp();
+            return {
+                success: true,
+                data: result,
+                message: result.needsSync
+                    ? 'inizializzazione avviata in background'
+                    : 'database gia inizializzato',
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore inizializzazione: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: `errore inizializzazione: ${error.message}`,
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
     async enrichMovies(body) {
         try {
-            this.logger.log(`🎬 richiesta enrichment per ${body.movies.length} film`);
+            this.logger.log(`richiesta enrichment per ${body.movies.length} film`);
             if (!body.movies || body.movies.length === 0) {
                 throw new common_1.HttpException({
                     success: false,
@@ -74,7 +96,7 @@ let MoviesController = MoviesController_1 = class MoviesController {
             }
             const result = await this.moviesService.enrichMovies(body.movies);
             const enrichedCount = result.successfulMovies.filter((m) => m.tmdb_id).length;
-            this.logger.log(`✅ enrichment completato: ${enrichedCount}/${body.movies.length} film`);
+            this.logger.log(`enrichment completato: ${enrichedCount}/${body.movies.length} film`);
             return {
                 success: true,
                 data: result,
@@ -83,7 +105,7 @@ let MoviesController = MoviesController_1 = class MoviesController {
             };
         }
         catch (error) {
-            this.logger.error(`❌ errore enrichment: ${error.message}`);
+            this.logger.error(`errore enrichment: ${error.message}`);
             throw new common_1.HttpException({
                 success: false,
                 message: `errore enrichment: ${error.message}`,
@@ -97,14 +119,14 @@ let MoviesController = MoviesController_1 = class MoviesController {
             if (!userId) {
                 throw new common_1.HttpException({
                     success: false,
-                    message: 'userId mancante. Fornire userId nel body o nell\'header user-id',
+                    message: 'userId mancante. fornire userId nel body o nell\'header user-id',
                     timestamp: new Date().toISOString(),
                 }, common_1.HttpStatus.BAD_REQUEST);
             }
-            this.logger.log(`📦 batch upload per utente ${userId}: ${body.watchlist.length} watchlist + ${body.watched.length} watched`);
+            this.logger.log(`batch upload per utente ${userId}: ${body.watchlist.length} watchlist + ${body.watched.length} watched`);
             const result = await this.moviesService.batchUploadWithUserAssociation(userId, body.watchlist, body.watched);
-            this.logger.log(`✅ batch upload completato: ${result.summary.totalEnriched} film arricchiti`);
-            this.logger.log(`📊 Contatori: ${result.importCounters.watchedFromFile} watched e ${result.importCounters.watchlistFromFile} watchlist nel file`);
+            this.logger.log(`batch upload completato: ${result.summary.totalEnriched} film arricchiti`);
+            this.logger.log(`contatori: ${result.importCounters.watchedFromFile} watched e ${result.importCounters.watchlistFromFile} watchlist nel file`);
             return {
                 success: true,
                 data: {
@@ -127,7 +149,7 @@ let MoviesController = MoviesController_1 = class MoviesController {
             };
         }
         catch (error) {
-            this.logger.error(`❌ errore batch upload: ${error.message}`);
+            this.logger.error(`errore batch upload: ${error.message}`);
             throw new common_1.HttpException({
                 success: false,
                 message: `errore batch upload: ${error.message}`,
@@ -135,86 +157,19 @@ let MoviesController = MoviesController_1 = class MoviesController {
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async getUserMovies(userId, status, query, genre, year, director, minRating, maxRating, sortBy, sortOrder, limit, offset) {
+    async getUserMovies(userId, status) {
         try {
-            this.logger.log(`📚 richiesta film per utente: ${userId}`);
-            const filters = {
-                status,
-                query,
-                genre,
-                year: year ? parseInt(year, 10) : undefined,
-                director,
-                minRating: minRating ? parseFloat(minRating) : undefined,
-                maxRating: maxRating ? parseFloat(maxRating) : undefined,
-                sortBy,
-                sortOrder,
-                limit: limit ? parseInt(limit, 10) : undefined,
-                offset: offset ? parseInt(offset, 10) : undefined,
-            };
-            const result = await this.moviesService.getUserMovies(userId, filters);
+            this.logger.log(`richiesta film per user ${userId} (status: ${status || 'all'})`);
+            const movies = await this.moviesService.getAllMovies(userId, status);
             return {
                 success: true,
-                data: {
-                    movies: result.movies,
-                    total: result.total,
-                    filters,
-                },
-                message: `recuperati ${result.movies.length} di ${result.total} film per utente ${userId}`,
+                data: { movies },
+                message: `recuperati ${movies.length} film`,
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
-            this.logger.error(`errore recupero film utente: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero film utente',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    async getUserStats(userId) {
-        try {
-            this.logger.log(`📊 richiesta statistiche per utente: ${userId}`);
-            const stats = await this.moviesService.getUserStats(userId);
-            return {
-                success: true,
-                data: stats,
-                message: `statistiche recuperate per utente ${userId}`,
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore statistiche utente: ${error.message}`);
-            throw new common_1.HttpException({
-                success: false,
-                message: 'errore recupero statistiche utente',
-                timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    async getMovieById(id) {
-        try {
-            this.logger.log(`🎬 richiesta film: ${id}`);
-            const movie = await this.moviesService.getMovieById(id);
-            if (!movie) {
-                throw new common_1.HttpException({
-                    success: false,
-                    message: 'film non trovato',
-                    timestamp: new Date().toISOString(),
-                }, common_1.HttpStatus.NOT_FOUND);
-            }
-            return {
-                success: true,
-                data: movie,
-                message: 'film recuperato',
-                timestamp: new Date().toISOString(),
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore recupero film ${id}: ${error.message}`);
-            if (error instanceof common_1.HttpException) {
-                throw error;
-            }
+            this.logger.error(`errore recupero film: ${error.message}`);
             throw new common_1.HttpException({
                 success: false,
                 message: 'errore recupero film',
@@ -222,45 +177,28 @@ let MoviesController = MoviesController_1 = class MoviesController {
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async searchMovies(query, genre, year, director, minRating, maxRating, watched, sortBy, sortOrder, limit, offset) {
+    async getUserStats(userId) {
         try {
-            this.logger.log(`🔍 ricerca film: query="${query}"`);
-            const filters = {
-                query,
-                genre,
-                year: year ? parseInt(year) : undefined,
-                director,
-                minRating: minRating ? parseFloat(minRating) : undefined,
-                maxRating: maxRating ? parseFloat(maxRating) : undefined,
-                watched: watched !== undefined ? watched === 'true' : undefined,
-                sortBy: sortBy || 'title',
-                sortOrder: sortOrder || 'ASC',
-                limit: limit ? parseInt(limit) : 50,
-                offset: offset ? parseInt(offset) : 0,
-            };
-            const result = await this.moviesService.searchMovies(filters);
+            this.logger.log(`richiesta statistiche per user ${userId}`);
+            const stats = await this.moviesService.getUserStats(userId);
             return {
                 success: true,
-                data: {
-                    movies: result.movies,
-                    total: result.total,
-                    filters,
-                },
-                message: `trovati ${result.total} film`,
+                data: stats,
+                message: 'statistiche recuperate',
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
-            this.logger.error(`errore ricerca: ${error.message}`);
+            this.logger.error(`errore statistiche utente: ${error.message}`);
             throw new common_1.HttpException({
                 success: false,
-                message: 'errore ricerca film',
+                message: 'errore recupero statistiche',
                 timestamp: new Date().toISOString(),
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
     async getAllMovies(userId) {
-        this.logger.warn('⚠️ Endpoint /all deprecato. Usare /user/:userId');
+        this.logger.warn('endpoint /all deprecato. usare /user/:userId');
         try {
             if (!userId) {
                 throw new common_1.HttpException({
@@ -269,12 +207,12 @@ let MoviesController = MoviesController_1 = class MoviesController {
                     timestamp: new Date().toISOString(),
                 }, common_1.HttpStatus.BAD_REQUEST);
             }
-            this.logger.log('📚 richiesta tutti i film (deprecato)');
+            this.logger.log('richiesta tutti i film (deprecato)');
             const movies = await this.moviesService.getAllMovies(userId);
             return {
                 success: true,
                 data: { movies },
-                message: `recuperati ${movies.length} film - ATTENZIONE: endpoint deprecato, usare /user/:userId`,
+                message: `recuperati ${movies.length} film - attenzione: endpoint deprecato, usare /user/:userId`,
                 timestamp: new Date().toISOString(),
             };
         }
@@ -289,9 +227,9 @@ let MoviesController = MoviesController_1 = class MoviesController {
     }
     async deleteAllUserMovies(userId) {
         try {
-            this.logger.log(`🗑️ richiesta eliminazione associazioni film per user ${userId}`);
+            this.logger.log(`richiesta eliminazione associazioni film per user ${userId}`);
             const result = await this.moviesService.deleteAllMovies(userId);
-            this.logger.log(`✅ eliminate ${result.deleted} associazioni film`);
+            this.logger.log(`eliminate ${result.deleted} associazioni film`);
             return {
                 success: true,
                 data: result,
@@ -300,7 +238,7 @@ let MoviesController = MoviesController_1 = class MoviesController {
             };
         }
         catch (error) {
-            this.logger.error(`❌ errore eliminazione associazioni: ${error.message}`);
+            this.logger.error(`errore eliminazione associazioni: ${error.message}`);
             throw new common_1.HttpException({
                 success: false,
                 message: `errore eliminazione associazioni: ${error.message}`,
@@ -308,38 +246,29 @@ let MoviesController = MoviesController_1 = class MoviesController {
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    async initializeApp(userId) {
+    async deleteAllMovies(userId) {
         try {
-            this.logger.log('🚀 inizializzazione app client');
             if (!userId) {
                 throw new common_1.HttpException({
                     success: false,
-                    message: 'userId richiesto negli headers (x-user-id)',
+                    message: 'userid richiesto per operazioni di eliminazione',
                     timestamp: new Date().toISOString(),
                 }, common_1.HttpStatus.BAD_REQUEST);
             }
-            const [userMoviesResult, stats] = await Promise.all([
-                this.moviesService.getUserMovies(userId, {}),
-                this.moviesService.getStats(),
-            ]);
-            const movies = userMoviesResult.movies;
-            const enrichedCount = movies.filter((m) => m.tmdb_id).length;
-            this.logger.log(`✅ inizializzazione completata: ${movies.length} film (${enrichedCount} arricchiti)`);
+            this.logger.log(`richiesta eliminazione completa film (user: ${userId})`);
+            const result = await this.moviesService.deleteAllMovies(userId);
             return {
                 success: true,
-                data: {
-                    movies,
-                    stats: stats.database,
-                },
-                message: `app inizializzata con ${movies.length} film`,
+                data: result,
+                message: `eliminati ${result.deleted} film`,
                 timestamp: new Date().toISOString(),
             };
         }
         catch (error) {
-            this.logger.error(`errore inizializzazione: ${error.message}`);
+            this.logger.error(`errore eliminazione film: ${error.message}`);
             throw new common_1.HttpException({
                 success: false,
-                message: 'errore inizializzazione app',
+                message: `errore eliminazione: ${error.message}`,
                 timestamp: new Date().toISOString(),
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -359,6 +288,13 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], MoviesController.prototype, "getCacheStats", null);
 __decorate([
+    (0, common_1.Get)('initialize'),
+    __param(0, (0, common_1.Headers)('x-user-id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "initializeApp", null);
+__decorate([
     (0, common_1.Post)('enrich'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -377,18 +313,8 @@ __decorate([
     (0, common_1.Get)('user/:userId'),
     __param(0, (0, common_1.Param)('userId')),
     __param(1, (0, common_1.Query)('status')),
-    __param(2, (0, common_1.Query)('query')),
-    __param(3, (0, common_1.Query)('genre')),
-    __param(4, (0, common_1.Query)('year')),
-    __param(5, (0, common_1.Query)('director')),
-    __param(6, (0, common_1.Query)('minRating')),
-    __param(7, (0, common_1.Query)('maxRating')),
-    __param(8, (0, common_1.Query)('sortBy')),
-    __param(9, (0, common_1.Query)('sortOrder')),
-    __param(10, (0, common_1.Query)('limit')),
-    __param(11, (0, common_1.Query)('offset')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], MoviesController.prototype, "getUserMovies", null);
 __decorate([
@@ -398,30 +324,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], MoviesController.prototype, "getUserStats", null);
-__decorate([
-    (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], MoviesController.prototype, "getMovieById", null);
-__decorate([
-    (0, common_1.Get)('search'),
-    __param(0, (0, common_1.Query)('q')),
-    __param(1, (0, common_1.Query)('genre')),
-    __param(2, (0, common_1.Query)('year')),
-    __param(3, (0, common_1.Query)('director')),
-    __param(4, (0, common_1.Query)('minRating')),
-    __param(5, (0, common_1.Query)('maxRating')),
-    __param(6, (0, common_1.Query)('watched')),
-    __param(7, (0, common_1.Query)('sortBy')),
-    __param(8, (0, common_1.Query)('sortOrder')),
-    __param(9, (0, common_1.Query)('limit')),
-    __param(10, (0, common_1.Query)('offset')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String]),
-    __metadata("design:returntype", Promise)
-], MoviesController.prototype, "searchMovies", null);
 __decorate([
     (0, common_1.Get)('all'),
     __param(0, (0, common_1.Headers)('x-user-id')),
@@ -437,12 +339,12 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], MoviesController.prototype, "deleteAllUserMovies", null);
 __decorate([
-    (0, common_1.Get)('initialize'),
+    (0, common_1.Delete)('all'),
     __param(0, (0, common_1.Headers)('x-user-id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], MoviesController.prototype, "initializeApp", null);
+], MoviesController.prototype, "deleteAllMovies", null);
 exports.MoviesController = MoviesController = MoviesController_1 = __decorate([
     (0, common_1.Controller)('api/v1/movies'),
     __metadata("design:paramtypes", [movies_service_1.MoviesService])

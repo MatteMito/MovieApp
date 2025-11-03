@@ -1,5 +1,5 @@
-// file: src/database/database.service.ts
-// service database con metodi per sync tmdb
+//file: src/database/database.service.ts
+//service database con metodi per sync tmdb
 
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -17,7 +17,7 @@ export class DatabaseService {
     private movieRepository: Repository<MovieEntity>,
   ) {}
 
-  // ===== CONVERSIONI ENTITY <-> MODEL =====
+  //===== conversioni entity <-> model =====
 
   private movieToEntity(movie: Movie): MovieEntity {
     const entity = new MovieEntity();
@@ -97,11 +97,11 @@ export class DatabaseService {
     };
   }
 
-  // ===== OPERAZIONI CRUD MOVIES =====
+  //===== operazioni crud movies =====
 
   async saveMovie(movie: Movie): Promise<Movie> {
     try {
-      //controlla se esiste giÃ  un film con questo tmdb_id
+      //controlla se esiste gia un film con questo tmdb_id
       if (movie.tmdb_id) {
         const existing = await this.movieRepository.findOne({
           where: { tmdb_id: movie.tmdb_id }
@@ -215,7 +215,7 @@ export class DatabaseService {
     }
   }
 
-  // ===== METODI PER AUTOCOMPLETE E SYNC =====
+  //===== metodi per autocomplete e sync =====
 
   async searchMoviesForAutocomplete(query: string, limit: number = 10): Promise<Movie[]> {
     try {
@@ -256,33 +256,40 @@ export class DatabaseService {
         withTmdbId,
       };
     } catch (error) {
-      this.logger.error(`errore stats: ${error.message}`);
-      return { total: 0, enriched: 0, notEnriched: 0, withTmdbId: 0 };
+      this.logger.error(`errore stats sync: ${error.message}`);
+      throw error;
     }
   }
 
-  // ===== CACHE ANALYTICS =====
+  //===== cache analytics =====
 
-  getCachedAnalytics(key: string): any | null {
-    const cached = this.analyticsCache.get(key);
-    if (!cached) return null;
-
-    if (new Date() > cached.expiresAt) {
-      this.analyticsCache.delete(key);
-      return null;
-    }
-
-    return cached.data;
-  }
-
-  setCachedAnalytics(key: string, data: any, ttlMinutes: number = 5): void {
+  setAnalyticsCache(key: string, data: any, ttlMinutes: number = 30): void {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + ttlMinutes);
     
     this.analyticsCache.set(key, { data, expiresAt });
+    this.logger.debug(`cache analytics salvata: ${key} (ttl: ${ttlMinutes}min)`);
+  }
+
+  getAnalyticsCache(key: string): any | null {
+    const cached = this.analyticsCache.get(key);
+    
+    if (!cached) {
+      return null;
+    }
+
+    if (new Date() > cached.expiresAt) {
+      this.analyticsCache.delete(key);
+      this.logger.debug(`cache analytics scaduta: ${key}`);
+      return null;
+    }
+
+    this.logger.debug(`cache analytics hit: ${key}`);
+    return cached.data;
   }
 
   clearAnalyticsCache(): void {
     this.analyticsCache.clear();
+    this.logger.log('cache analytics svuotata');
   }
 }

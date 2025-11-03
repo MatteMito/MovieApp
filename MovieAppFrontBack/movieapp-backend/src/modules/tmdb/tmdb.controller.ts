@@ -1,11 +1,11 @@
-// file: src/modules/tmdb/tmdb.controller.ts
-// controller per ricerca film tmdb e sync
+//controller per ricerca film tmdb e sync con endpoint autocomplete
 
 import {
   Controller,
   Get,
   Post,
   Body,
+  Query,
   HttpStatus,
   HttpException,
   Logger,
@@ -30,7 +30,53 @@ export class TmdbController {
   ) {}
 
   /**
-   * POST /api/v1/tmdb/sync-popular
+   * get /api/v1/tmdb/autocomplete
+   * autocomplete film dal database locale
+   */
+  @Get('autocomplete')
+  async autocompleteMovies(
+    @Query('query') query: string,
+    @Query('limit') limit?: string,
+  ): Promise<ApiResponse> {
+    try {
+      if (!query || query.trim().length === 0) {
+        return {
+          success: true,
+          data: [],
+          message: 'query vuota',
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const parsedLimit = limit ? parseInt(limit, 10) : 10;
+
+      this.logger.log(`autocomplete: "${query}" (limit: ${parsedLimit})`);
+
+      const movies = await this.tmdbService.searchForAutocomplete(query, parsedLimit);
+
+      this.logger.log(`trovati ${movies.length} film`);
+
+      return {
+        success: true,
+        data: movies,
+        message: `trovati ${movies.length} film`,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.error(`errore autocomplete: ${error.message}`);
+      throw new HttpException(
+        { 
+          success: false, 
+          message: error.message, 
+          timestamp: new Date().toISOString() 
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * post /api/v1/tmdb/sync-popular
    * sincronizza top 10k film popolari da tmdb
    */
   @Post('sync-popular')
@@ -60,7 +106,7 @@ export class TmdbController {
   }
 
   /**
-   * GET /api/v1/tmdb/stats
+   * get /api/v1/tmdb/stats
    * statistiche sync database
    */
   @Get('stats')

@@ -1,5 +1,5 @@
 //file: app/src/main/java/com/example/movieapp/ui/social/ListDetailViewModel.kt
-//viewmodel per listdetailfragment con userid nelle chiamate
+//viewmodel per listdetailfragment con arricchimento automatico film
 
 package com.example.movieapp.ui.social
 
@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movieapp.data.models.Movie
 import com.example.movieapp.data.models.MovieList
+import com.example.movieapp.data.models.DataSource
 import com.example.movieapp.data.network.ApiService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -108,8 +109,13 @@ class ListDetailViewModel : ViewModel() {
         _searchResults.value = emptyList()
     }
 
-    //aggiungi film
-    fun addMovie(listId: String, movieId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    //aggiungi film alla lista con arricchimento automatico se necessario
+    fun addMovie(
+        listId: String,
+        movie: Movie,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 val userId = ApiService.getCurrentUserId()
@@ -118,12 +124,27 @@ class ListDetailViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "aggiungo film $movieId alla lista $listId")
-                val request = com.example.movieapp.data.network.AddMovieToListRequest(movie_id = movieId)
+                //step 1: controlla se il film e' gia arricchito
+                if (!movie.isEnriched) {
+                    Log.d(TAG, "film non arricchito: ${movie.title}, arricchisco prima di aggiungere...")
+
+                    //arricchisci il film prima di aggiungerlo
+                    val enrichResult = enrichMovieBeforeAdding(movie)
+
+                    if (enrichResult == null) {
+                        Log.w(TAG, "impossibile arricchire film ${movie.title}, aggiungo comunque")
+                    } else {
+                        Log.d(TAG, "film arricchito con successo: ${enrichResult.title}")
+                    }
+                }
+
+                //step 2: aggiungi film alla lista (usa id del film dal database)
+                Log.d(TAG, "aggiungo film ${movie.id} alla lista $listId")
+                val request = com.example.movieapp.data.network.AddMovieToListRequest(movie_id = movie.id)
                 val response = ApiService.apiInterface.addMovieToList(listId, request, userId)
 
                 if (response.isSuccessful) {
-                    Log.d(TAG, "film aggiunto")
+                    Log.d(TAG, "film aggiunto con successo")
                     onSuccess()
                 } else {
                     val errorMsg = "errore aggiunta: ${response.code()}"
@@ -135,6 +156,83 @@ class ListDetailViewModel : ViewModel() {
                 onError("errore: ${e.message}")
             }
         }
+    }
+
+    //arricchisci film chiamando backend
+    private suspend fun enrichMovieBeforeAdding(movie: Movie): Movie? {
+        return try {
+            Log.d(TAG, "chiamata enrichment per ${movie.title}")
+
+            val request = com.example.movieapp.data.network.EnrichRequest(
+                movies = listOf(
+                    com.example.movieapp.data.network.MovieDto(
+                        id = movie.id,
+                        title = movie.title,
+                        year = movie.year,
+                        userRating = null,
+                        watchedDate = null,
+                        userReview = null,
+                        isWatched = false,
+                        source = movie.source.name
+                    )
+                )
+            )
+
+            val response = ApiService.apiInterface.enrichMovies(request)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val enrichmentData = response.body()?.data
+                val enrichedMovies = enrichmentData?.successfulMovies
+
+                if (!enrichedMovies.isNullOrEmpty()) {
+                    val enrichedDto = enrichedMovies[0]
+                    Log.d(TAG, "film arricchito: ${enrichedDto.title} (tmdb_id: ${enrichedDto.tmdbId})")
+
+                    //converti enrichedmoviedto a movie
+                    dtoToMovie(enrichedDto)
+                } else {
+                    Log.w(TAG, "nessun film arricchito nella risposta")
+                    null
+                }
+            } else {
+                Log.e(TAG, "errore enrichment: ${response.code()}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "errore enrichMovieBeforeAdding", e)
+            null
+        }
+    }
+
+    //converti enrichedmoviedto a movie
+    private fun dtoToMovie(dto: com.example.movieapp.data.network.EnrichedMovieDto): Movie {
+        return Movie(
+            id = dto.id,
+            title = dto.title,
+            year = dto.year,
+            director = dto.director,
+            genres = dto.genres,
+            actors = dto.cast,
+            overview = dto.overview,
+            runtime = dto.runtime,
+            userRating = dto.userRating,
+            dateRated = dto.watchedDate,
+            isWatched = dto.isWatched,
+            source = try {
+                DataSource.valueOf(dto.source)
+            } catch (e: Exception) {
+                DataSource.UNKNOWN
+            },
+            tmdbId = dto.tmdbId,
+            posterUrl = dto.posterUrl,
+            backdropUrl = dto.backdropUrl,
+            tmdbRating = dto.tmdbRating,
+            voteCount = dto.voteCount,
+            productionCountries = dto.productionCountries,
+            originalLanguage = dto.originalLanguage,
+            popularity = dto.popularity,
+            isEnriched = dto.isEnriched
+        )
     }
 
     //rimuovi film
@@ -165,7 +263,7 @@ class ListDetailViewModel : ViewModel() {
         }
     }
 
-    //aggiorna lista - FIX: passa userId
+    //update lista
     fun updateList(
         listId: String,
         name: String,
@@ -182,14 +280,14 @@ class ListDetailViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "aggiorno lista: $listId")
+                Log.d(TAG, "aggiornamento lista $listId")
+
                 val request = com.example.movieapp.data.network.UpdateListRequest(
                     name = name,
                     description = description,
                     is_public = isPublic
                 )
 
-                //passa userId come query parameter
                 val response = ApiService.apiInterface.updateList(listId, request, userId)
 
                 if (response.isSuccessful) {
@@ -198,7 +296,6 @@ class ListDetailViewModel : ViewModel() {
                 } else {
                     val errorMsg = "errore aggiornamento: ${response.code()}"
                     Log.e(TAG, errorMsg)
-                    Log.e(TAG, "errorbody: ${response.errorBody()?.string()}")
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
@@ -218,7 +315,7 @@ class ListDetailViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "elimino lista: $listId")
+                Log.d(TAG, "eliminazione lista $listId")
                 val response = ApiService.apiInterface.deleteList(listId, userId)
 
                 if (response.isSuccessful) {

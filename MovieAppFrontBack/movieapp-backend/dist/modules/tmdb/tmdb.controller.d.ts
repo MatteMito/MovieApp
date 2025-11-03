@@ -11,6 +11,7 @@ export declare class TmdbController {
     private readonly databaseService;
     private readonly logger;
     constructor(tmdbService: TmdbService, databaseService: DatabaseService);
+    autocompleteMovies(query: string, limit?: string): Promise<ApiResponse>;
     syncPopularMovies(body: {
         limit?: number;
     }): Promise<ApiResponse>;

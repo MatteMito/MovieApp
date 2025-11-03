@@ -233,27 +233,32 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
             };
         }
         catch (error) {
-            this.logger.error(`errore stats: ${error.message}`);
-            return { total: 0, enriched: 0, notEnriched: 0, withTmdbId: 0 };
+            this.logger.error(`errore stats sync: ${error.message}`);
+            throw error;
         }
     }
-    getCachedAnalytics(key) {
-        const cached = this.analyticsCache.get(key);
-        if (!cached)
-            return null;
-        if (new Date() > cached.expiresAt) {
-            this.analyticsCache.delete(key);
-            return null;
-        }
-        return cached.data;
-    }
-    setCachedAnalytics(key, data, ttlMinutes = 5) {
+    setAnalyticsCache(key, data, ttlMinutes = 30) {
         const expiresAt = new Date();
         expiresAt.setMinutes(expiresAt.getMinutes() + ttlMinutes);
         this.analyticsCache.set(key, { data, expiresAt });
+        this.logger.debug(`cache analytics salvata: ${key} (ttl: ${ttlMinutes}min)`);
+    }
+    getAnalyticsCache(key) {
+        const cached = this.analyticsCache.get(key);
+        if (!cached) {
+            return null;
+        }
+        if (new Date() > cached.expiresAt) {
+            this.analyticsCache.delete(key);
+            this.logger.debug(`cache analytics scaduta: ${key}`);
+            return null;
+        }
+        this.logger.debug(`cache analytics hit: ${key}`);
+        return cached.data;
     }
     clearAnalyticsCache() {
         this.analyticsCache.clear();
+        this.logger.log('cache analytics svuotata');
     }
 };
 exports.DatabaseService = DatabaseService;

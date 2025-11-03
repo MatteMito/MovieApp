@@ -108,6 +108,9 @@ data class EnrichedMovieDto(
 
     @SerializedName("popularity")
     val popularity: Double? = null,
+
+    @SerializedName("is_enriched")
+    val isEnriched: Boolean = false
 )
 
 data class FailedMovie(
@@ -381,11 +384,11 @@ interface ApiInterface {
 // ============================================
 
 object ApiService {
-    private const val TAG = "ApiService"
 
-    private lateinit var prefs: SharedPreferences
+    private const val TAG = "ApiService"
     private val gson = Gson()
 
+    private lateinit var prefs: SharedPreferences
     private var currentToken: String? = null
     private var currentUser: UserInfo? = null
 
@@ -934,7 +937,8 @@ object ApiService {
     // UTILITY
     // ============================================
 
-    private fun dtoToMovie(dto: EnrichedMovieDto): Movie {
+    //converti enrichedmoviedto a movie
+    private fun dtoToMovie(dto: com.example.movieapp.data.network.EnrichedMovieDto): Movie {
         return Movie(
             id = dto.id,
             title = dto.title,
@@ -957,10 +961,10 @@ object ApiService {
             backdropUrl = dto.backdropUrl,
             tmdbRating = dto.tmdbRating,
             voteCount = dto.voteCount,
-
             productionCountries = dto.productionCountries,
             originalLanguage = dto.originalLanguage,
             popularity = dto.popularity,
+            isEnriched = true
         )
     }
 
@@ -975,5 +979,34 @@ object ApiService {
             "token_present" to (currentToken != null),
             "config_valid" to AppConfig.isBackendConfigValid()
         )
+    }
+
+    //============================================
+    //initialize app
+    //============================================
+    suspend fun initializeApp(): Result<Map<String, Any>> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "chiamata initialize app...")
+
+            val response = apiInterface.initializeApp()
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data!!
+
+                Log.d(TAG, "initialize app completato")
+                Log.d(TAG, "needs sync: ${data["needsSync"]}")
+                Log.d(TAG, "movies in db: ${data["moviesInDb"]}")
+                Log.d(TAG, "message: ${data["message"]}")
+
+                Result.success(data)
+            } else {
+                val errorMsg = response.body()?.message ?: "errore inizializzazione"
+                Log.e(TAG, errorMsg)
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "errore initializeapp", e)
+            Result.failure(e)
+        }
     }
 }

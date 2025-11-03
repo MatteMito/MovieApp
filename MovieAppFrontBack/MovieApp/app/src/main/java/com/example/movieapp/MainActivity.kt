@@ -1,3 +1,6 @@
+//file: app/src/main/java/com/example/movieapp/MainActivity.kt
+//mainactivity con chiamata initializeapp al primo avvio
+
 package com.example.movieapp
 
 import android.content.Intent
@@ -45,6 +48,9 @@ class MainActivity : AppCompatActivity() {
         //setup menu click nella toolbar
         setupToolbarMenu()
 
+        //inizializza database al primo avvio
+        initializeAppDatabase()
+
         Log.d(TAG, "mainactivity creata con successo")
     }
 
@@ -67,10 +73,10 @@ class MainActivity : AppCompatActivity() {
         val displayName = when {
             currentUser != null && !currentUser.username.isNullOrBlank() -> currentUser.username
             currentUser != null -> currentUser.email.substringBefore("@")
-            else -> getString(R.string.account)
+            else -> "Utente"
         }
 
-        val options = arrayOf(
+        val items = arrayOf(
             getString(R.string.account_info),
             getString(R.string.language),
             getString(R.string.logout)
@@ -78,7 +84,7 @@ class MainActivity : AppCompatActivity() {
 
         MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.hello_user, displayName))
-            .setItems(options) { _, which ->
+            .setItems(items) { _, which ->
                 when (which) {
                     0 -> showAccountInfo()
                     1 -> showLanguageDialog()
@@ -89,39 +95,28 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * mostra informazioni account utente
+     * mostra informazioni account
      */
     private fun showAccountInfo() {
         val currentUser = ApiService.getCurrentUser()
 
         if (currentUser != null) {
-            val displayName = when {
-                !currentUser.username.isNullOrBlank() -> currentUser.username
-                else -> currentUser.email.substringBefore("@")
-            }
-
-            val info = buildString {
-                appendLine(getString(R.string.your_account))
-                appendLine()
-
+            val message = buildString {
+                append(getString(R.string.your_account))
+                append("\n\n")
                 if (!currentUser.username.isNullOrBlank()) {
-                    appendLine("${getString(R.string.name)} ${currentUser.username}")
+                    append(getString(R.string.name))
+                    append(" ${currentUser.username}\n")
                 }
-
-                appendLine("${getString(R.string.email)} ${currentUser.email}")
-                appendLine()
-                appendLine("${getString(R.string.app_version_label)} ${AppConfig.APP_VERSION}")
+                append(getString(R.string.email))
+                append(" ${currentUser.email}\n\n")
+                append(getString(R.string.app_version_label))
+                append(" ${AppConfig.APP_VERSION}")
             }
 
             MaterialAlertDialogBuilder(this)
-                .setTitle(getString(R.string.hello_user, displayName))
-                .setMessage(info)
-                .setPositiveButton(getString(R.string.ok), null)
-                .show()
-        } else {
-            MaterialAlertDialogBuilder(this)
-                .setTitle(getString(R.string.account))
-                .setMessage("Nessun account attivo.\n\nEffettua il login per continuare.")
+                .setTitle(getString(R.string.account_info))
+                .setMessage(message)
                 .setPositiveButton(getString(R.string.ok), null)
                 .show()
         }
@@ -213,6 +208,44 @@ class MainActivity : AppCompatActivity() {
 
         } catch (e: Exception) {
             Log.e(TAG, "errore inizializzazione servizi", e)
+        }
+    }
+
+    /**
+     * inizializza database film popolari al primo avvio
+     */
+    private fun initializeAppDatabase() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                Log.d(TAG, "controllo inizializzazione database...")
+
+                val result = ApiService.initializeApp()
+
+                if (result.isSuccess) {
+                    val data = result.getOrNull()
+                    val needsSync = data?.get("needsSync") as? Boolean ?: false
+                    val moviesInDb = data?.get("moviesInDb") as? Double ?: 0.0
+                    val message = data?.get("message") as? String ?: ""
+
+                    withContext(Dispatchers.Main) {
+                        Log.d(TAG, "initialize app completato")
+                        Log.d(TAG, "needs sync: $needsSync")
+                        Log.d(TAG, "movies in db: ${moviesInDb.toInt()}")
+                        Log.d(TAG, "message: $message")
+
+                        if (needsSync) {
+                            Log.i(TAG, "sincronizzazione film popolari avviata in background")
+                        } else {
+                            Log.i(TAG, "database gia inizializzato con ${moviesInDb.toInt()} film")
+                        }
+                    }
+                } else {
+                    val error = result.exceptionOrNull()
+                    Log.w(TAG, "errore initialize app: ${error?.message}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "errore initialize database", e)
+            }
         }
     }
 

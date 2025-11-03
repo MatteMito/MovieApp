@@ -13,6 +13,7 @@ export declare class MoviesController {
     constructor(moviesService: MoviesService);
     healthCheck(): Promise<ApiResponse>;
     getCacheStats(): Promise<ApiResponse>;
+    initializeApp(userId?: string): Promise<ApiResponse>;
     enrichMovies(body: {
         movies: Movie[];
     }): Promise<ApiResponse>;
@@ -21,12 +22,10 @@ export declare class MoviesController {
         watched: Movie[];
         userId: string;
     }, headerUserId?: string): Promise<ApiResponse>;
-    getUserMovies(userId: string, status?: 'watched' | 'watchlist', query?: string, genre?: string, year?: string, director?: string, minRating?: string, maxRating?: string, sortBy?: string, sortOrder?: 'ASC' | 'DESC', limit?: string, offset?: string): Promise<ApiResponse>;
+    getUserMovies(userId: string, status?: string): Promise<ApiResponse>;
     getUserStats(userId: string): Promise<ApiResponse>;
-    getMovieById(id: string): Promise<ApiResponse>;
-    searchMovies(query?: string, genre?: string, year?: string, director?: string, minRating?: string, maxRating?: string, watched?: string, sortBy?: string, sortOrder?: 'ASC' | 'DESC', limit?: string, offset?: string): Promise<ApiResponse>;
     getAllMovies(userId?: string): Promise<ApiResponse>;
     deleteAllUserMovies(userId: string): Promise<ApiResponse>;
-    initializeApp(userId?: string): Promise<ApiResponse>;
+    deleteAllMovies(userId?: string): Promise<ApiResponse>;
 }
 export {};

@@ -70,7 +70,14 @@ export declare class MoviesService {
     private readonly websocketGateway;
     private readonly userMoviesService;
     private readonly logger;
+    private isInitializing;
     constructor(movieRepository: Repository<MovieEntity>, userMovieRepository: Repository<UserMovieEntity>, tmdbService: TmdbService, databaseService: DatabaseService, websocketGateway: WebsocketGateway, userMoviesService: UserMoviesService);
+    initializeApp(): Promise<{
+        needsSync: boolean;
+        moviesInDb: number;
+        message: string;
+    }>;
+    private syncInitialMovies;
     healthCheck(): Promise<{
         status: string;
         database: string;
@@ -91,48 +98,15 @@ export declare class MoviesService {
             totalMovies: number;
             enrichedMovies: number;
             totalUserMovies: number;
-            enrichmentRate: number;
+            enrichmentRate: string;
         };
         timestamp: string;
     }>;
     enrichMovies(movies: Movie[]): Promise<EnrichmentResult>;
     batchUpload(watchlist: Movie[], watched: Movie[], userId: string): Promise<BatchResult>;
     batchUploadWithUserAssociation(userId: string, watchlist: Movie[], watched: Movie[]): Promise<BatchUploadResult>;
-    getUserMovies(userId: string, filters: {
-        status?: 'watched' | 'watchlist';
-        query?: string;
-        genre?: string;
-        year?: number;
-        director?: string;
-        minRating?: number;
-        maxRating?: number;
-        sortBy?: string;
-        sortOrder?: 'ASC' | 'DESC';
-        limit?: number;
-        offset?: number;
-    }): Promise<{
-        movies: Movie[];
-        total: number;
-    }>;
+    getAllMovies(userId: string, status?: string): Promise<Movie[]>;
     getUserStats(userId: string): Promise<import("./user-movies.service").UserMovieStats>;
-    getMovieById(id: string): Promise<Movie | null>;
-    searchMovies(filters: {
-        query?: string;
-        genre?: string;
-        year?: number;
-        director?: string;
-        minRating?: number;
-        maxRating?: number;
-        watched?: boolean;
-        sortBy?: string;
-        sortOrder?: 'ASC' | 'DESC';
-        limit?: number;
-        offset?: number;
-    }): Promise<{
-        movies: Movie[];
-        total: number;
-    }>;
-    getAllMovies(userId: string): Promise<Movie[]>;
     deleteAllMovies(userId: string): Promise<{
         deleted: number;
     }>;

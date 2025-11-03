@@ -23,7 +23,7 @@ export declare class DatabaseService {
         notEnriched: number;
         withTmdbId: number;
     }>;
-    getCachedAnalytics(key: string): any | null;
-    setCachedAnalytics(key: string, data: any, ttlMinutes?: number): void;
+    setAnalyticsCache(key: string, data: any, ttlMinutes?: number): void;
+    getAnalyticsCache(key: string): any | null;
     clearAnalyticsCache(): void;
 }

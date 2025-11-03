@@ -23,6 +23,36 @@ let TmdbController = TmdbController_1 = class TmdbController {
         this.databaseService = databaseService;
         this.logger = new common_1.Logger(TmdbController_1.name);
     }
+    async autocompleteMovies(query, limit) {
+        try {
+            if (!query || query.trim().length === 0) {
+                return {
+                    success: true,
+                    data: [],
+                    message: 'query vuota',
+                    timestamp: new Date().toISOString(),
+                };
+            }
+            const parsedLimit = limit ? parseInt(limit, 10) : 10;
+            this.logger.log(`autocomplete: "${query}" (limit: ${parsedLimit})`);
+            const movies = await this.tmdbService.searchForAutocomplete(query, parsedLimit);
+            this.logger.log(`trovati ${movies.length} film`);
+            return {
+                success: true,
+                data: movies,
+                message: `trovati ${movies.length} film`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore autocomplete: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: error.message,
+                timestamp: new Date().toISOString()
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
     async syncPopularMovies(body) {
         try {
             const limit = body.limit || 10000;
@@ -57,6 +87,14 @@ let TmdbController = TmdbController_1 = class TmdbController {
     }
 };
 exports.TmdbController = TmdbController;
+__decorate([
+    (0, common_1.Get)('autocomplete'),
+    __param(0, (0, common_1.Query)('query')),
+    __param(1, (0, common_1.Query)('limit')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], TmdbController.prototype, "autocompleteMovies", null);
 __decorate([
     (0, common_1.Post)('sync-popular'),
     __param(0, (0, common_1.Body)()),

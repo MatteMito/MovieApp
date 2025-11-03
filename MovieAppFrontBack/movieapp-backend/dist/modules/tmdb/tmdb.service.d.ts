@@ -15,14 +15,13 @@ export declare class TmdbService {
     constructor(httpService: HttpService, configService: ConfigService, databaseService: DatabaseService);
     enrichMovie(movie: Movie): Promise<Movie>;
     enrichMovies(movies: Movie[], options?: {
-        onProgress?: (processed: number, total: number, currentMovie?: string) => Promise<void>;
+        onProgress?: (processed: number, total: number, currentMovie?: string) => void;
     }): Promise<{
         successfulMovies: Movie[];
         failedMovies: Array<{
             movie: Movie;
             error: string;
         }>;
-        totalProcessed: number;
         successRate: number;
     }>;
     syncPopularMovies(limit?: number): Promise<{
@@ -30,9 +29,11 @@ export declare class TmdbService {
         errors: number;
     }>;
     searchByTitle(title: string, year: number | undefined): Promise<TmdbMovieDetails | null>;
+    findByImdbId(imdbId: string): Promise<TmdbMovieDetails | null>;
     getMovieDetails(tmdbId: number): Promise<TmdbMovieDetails | null>;
     searchForAutocomplete(query: string, limit?: number): Promise<Movie[]>;
     private enforceRateLimit;
-    private findByImdbId;
     private mapTmdbToMovie;
+    private extractCertification;
+    private extractTrailerUrl;
 }

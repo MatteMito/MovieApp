@@ -1,5 +1,5 @@
 //file: app/src/main/java/com/example/movieapp/ui/social/AddMoviesDialogFragment.kt
-//dialog per aggiungere film alla lista
+//dialog per aggiungere film alla lista con aggiunta diretta al click
 
 package com.example.movieapp.ui.social
 
@@ -25,10 +25,9 @@ class AddMoviesDialogFragment : DialogFragment() {
 
     private lateinit var viewModel: ListDetailViewModel
     private lateinit var searchAdapter: SearchMovieAdapter
-    private lateinit var selectedAdapter: SearchMovieAdapter
 
     private var listId: String = ""
-    private val selectedMovies = mutableListOf<Movie>()
+    private val addedMovieIds = mutableSetOf<String>()
 
     companion object {
         fun newInstance(listId: String): AddMoviesDialogFragment {
@@ -53,7 +52,7 @@ class AddMoviesDialogFragment : DialogFragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = DialogAddMoviesBinding.inflate(inflater, container, false)
-        viewModel = ViewModelProvider(this)[ListDetailViewModel::class.java]
+        viewModel = ViewModelProvider(requireParentFragment())[ListDetailViewModel::class.java]
         return binding.root
     }
 
@@ -70,9 +69,9 @@ class AddMoviesDialogFragment : DialogFragment() {
             dismiss()
         }
 
-        //adapter ricerca
+        //adapter ricerca con aggiunta diretta al click
         searchAdapter = SearchMovieAdapter { movie ->
-            addMovieToSelection(movie)
+            addMovieDirectly(movie)
         }
 
         binding.recyclerSearchResults.apply {
@@ -80,15 +79,10 @@ class AddMoviesDialogFragment : DialogFragment() {
             adapter = searchAdapter
         }
 
-        //adapter film selezionati
-        selectedAdapter = SearchMovieAdapter { movie ->
-            removeMovieFromSelection(movie)
-        }
-
-        binding.recyclerSelectedMovies.apply {
-            layoutManager = LinearLayoutManager(requireContext())
-            adapter = selectedAdapter
-        }
+        //nascondi sezioni non necessarie
+        binding.tvSelectedTitle.isVisible = false
+        binding.recyclerSelectedMovies.isVisible = false
+        binding.btnSave.isVisible = false
 
         //ricerca
         binding.etSearchMovie.addTextChangedListener(object : TextWatcher {
@@ -104,11 +98,6 @@ class AddMoviesDialogFragment : DialogFragment() {
                 }
             }
         })
-
-        //bottone salva
-        binding.btnSave.setOnClickListener {
-            saveMoviesToList()
-        }
     }
 
     private fun setupObservers() {
@@ -124,49 +113,33 @@ class AddMoviesDialogFragment : DialogFragment() {
         }
     }
 
-    private fun addMovieToSelection(movie: Movie) {
-        if (!selectedMovies.any { it.id == movie.id }) {
-            selectedMovies.add(movie)
-            updateSelectedMovies()
-        }
-    }
-
-    private fun removeMovieFromSelection(movie: Movie) {
-        selectedMovies.removeAll { it.id == movie.id }
-        updateSelectedMovies()
-    }
-
-    private fun updateSelectedMovies() {
-        selectedAdapter.submitList(selectedMovies.toList())
-        binding.tvSelectedTitle.isVisible = selectedMovies.isNotEmpty()
-        binding.recyclerSelectedMovies.isVisible = selectedMovies.isNotEmpty()
-        binding.btnSave.isVisible = selectedMovies.isNotEmpty()
-    }
-
-    private fun saveMoviesToList() {
-        if (selectedMovies.isEmpty()) {
-            Toast.makeText(requireContext(), "Seleziona almeno un film", Toast.LENGTH_SHORT).show()
+    //aggiunge film direttamente alla lista al click
+    private fun addMovieDirectly(movie: Movie) {
+        //controlla se gia aggiunto in questa sessione
+        if (addedMovieIds.contains(movie.id)) {
+            Toast.makeText(requireContext(), "${movie.title} già aggiunto", Toast.LENGTH_SHORT).show()
             return
         }
 
-        var savedCount = 0
-        var errorOccurred = false
+        //disabilita temporaneamente per evitare doppi click
+        binding.progressSearch.isVisible = true
 
-        selectedMovies.forEach { movie ->
-            viewModel.addMovie(listId, movie.id,
-                onSuccess = {
-                    savedCount++
-                    if (savedCount == selectedMovies.size && !errorOccurred) {
-                        Toast.makeText(requireContext(), "$savedCount film aggiunti", Toast.LENGTH_SHORT).show()
-                        dismiss()
-                    }
-                },
-                onError = { error ->
-                    errorOccurred = true
-                    Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_SHORT).show()
-                }
-            )
-        }
+        viewModel.addMovie(
+            listId = listId,
+            movie = movie,
+            onSuccess = {
+                addedMovieIds.add(movie.id)
+                binding.progressSearch.isVisible = false
+                Toast.makeText(requireContext(), "${movie.title} aggiunto!", Toast.LENGTH_SHORT).show()
+
+                //pulisci ricerca dopo aggiunta
+                binding.etSearchMovie.text?.clear()
+            },
+            onError = { error ->
+                binding.progressSearch.isVisible = false
+                Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
+            }
+        )
     }
 
     override fun onDestroyView() {
