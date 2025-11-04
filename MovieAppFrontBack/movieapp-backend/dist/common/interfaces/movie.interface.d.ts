@@ -35,6 +35,7 @@ export interface Movie {
     watched_date?: Date | string;
     user_review?: string;
     is_favorite?: boolean;
+    is_watched?: boolean;
     created_at?: Date;
     updated_at?: Date;
 }

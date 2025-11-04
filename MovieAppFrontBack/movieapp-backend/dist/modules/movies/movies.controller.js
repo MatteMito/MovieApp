@@ -160,7 +160,7 @@ let MoviesController = MoviesController_1 = class MoviesController {
     async getUserMovies(userId, status) {
         try {
             this.logger.log(`richiesta film per user ${userId} (status: ${status || 'all'})`);
-            const movies = await this.moviesService.getAllMovies(userId, status);
+            const movies = await this.moviesService.getUserMovies(userId, status);
             return {
                 success: true,
                 data: { movies },
@@ -208,7 +208,7 @@ let MoviesController = MoviesController_1 = class MoviesController {
                 }, common_1.HttpStatus.BAD_REQUEST);
             }
             this.logger.log('richiesta tutti i film (deprecato)');
-            const movies = await this.moviesService.getAllMovies(userId);
+            const movies = await this.moviesService.getUserMovies(userId);
             return {
                 success: true,
                 data: { movies },

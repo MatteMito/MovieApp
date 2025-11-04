@@ -43,7 +43,7 @@ interface BatchResult {
         };
     };
 }
-interface BatchUploadResult {
+export interface BatchUploadResult {
     sessionId: string;
     watchlistResult: EnrichmentResult;
     watchedResult: EnrichmentResult;
@@ -70,46 +70,35 @@ export declare class MoviesService {
     private readonly websocketGateway;
     private readonly userMoviesService;
     private readonly logger;
-    private isInitializing;
     constructor(movieRepository: Repository<MovieEntity>, userMovieRepository: Repository<UserMovieEntity>, tmdbService: TmdbService, databaseService: DatabaseService, websocketGateway: WebsocketGateway, userMoviesService: UserMoviesService);
-    initializeApp(): Promise<{
-        needsSync: boolean;
-        moviesInDb: number;
-        message: string;
-    }>;
-    private syncInitialMovies;
     healthCheck(): Promise<{
         status: string;
-        database: string;
-        movies: number;
-        userMovies: number;
         timestamp: string;
-        error?: undefined;
-    } | {
-        status: string;
         database: string;
-        error: any;
-        timestamp: string;
-        movies?: undefined;
-        userMovies?: undefined;
+        moviesCount: number;
     }>;
-    getStats(): Promise<{
-        database: {
-            totalMovies: number;
-            enrichedMovies: number;
-            totalUserMovies: number;
-            enrichmentRate: string;
-        };
-        timestamp: string;
+    initializeApp(): Promise<{
+        needsSync: boolean;
+        message: string;
+        stats?: any;
     }>;
     enrichMovies(movies: Movie[]): Promise<EnrichmentResult>;
     batchUpload(watchlist: Movie[], watched: Movie[], userId: string): Promise<BatchResult>;
     batchUploadWithUserAssociation(userId: string, watchlist: Movie[], watched: Movie[]): Promise<BatchUploadResult>;
+    getUserMovies(userId: string, status?: string): Promise<Movie[]>;
     getAllMovies(userId: string, status?: string): Promise<Movie[]>;
+    searchMovies(query: string): Promise<Movie[]>;
     getUserStats(userId: string): Promise<import("./user-movies.service").UserMovieStats>;
+    getStats(): Promise<{
+        totalMovies: number;
+        enrichedMovies: number;
+        notEnriched: number;
+        withTmdbId: number;
+        enrichmentRate: number;
+    }>;
     deleteAllMovies(userId: string): Promise<{
         deleted: number;
     }>;
-    private sleep;
+    private entityToMovie;
 }
 export {};

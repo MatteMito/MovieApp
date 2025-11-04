@@ -1,5 +1,4 @@
-// file: src/common/interfaces/movie.interface.ts
-// interfaccia movie completa con campi user
+//file: src/common/interfaces/movie.interface.ts
 
 export interface Movie {
   id: string;
@@ -7,11 +6,9 @@ export interface Movie {
   year?: number;
   source: string;
 
-  // tmdb enrichment
   tmdb_id?: number;
   is_enriched?: boolean;
 
-  // metadata
   genres?: string[];
   director?: string;
   actors?: string[];
@@ -19,16 +16,13 @@ export interface Movie {
   tagline?: string;
   runtime?: number;
 
-  // poster e immagini
   poster_url?: string;
   backdrop_url?: string;
 
-  // rating e popolarita
   tmdb_rating?: number;
   vote_count?: number;
   popularity?: number;
 
-  // produzione
   budget?: number;
   revenue?: number;
   status?: string;
@@ -36,12 +30,10 @@ export interface Movie {
   production_companies?: string[];
   production_countries?: string[];
 
-  // lingue
   original_language?: string;
   original_title?: string;
   spoken_languages?: string[];
 
-  // metadata extra
   adult?: boolean;
   homepage?: string;
   imdb_id?: string;
@@ -49,18 +41,16 @@ export interface Movie {
   certification?: string;
   trailer_url?: string;
 
-  // dati utente (da user_movies)
   user_rating?: number;
   watched_date?: Date | string;
   user_review?: string;
   is_favorite?: boolean;
+  is_watched?: boolean;
 
-  // timestamp
   created_at?: Date;
   updated_at?: Date;
 }
 
-// tmdb api response types
 export interface TmdbSearchResponse {
   page: number;
   results: TmdbMovie[];

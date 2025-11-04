@@ -1,4 +1,4 @@
-// user-movies.service.ts
+//user-movies.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,7 +14,6 @@ export interface UserMovieStats {
   watchedCount: number;
   watchlistCount: number;
   averageRating: number;
-  //alias per compatibilità
   watched: number;
   watchlist: number;
   total: number;
@@ -36,9 +35,6 @@ export class UserMoviesService {
     private readonly userMovieRepository: Repository<UserMovieEntity>,
   ) {}
 
-  /**
-   * associa lista di film a un utente con status specifico
-   */
   async associateMoviesToUser(
     userId: string,
     movies: Movie[],
@@ -54,7 +50,14 @@ export class UserMoviesService {
           where: { userId, movieId: movie.id },
         });
 
-        if (!existing) {
+        if (existing) {
+          if (existing.status !== movieStatus) {
+            existing.status = movieStatus;
+            existing.userRating = movie.user_rating || existing.userRating;
+            existing.watchedDate = movie.watched_date ? new Date(movie.watched_date) : existing.watchedDate;
+            await this.userMovieRepository.save(existing);
+          }
+        } else {
           const userMovie = this.userMovieRepository.create({
             userId,
             movieId: movie.id,
@@ -73,9 +76,6 @@ export class UserMoviesService {
     }
   }
 
-  /**
-   * associa film multipli ad un utente in batch
-   */
   async batchAssociateMovies(
     userId: string,
     movies: Array<{
@@ -99,11 +99,9 @@ export class UserMoviesService {
       let watchedInFile = 0;
       let watchlistInFile = 0;
 
-      //conta film per tipo
       watchedInFile = movies.filter(m => m.status === MovieStatus.WATCHED).length;
       watchlistInFile = movies.filter(m => m.status === MovieStatus.WATCHLIST).length;
 
-      //processa in chunk
       const CHUNK_SIZE = 100;
       for (let i = 0; i < movies.length; i += CHUNK_SIZE) {
         const chunk = movies.slice(i, i + CHUNK_SIZE);
@@ -148,149 +146,71 @@ export class UserMoviesService {
     }
   }
 
-  /**
-   * recupera film con is_watched corretto
-   */
   async getUserMovies(
     userId: string,
     status?: MovieStatus,
   ): Promise<Movie[]> {
     try {
-      const query = this.userMovieRepository
+      const queryBuilder = this.userMovieRepository
         .createQueryBuilder('um')
         .leftJoinAndSelect('um.movie', 'movie')
         .where('um.userId = :userId', { userId });
 
       if (status) {
-        query.andWhere('um.status = :status', { status });
+        queryBuilder.andWhere('um.status = :status', { status });
       }
 
-      const userMovies = await query.getMany();
+      const userMovies = await queryBuilder.getMany();
 
-      // ✅ CONVERSIONE CON is_watched CORRETTO
-      const movies: Movie[] = userMovies.map(um => ({
-        id: um.movie.id,
-        title: um.movie.title,
-        year: um.movie.year,
-        source: um.movie.source,
-        tmdb_id: um.movie.tmdb_id,
-        director: um.movie.director,
-        genres: um.movie.genres,
-        actors: um.movie.actors,
-        overview: um.movie.overview,
-        tagline: um.movie.tagline,
-        runtime: um.movie.runtime,
-        poster_url: um.movie.poster_url,
-        backdrop_url: um.movie.backdrop_url,
-        tmdb_rating: um.movie.tmdb_rating,
-        vote_count: um.movie.vote_count,
-        budget: um.movie.budget,
-        revenue: um.movie.revenue,
-        status: um.movie.status,
-        original_language: um.movie.original_language,
-        original_title: um.movie.original_title,
-        popularity: um.movie.popularity,
-        adult: um.movie.adult,
-        homepage: um.movie.homepage,
-        imdb_id: um.movie.imdb_id,
-        production_companies: um.movie.production_companies,
-        production_countries: um.movie.production_countries,
-        spoken_languages: um.movie.spoken_languages,
-        keywords: um.movie.keywords,
-        certification: um.movie.certification,
-        trailer_url: um.movie.trailer_url,
-        user_rating: um.userRating,
-        watched_date: um.watchedDate?.toISOString(),
-        is_watched: um.status === MovieStatus.WATCHED,
-      }));
+      const result = userMovies
+        .filter(um => um.movie)
+        .map(um => {
+          const isWatched = um.status === 'watched';
+          
+          return {
+            ...um.movie,
+            user_rating: um.userRating,
+            watched_date: um.watchedDate,
+            user_review: um.userReview,
+            is_favorite: um.isFavorite,
+            is_watched: isWatched,
+          };
+        });
 
-      this.logger.debug(`recuperati ${movies.length} film per utente ${userId}`);
-      return movies;
+      return result;
     } catch (error) {
       this.logger.error(`errore getUserMovies: ${error.message}`);
-      return [];
+      throw error;
     }
   }
 
-  /**
-   * statistiche con query leggere
-   */
   async getUserMovieStats(userId: string): Promise<UserMovieStats> {
     try {
-      const [watched, watchlist, allUserMovies] = await Promise.all([
-        this.userMovieRepository.count({
-          where: { userId, status: MovieStatus.WATCHED },
-        }),
-        this.userMovieRepository.count({
-          where: { userId, status: MovieStatus.WATCHLIST },
-        }),
-        this.userMovieRepository.find({
-          where: { userId },
-        }),
-      ]);
+      const allMovies = await this.userMovieRepository.find({
+        where: { userId },
+      });
 
-      //calcola rating medio
-      const ratingsWithValues = allUserMovies
-        .map(um => um.userRating)
-        .filter((r): r is number => r !== null && r !== undefined);
+      const watchedMovies = allMovies.filter(um => um.status === MovieStatus.WATCHED);
+      const watchlistMovies = allMovies.filter(um => um.status === MovieStatus.WATCHLIST);
 
-      const averageRating = ratingsWithValues.length > 0
-        ? ratingsWithValues.reduce((sum, r) => sum + r, 0) / ratingsWithValues.length
+      const watchedWithRating = watchedMovies.filter(um => um.userRating != null);
+      const averageRating = watchedWithRating.length > 0
+        ? watchedWithRating.reduce((sum, um) => sum + um.userRating, 0) / watchedWithRating.length
         : 0;
-
-      const totalMovies = watched + watchlist;
-
-      this.logger.debug(
-        `stats utente ${userId}: ${totalMovies} film (${watched} visti, ${watchlist} da vedere)`,
-      );
 
       return {
         userId,
-        totalMovies,
-        watchedCount: watched,
-        watchlistCount: watchlist,
-        averageRating: parseFloat(averageRating.toFixed(2)),
-        //alias per compatibilità
-        watched,
-        watchlist,
-        total: totalMovies,
+        totalMovies: allMovies.length,
+        watchedCount: watchedMovies.length,
+        watchlistCount: watchlistMovies.length,
+        averageRating,
+        watched: watchedMovies.length,
+        watchlist: watchlistMovies.length,
+        total: allMovies.length,
       };
     } catch (error) {
       this.logger.error(`errore getUserMovieStats: ${error.message}`);
-      return {
-        userId,
-        totalMovies: 0,
-        watchedCount: 0,
-        watchlistCount: 0,
-        averageRating: 0,
-        watched: 0,
-        watchlist: 0,
-        total: 0,
-      };
-    }
-  }
-
-  /**
-   * conteggi per import
-   */
-  async getImportCounters(userId: string): Promise<ImportCounters> {
-    try {
-      const stats = await this.getUserMovieStats(userId);
-
-      return {
-        watchedFromFile: 0,
-        watchlistFromFile: 0,
-        totalWatched: stats.watchedCount,
-        totalWatchlist: stats.watchlistCount,
-      };
-    } catch (error) {
-      this.logger.error(`errore getImportCounters: ${error.message}`);
-      return {
-        watchedFromFile: 0,
-        watchlistFromFile: 0,
-        totalWatched: 0,
-        totalWatchlist: 0,
-      };
+      throw error;
     }
   }
 }

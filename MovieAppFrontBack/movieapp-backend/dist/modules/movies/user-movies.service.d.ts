@@ -36,5 +36,4 @@ export declare class UserMoviesService {
     }>;
     getUserMovies(userId: string, status?: MovieStatus): Promise<Movie[]>;
     getUserMovieStats(userId: string): Promise<UserMovieStats>;
-    getImportCounters(userId: string): Promise<ImportCounters>;
 }
