@@ -9,7 +9,7 @@
     <string name="title_notifications">Statistiques</string>
 
     <!-- authentication -->
-    <string name="login">Connexion</string>
+    <string name="login">Se connecter</string>
     <string name="register">S\'inscrire</string>
     <string name="email">Email</string>
     <string name="password">Mot de passe</string>
@@ -24,10 +24,10 @@
     <string name="register_success">Compte créé avec succès</string>
 
     <!-- home screen -->
-    <string name="import_imdb_watched">Importer films vus</string>
-    <string name="import_imdb_watchlist">Importer liste à voir</string>
-    <string name="import_letterboxd_watched">Importer films vus</string>
-    <string name="import_letterboxd_watchlist">Importer liste à voir</string>
+    <string name="import_imdb_watched">Importer les films vus</string>
+    <string name="import_imdb_watchlist">Importer la liste de souhaits</string>
+    <string name="import_letterboxd_watched">Importer les films vus</string>
+    <string name="import_letterboxd_watchlist">Importer la liste de souhaits</string>
     <string name="clear_all">Supprimer tous les films</string>
 
     <!-- messages -->
@@ -35,31 +35,31 @@
     <string name="processing">Traitement de vos films…</string>
     <string name="enriching">Récupération des informations…</string>
     <string name="success">Terminé !</string>
-    <string name="error">Une erreur s\'est produite</string>
+    <string name="error">Quelque chose s\'est mal passé</string>
     <string name="no_data">Aucune donnée disponible</string>
-    <string name="no_movies">Aucun film pour le moment</string>
-    <string name="no_movies_imported">Aucun film importé</string>
-    <string name="import_movies_to_see_stats">Importez vos films pour voir les statistiques</string>
+    <string name="no_movies">Pas encore de films</string>
+    <string name="no_movies_imported">Aucun film importé pour le moment</string>
+    <string name="import_movies_to_see_stats">Importez vos films pour afficher des statistiques et des graphiques détaillés</string>
 
     <!-- stats -->
     <string name="total_movies">Total</string>
     <string name="watched_movies">Vus</string>
     <string name="watchlist_movies">À voir</string>
     <string name="enriched_movies">Avec détails</string>
-    <string name="watch_hours">Heures de films</string>
-    <string name="stats_completed_percentage">%d%% complété</string>
+    <string name="watch_hours">Heures de visionnage</string>
+    <string name="stats_completed_percentage">%d%% terminé</string>
 
     <!-- charts -->
     <string name="genres_chart">Vos genres préférés</string>
     <string name="years_chart">Films par année</string>
-    <string name="directors_chart">Réalisateurs les plus vus</string>
+    <string name="directors_chart">Réalisateurs les plus regardés</string>
 
     <!-- dialogs -->
     <string name="confirm">Confirmer</string>
     <string name="cancel">Annuler</string>
     <string name="ok">OK</string>
     <string name="delete">Supprimer</string>
-    <string name="select_file">Sélectionner un fichier</string>
+    <string name="select_file">Sélectionner le fichier</string>
 
     <!-- help dialogs -->
     <string name="imdb_help_title">Comment exporter depuis IMDb</string>
@@ -82,20 +82,20 @@
     <string name="backend_error">Erreur de connexion</string>
 
     <!-- accessibility -->
-    <string name="content_description_home">Écran principal</string>
+    <string name="content_description_home">Écran d\'accueil</string>
     <string name="content_description_dashboard">Informations</string>
     <string name="content_description_charts">Graphiques et statistiques</string>
 
     <!-- account menu -->
     <string name="hello_user">Bonjour %s !</string>
     <string name="account">Compte</string>
-    <string name="account_info">Info du Compte</string>
-    <string name="logout">Déconnexion</string>
+    <string name="account_info">Infos du Compte</string>
+    <string name="logout">Se déconnecter</string>
     <string name="language">Langue</string>
     <string name="select_language">Sélectionner la langue</string>
     <string name="logout_confirm_title">Déconnexion</string>
     <string name="logout_confirm_message">Voulez-vous vous déconnecter ?\n\nVos films resteront sauvegardés.</string>
-    <string name="logout_button">Déconnexion</string>
+    <string name="logout_button">Se déconnecter</string>
 
     <!-- account info dialog -->
     <string name="your_account">Votre compte :</string>
@@ -111,7 +111,7 @@
     <string name="private_list">Liste Privée</string>
     <string name="add_movies">Ajouter des Films</string>
     <string name="search_movies">Rechercher des films…</string>
-    <string name="no_lists">Aucune liste pour l\'instant</string>
+    <string name="no_lists">Pas encore de listes</string>
     <string name="my_lists">Mes Listes</string>
     <string name="public_lists">Listes Publiques</string>
     <string name="copy_list">Copier la Liste</string>

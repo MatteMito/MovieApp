@@ -20,7 +20,7 @@
     <string name="dont_have_account">Don\'t have an account? Sign up</string>
     <string name="login_error">Login error</string>
     <string name="register_error">Registration error</string>
-    <string name="login_success">Logged in successfully</string>
+    <string name="login_success">Login successful</string>
     <string name="register_success">Account created successfully</string>
 
     <!-- home screen -->
@@ -33,13 +33,13 @@
     <!-- messages -->
     <string name="loading">Loading…</string>
     <string name="processing">Processing your movies…</string>
-    <string name="enriching">Fetching information…</string>
+    <string name="enriching">Fetching details…</string>
     <string name="success">Done!</string>
     <string name="error">Something went wrong</string>
     <string name="no_data">No data available</string>
     <string name="no_movies">No movies yet</string>
-    <string name="no_movies_imported">No movies imported</string>
-    <string name="import_movies_to_see_stats">Import your movies to view statistics</string>
+    <string name="no_movies_imported">No movies imported yet</string>
+    <string name="import_movies_to_see_stats">Import your movies to view detailed statistics and charts</string>
 
     <!-- stats -->
     <string name="total_movies">Total</string>
@@ -47,7 +47,7 @@
     <string name="watchlist_movies">Watchlist</string>
     <string name="enriched_movies">With details</string>
     <string name="watch_hours">Watch hours</string>
-    <string name="stats_completed_percentage">%d%% completed</string>
+    <string name="stats_completed_percentage">%d%% complete</string>
 
     <!-- charts -->
     <string name="genres_chart">Your favorite genres</string>
@@ -70,7 +70,7 @@
     <string name="letterboxd_watched_help">1. Go to Letterboxd.com\n2. Sign in to your account\n3. Go to Settings > Import &amp; Export\n4. Click \"Export Your Data\"\n5. Download \"watched.csv\"\n\nSelect the downloaded file to import it.</string>
     <string name="letterboxd_watchlist_help">1. Go to Letterboxd.com\n2. Sign in to your account\n3. Go to Settings > Import &amp; Export\n4. Click \"Export Your Data\"\n5. Download \"watchlist.csv\"\n\nSelect the downloaded file to import it.</string>
 
-    <string name="import_info_text">Select CSV files from IMDb or Letterboxd to import your movies.\n\nThe app will automatically enrich them with TMDB data (posters, details, ratings).\n\nAfter importing, check out your statistics in the Dashboard!</string>
+    <string name="import_info_text">Select CSV files from IMDb or Letterboxd to import your movies.\n\nThe app will automatically enrich them with TMDB data (posters, details, ratings).\n\nAfter importing, check your statistics in the Dashboard!</string>
 
     <!-- clear all -->
     <string name="clear_all_title">Delete all movies?</string>
@@ -83,7 +83,7 @@
 
     <!-- accessibility -->
     <string name="content_description_home">Home screen</string>
-    <string name="content_description_dashboard">Dashboard</string>
+    <string name="content_description_dashboard">Information</string>
     <string name="content_description_charts">Charts and statistics</string>
 
     <!-- account menu -->
@@ -94,7 +94,7 @@
     <string name="language">Language</string>
     <string name="select_language">Select language</string>
     <string name="logout_confirm_title">Logout</string>
-    <string name="logout_confirm_message">Do you want to log out?\n\nYour movies will remain saved.</string>
+    <string name="logout_confirm_message">Do you want to logout?\n\nYour movies will remain saved.</string>
     <string name="logout_button">Logout</string>
 
     <!-- account info dialog -->

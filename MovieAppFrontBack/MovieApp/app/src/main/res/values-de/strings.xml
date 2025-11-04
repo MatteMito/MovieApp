@@ -20,31 +20,31 @@
     <string name="dont_have_account">Noch kein Konto? Registrieren</string>
     <string name="login_error">Anmeldefehler</string>
     <string name="register_error">Registrierungsfehler</string>
-    <string name="login_success">Erfolgreich angemeldet</string>
+    <string name="login_success">Anmeldung erfolgreich</string>
     <string name="register_success">Konto erfolgreich erstellt</string>
 
     <!-- home screen -->
     <string name="import_imdb_watched">Gesehene Filme importieren</string>
-    <string name="import_imdb_watchlist">Watchlist importieren</string>
+    <string name="import_imdb_watchlist">Merkliste importieren</string>
     <string name="import_letterboxd_watched">Gesehene Filme importieren</string>
-    <string name="import_letterboxd_watchlist">Watchlist importieren</string>
+    <string name="import_letterboxd_watchlist">Merkliste importieren</string>
     <string name="clear_all">Alle Filme löschen</string>
 
     <!-- messages -->
     <string name="loading">Lädt…</string>
     <string name="processing">Verarbeite deine Filme…</string>
-    <string name="enriching">Hole Informationen…</string>
+    <string name="enriching">Informationen abrufen…</string>
     <string name="success">Fertig!</string>
     <string name="error">Etwas ist schief gelaufen</string>
     <string name="no_data">Keine Daten verfügbar</string>
     <string name="no_movies">Noch keine Filme</string>
-    <string name="no_movies_imported">Keine Filme importiert</string>
-    <string name="import_movies_to_see_stats">Importiere deine Filme, um Statistiken anzuzeigen</string>
+    <string name="no_movies_imported">Noch keine Filme importiert</string>
+    <string name="import_movies_to_see_stats">Importiere deine Filme, um detaillierte Statistiken und Diagramme zu sehen</string>
 
     <!-- stats -->
     <string name="total_movies">Gesamt</string>
     <string name="watched_movies">Gesehen</string>
-    <string name="watchlist_movies">Watchlist</string>
+    <string name="watchlist_movies">Merkliste</string>
     <string name="enriched_movies">Mit Details</string>
     <string name="watch_hours">Filmstunden</string>
     <string name="stats_completed_percentage">%d%% abgeschlossen</string>
@@ -62,15 +62,15 @@
     <string name="select_file">Datei auswählen</string>
 
     <!-- help dialogs -->
-    <string name="imdb_help_title">So exportieren Sie von IMDb</string>
-    <string name="letterboxd_help_title">So exportieren Sie von Letterboxd</string>
+    <string name="imdb_help_title">Wie man von IMDb exportiert</string>
+    <string name="letterboxd_help_title">Wie man von Letterboxd exportiert</string>
 
-    <string name="imdb_watched_help">1. Gehen Sie zu IMDb.com\n2. Melden Sie sich an\n3. Gehen Sie zu \"Your Ratings\"\n4. Klicken Sie auf die drei Punkte und \"Export\"\n5. Laden Sie die CSV-Datei herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
-    <string name="imdb_watchlist_help">1. Gehen Sie zu IMDb.com\n2. Melden Sie sich an\n3. Gehen Sie zu \"Your Watchlist\"\n4. Klicken Sie auf die drei Punkte und \"Export\"\n5. Laden Sie die CSV-Datei herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
-    <string name="letterboxd_watched_help">1. Gehen Sie zu Letterboxd.com\n2. Melden Sie sich an\n3. Gehen Sie zu Settings > Import &amp; Export\n4. Klicken Sie auf \"Export Your Data\"\n5. Laden Sie \"watched.csv\" herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
-    <string name="letterboxd_watchlist_help">1. Gehen Sie zu Letterboxd.com\n2. Melden Sie sich an\n3. Gehen Sie zu Settings > Import &amp; Export\n4. Klicken Sie auf \"Export Your Data\"\n5. Laden Sie \"watchlist.csv\" herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
+    <string name="imdb_watched_help">1. Gehen Sie zu IMDb.com\n2. Melden Sie sich bei Ihrem Konto an\n3. Gehen Sie zu \"Your Ratings\"\n4. Klicken Sie auf die drei Punkte und \"Export\"\n5. Laden Sie die CSV-Datei herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
+    <string name="imdb_watchlist_help">1. Gehen Sie zu IMDb.com\n2. Melden Sie sich bei Ihrem Konto an\n3. Gehen Sie zu \"Your Watchlist\"\n4. Klicken Sie auf die drei Punkte und \"Export\"\n5. Laden Sie die CSV-Datei herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
+    <string name="letterboxd_watched_help">1. Gehen Sie zu Letterboxd.com\n2. Melden Sie sich bei Ihrem Konto an\n3. Gehen Sie zu Settings > Import &amp; Export\n4. Klicken Sie auf \"Export Your Data\"\n5. Laden Sie \"watched.csv\" herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
+    <string name="letterboxd_watchlist_help">1. Gehen Sie zu Letterboxd.com\n2. Melden Sie sich bei Ihrem Konto an\n3. Gehen Sie zu Settings > Import &amp; Export\n4. Klicken Sie auf \"Export Your Data\"\n5. Laden Sie \"watchlist.csv\" herunter\n\nWählen Sie die heruntergeladene Datei zum Importieren aus.</string>
 
-    <string name="import_info_text">Wählen Sie CSV-Dateien von IMDb oder Letterboxd aus, um Ihre Filme zu importieren.\n\nDie App wird sie automatisch mit TMDB-Daten anreichern (Poster, Details, Bewertungen).\n\nNach dem Import sehen Sie sich Ihre Statistiken im Dashboard an!</string>
+    <string name="import_info_text">Wählen Sie CSV-Dateien von IMDb oder Letterboxd, um Ihre Filme zu importieren.\n\nDie App wird sie automatisch mit TMDB-Daten anreichern (Poster, Details, Bewertungen).\n\nNach dem Import sehen Sie Ihre Statistiken im Dashboard!</string>
 
     <!-- clear all -->
     <string name="clear_all_title">Alle Filme löschen?</string>
@@ -83,13 +83,13 @@
 
     <!-- accessibility -->
     <string name="content_description_home">Startbildschirm</string>
-    <string name="content_description_dashboard">Dashboard</string>
+    <string name="content_description_dashboard">Informationen</string>
     <string name="content_description_charts">Diagramme und Statistiken</string>
 
     <!-- account menu -->
     <string name="hello_user">Hallo %s!</string>
     <string name="account">Konto</string>
-    <string name="account_info">Kontoinfo</string>
+    <string name="account_info">Konto-Informationen</string>
     <string name="logout">Abmelden</string>
     <string name="language">Sprache</string>
     <string name="select_language">Sprache auswählen</string>
@@ -104,22 +104,22 @@
     <string name="app_version_label">App-Version:</string>
 
     <!-- social lists -->
-    <string name="create_list">Liste Erstellen</string>
+    <string name="create_list">Liste erstellen</string>
     <string name="list_name">Listenname</string>
     <string name="list_description">Beschreibung (optional)</string>
     <string name="public_list">Öffentliche Liste</string>
     <string name="private_list">Private Liste</string>
-    <string name="add_movies">Filme Hinzufügen</string>
+    <string name="add_movies">Filme hinzufügen</string>
     <string name="search_movies">Filme suchen…</string>
     <string name="no_lists">Noch keine Listen</string>
     <string name="my_lists">Meine Listen</string>
     <string name="public_lists">Öffentliche Listen</string>
-    <string name="copy_list">Liste Kopieren</string>
-    <string name="delete_list">Liste Löschen</string>
+    <string name="copy_list">Liste kopieren</string>
+    <string name="delete_list">Liste löschen</string>
     <string name="list_copied">Liste erfolgreich kopiert</string>
     <string name="list_deleted">Liste erfolgreich gelöscht</string>
     <string name="followers">Follower</string>
     <string name="movies_count">%d Filme</string>
     <string name="selected_movies">%d Filme ausgewählt</string>
-    <string name="search_movies_placeholder">Suche und wähle Filme aus, um sie zur Liste hinzuzufügen</string>
+    <string name="search_movies_placeholder">Suchen und wählen Sie Filme aus, um sie zur Liste hinzuzufügen</string>
 </resources>

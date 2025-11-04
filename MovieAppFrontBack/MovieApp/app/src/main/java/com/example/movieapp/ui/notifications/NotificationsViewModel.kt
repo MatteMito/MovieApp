@@ -55,8 +55,8 @@ class NotificationsViewModel : ViewModel() {
     private val _decadesData = MutableLiveData<Map<String, Int>>()
     val decadesData: LiveData<Map<String, Int>> = _decadesData
 
-    private val _tmdbRatingsData = MutableLiveData<Map<String, Int>>()
-    val tmdbRatingsData: LiveData<Map<String, Int>> = _tmdbRatingsData
+    private val _tmdbRatingsData = MutableLiveData<Map<Int, Int>>()
+    val tmdbRatingsData: LiveData<Map<Int, Int>> = _tmdbRatingsData
 
     private val _genreCombinationsData = MutableLiveData<Map<Pair<String, String>, Int>>()
     val genreCombinationsData: LiveData<Map<Pair<String, String>, Int>> = _genreCombinationsData
@@ -67,7 +67,7 @@ class NotificationsViewModel : ViewModel() {
     private val _originalLanguagesData = MutableLiveData<Map<String, Int>>()
     val originalLanguagesData: LiveData<Map<String, Int>> = _originalLanguagesData
 
-    //grafici avanzati (solo quelli mantenuti)
+    //grafici avanzati
     private val _popularityVsRatingData = MutableLiveData<List<Pair<Double, Double>>>()
     val popularityVsRatingData: LiveData<List<Pair<Double, Double>>> = _popularityVsRatingData
 
@@ -102,47 +102,44 @@ class NotificationsViewModel : ViewModel() {
     private val _topOriginalLanguage = MutableLiveData<Pair<String, Int>>()
     val topOriginalLanguage: LiveData<Pair<String, Int>> = _topOriginalLanguage
 
-    //testi descrittivi decenni
-    private val _decadeDescription = MutableLiveData<String>()
-    val decadeDescription: LiveData<String> = _decadeDescription
-
-    //mappe per recuperare film per categoria
-    private val genreMoviesMap = mutableMapOf<String, List<Movie>>()
-    private val yearMoviesMap = mutableMapOf<Int, List<Movie>>()
-    private val directorMoviesMap = mutableMapOf<String, List<Movie>>()
-    private val actorMoviesMap = mutableMapOf<String, List<Movie>>()
-    private val countryMoviesMap = mutableMapOf<String, List<Movie>>()
-    private val decadeMoviesMap = mutableMapOf<String, List<Movie>>()
-    private val tmdbRatingMoviesMap = mutableMapOf<Int, List<Movie>>()
-    private val genreCombinationMoviesMap = mutableMapOf<Pair<String, String>, List<Movie>>()
-    private val runtimeRangeMoviesMap = mutableMapOf<String, List<Movie>>()
-    private val originalLanguageMoviesMap = mutableMapOf<String, List<Movie>>()
-
-    private lateinit var repository: MovieRepository
+    //cache film per recupero veloce e per mappatura cognome->nome completo
+    private var allMoviesCache: List<Movie> = emptyList()
+    private val directorLastNameToFullName = mutableMapOf<String, String>()
+    private val actorLastNameToFullName = mutableMapOf<String, String>()
 
     fun initialize(context: Context) {
-        repository = MovieRepository.getInstance(context)
-        loadMovies()
+        loadMovies(context)
     }
 
     fun refreshData() {
-        loadMovies()
+        _chartsReady.value = false
+        _movies.value?.let { movies ->
+            if (movies.isNotEmpty()) {
+                viewModelScope.launch {
+                    generateAnalytics(movies)
+                    _chartsReady.value = true
+                }
+            }
+        }
     }
 
-    private fun loadMovies() {
+    private fun loadMovies(context: Context) {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "=== caricamento movies per analytics ===")
+                val repository = MovieRepository.getInstance(context)
 
+                //usa il LiveData del repository
                 val allMovies = repository.movies.value ?: emptyList()
+
+                allMoviesCache = allMovies
                 _movies.value = allMovies
 
                 Log.d(TAG, "film caricati: ${allMovies.size}")
 
                 //aggiorna contatori
                 _totalMovies.value = allMovies.size
-                _watchedMovies.value = allMovies.count { it.isWatched }
-                _watchlistMovies.value = allMovies.count { !it.isWatched }
+                _watchedMovies.value = allMovies.count { movie: Movie -> movie.isWatched }
+                _watchlistMovies.value = allMovies.count { movie: Movie -> !movie.isWatched }
 
                 //genera analytics
                 generateAnalytics(allMovies)
@@ -172,445 +169,379 @@ class NotificationsViewModel : ViewModel() {
             calculateRuntimeRangesData(allMovies)
             calculateOriginalLanguagesData(allMovies)
 
-            //grafici avanzati (solo quelli mantenuti)
+            //grafici avanzati
             calculatePopularityVsRatingData(allMovies)
             calculatePopularityTrendData(allMovies)
 
-            //calcola tempo totale (solo film visti)
-            val watchedMovies = allMovies.filter { it.isWatched }
-            val totalMinutes = watchedMovies.mapNotNull { it.runtime }.sum()
-            val hours = totalMinutes / 60
-            val minutes = totalMinutes % 60
-            _totalWatchTime.postValue("Durata Totale Film: $hours ore e $minutes minuti")
-
-            Log.d(TAG, "=== statistiche calcolate ===")
+            //tempo totale visione
+            calculateTotalWatchTime(allMovies)
         }
     }
 
     private fun calculateGenresData(movies: List<Movie>) {
-        val genresMap = mutableMapOf<String, MutableList<Movie>>()
-
+        val genreCount = mutableMapOf<String, Int>()
         movies.forEach { movie ->
             movie.genres.forEach { genre ->
-                genresMap.getOrPut(genre) { mutableListOf() }.add(movie)
+                genreCount[genre] = (genreCount[genre] ?: 0) + 1
             }
         }
 
-        genreMoviesMap.clear()
-        genreMoviesMap.putAll(genresMap.mapValues { it.value.toList() })
+        _genresData.postValue(genreCount.toSortedMap())
 
-        val genresCounts = genresMap.mapValues { it.value.size }
-            .toList()
-            .sortedByDescending { it.second }
-            .take(10)
-            .toMap()
-
-        _genresData.postValue(genresCounts)
-
-        val topGenreEntry = genresMap.maxByOrNull { it.value.size }
-        topGenreEntry?.let {
-            _topGenre.postValue(Pair(it.key, it.value.size))
+        if (genreCount.isNotEmpty()) {
+            val top = genreCount.maxByOrNull { it.value }!!
+            _topGenre.postValue(top.key to top.value)
         }
+
+        Log.d(TAG, "generi: ${genreCount.size} generi trovati")
     }
 
     private fun calculateYearsData(movies: List<Movie>) {
-        val yearsMap = mutableMapOf<Int, MutableList<Movie>>()
-
+        val yearCount = mutableMapOf<Int, Int>()
         movies.forEach { movie ->
             movie.year?.let { year ->
-                yearsMap.getOrPut(year) { mutableListOf() }.add(movie)
+                yearCount[year] = (yearCount[year] ?: 0) + 1
             }
         }
 
-        yearMoviesMap.clear()
-        yearMoviesMap.putAll(yearsMap.mapValues { it.value.toList() })
+        _yearsData.postValue(yearCount)
 
-        val yearsCounts = yearsMap.mapValues { it.value.size }
-            .toList()
-            .sortedByDescending { it.first }
-            .take(15)
-            .sortedBy { it.first }
-            .toMap()
-
-        _yearsData.postValue(yearsCounts)
-
-        val topYearEntry = yearsMap.maxByOrNull { it.value.size }
-        topYearEntry?.let {
-            _topYear.postValue(Pair(it.key, it.value.size))
+        if (yearCount.isNotEmpty()) {
+            val top = yearCount.maxByOrNull { it.value }!!
+            _topYear.postValue(top.key to top.value)
         }
+
+        Log.d(TAG, "anni: ${yearCount.size} anni trovati")
     }
 
     private fun calculateDirectorsData(movies: List<Movie>) {
-        val directorsMap = mutableMapOf<String, MutableList<Movie>>()
+        val directorCount = mutableMapOf<String, Int>()
+        directorLastNameToFullName.clear()
 
         movies.forEach { movie ->
-            movie.director?.let { director ->
-                if (director.isNotEmpty() && director != "N/A") {
-                    directorsMap.getOrPut(director) { mutableListOf() }.add(movie)
+            movie.director?.let { fullName ->
+                val lastName = extractLastName(fullName)
+                directorCount[lastName] = (directorCount[lastName] ?: 0) + 1
+                //salva mapping cognome -> nome completo
+                if (!directorLastNameToFullName.containsKey(lastName)) {
+                    directorLastNameToFullName[lastName] = fullName
                 }
             }
         }
 
-        directorMoviesMap.clear()
-        directorMoviesMap.putAll(directorsMap.mapValues { it.value.toList() })
+        _directorsData.postValue(directorCount)
 
-        val directorsCounts = directorsMap.mapValues { it.value.size }
-            .toList()
-            .sortedByDescending { it.second }
-            .take(10)
-            .toMap()
-
-        _directorsData.postValue(directorsCounts)
-
-        val topDirectorEntry = directorsMap.maxByOrNull { it.value.size }
-        topDirectorEntry?.let {
-            _topDirector.postValue(Pair(it.key, it.value.size))
+        if (directorCount.isNotEmpty()) {
+            val top = directorCount.maxByOrNull { it.value }!!
+            val fullName = directorLastNameToFullName[top.key] ?: top.key
+            _topDirector.postValue(fullName to top.value)
         }
+
+        Log.d(TAG, "registi: ${directorCount.size} registi trovati")
     }
 
     private fun calculateActorsData(movies: List<Movie>) {
-        val actorsMap = mutableMapOf<String, MutableList<Movie>>()
+        val actorCount = mutableMapOf<String, Int>()
+        actorLastNameToFullName.clear()
 
         movies.forEach { movie ->
-            movie.actors.forEach { actor ->
-                if (actor.isNotEmpty() && actor != "N/A") {
-                    actorsMap.getOrPut(actor) { mutableListOf() }.add(movie)
+            movie.actors?.forEach { fullName ->
+                val lastName = extractLastName(fullName)
+                actorCount[lastName] = (actorCount[lastName] ?: 0) + 1
+                //salva mapping cognome -> nome completo
+                if (!actorLastNameToFullName.containsKey(lastName)) {
+                    actorLastNameToFullName[lastName] = fullName
                 }
             }
         }
 
-        actorMoviesMap.clear()
-        actorMoviesMap.putAll(actorsMap.mapValues { it.value.toList() })
+        _actorsData.postValue(actorCount)
 
-        val actorsCounts = actorsMap.mapValues { it.value.size }
-            .toList()
-            .sortedByDescending { it.second }
-            .take(10)
-            .toMap()
-
-        _actorsData.postValue(actorsCounts)
-
-        val topActorEntry = actorsMap.maxByOrNull { it.value.size }
-        topActorEntry?.let {
-            _topActor.postValue(Pair(it.key, it.value.size))
+        if (actorCount.isNotEmpty()) {
+            val top = actorCount.maxByOrNull { it.value }!!
+            val fullName = actorLastNameToFullName[top.key] ?: top.key
+            _topActor.postValue(fullName to top.value)
         }
+
+        Log.d(TAG, "attori: ${actorCount.size} attori trovati")
+    }
+
+    //estrae solo il cognome da un nome completo
+    private fun extractLastName(fullName: String): String {
+        val parts = fullName.trim().split(" ")
+        return if (parts.size > 1) parts.last() else fullName
+    }
+
+    //ottieni nome completo da cognome (per dialog)
+    fun getDirectorFullName(lastName: String): String {
+        return directorLastNameToFullName[lastName] ?: lastName
+    }
+
+    fun getActorFullName(lastName: String): String {
+        return actorLastNameToFullName[lastName] ?: lastName
     }
 
     private fun calculateTmdbRatingsData(movies: List<Movie>) {
-        Log.d(TAG, "calculateTmdbRatingsData: totale film = ${movies.size}")
+        val ratingCount = mutableMapOf<Int, Int>()
 
-        val moviesWithTmdbRating = movies.filter {
-            it.tmdbRating != null && it.tmdbRating > 0
+        //inizializza tutti i valori da 0 a 10
+        for (i in 0..10) {
+            ratingCount[i] = 0
         }
 
-        Log.d(TAG, "film con tmdb_rating: ${moviesWithTmdbRating.size}")
-
-        if (moviesWithTmdbRating.isEmpty()) {
-            Log.w(TAG, "nessun film con tmdb_rating disponibile")
-            _tmdbRatingsData.postValue(emptyMap())
-            return
+        movies.forEach { movie ->
+            movie.tmdbRating?.let { rating ->
+                val roundedRating = rating.toInt().coerceIn(0, 10)
+                ratingCount[roundedRating] = (ratingCount[roundedRating] ?: 0) + 1
+            }
         }
 
-        val ratingsMap = mutableMapOf<Int, MutableList<Movie>>()
-
-        moviesWithTmdbRating.forEach { movie ->
-            val rating = movie.tmdbRating!!.toInt()
-            Log.d(TAG, "film: ${movie.title}, tmdb_rating: ${movie.tmdbRating}, voto: $rating")
-            ratingsMap.getOrPut(rating) { mutableListOf() }.add(movie)
-        }
-
-        tmdbRatingMoviesMap.clear()
-        tmdbRatingMoviesMap.putAll(ratingsMap.mapValues { it.value.toList() })
-
-        val ratingsCounts = ratingsMap.mapValues { it.value.size }
-            .mapKeys { it.key.toString() }
-
-        Log.d(TAG, "tmdb ratings calcolati: $ratingsCounts")
-        _tmdbRatingsData.postValue(ratingsCounts)
+        _tmdbRatingsData.postValue(ratingCount)
+        Log.d(TAG, "rating tmdb: distribuzioni calcolate da 0 a 10")
     }
 
     private fun calculateCountriesData(movies: List<Movie>) {
-        Log.d(TAG, "============ COUNTRIES DEBUG START ============")
-        Log.d(TAG, "calculateCountriesData: totale film = ${movies.size}")
-
-        val countriesMap = mutableMapOf<String, MutableList<Movie>>()
-
-        movies.forEachIndexed { index, movie ->
-            Log.d(TAG, "--- Film #$index ---")
-            Log.d(TAG, "  title: ${movie.title}")
-            Log.d(TAG, "  productionCountries class: ${movie.productionCountries::class.java.name}")
-            Log.d(TAG, "  productionCountries isEmpty: ${movie.productionCountries.isEmpty()}")
-            Log.d(TAG, "  productionCountries size: ${movie.productionCountries.size}")
-
-            if (movie.productionCountries.isNotEmpty()) {
-                Log.d(TAG, "  productionCountries RAW: ${movie.productionCountries}")
-                movie.productionCountries.forEachIndexed { countryIndex, country ->
-                    Log.d(TAG, "    [$countryIndex] = '$country'")
-                    Log.d(TAG, "    [$countryIndex] length = ${country.length}")
-                    Log.d(TAG, "    [$countryIndex] isEmpty = ${country.isEmpty()}")
-                    Log.d(TAG, "    [$countryIndex] isBlank = ${country.isBlank()}")
-
-                    if (country.isNotEmpty() && country.isNotBlank() && country != "N/A") {
-                        val cleanCountry = country.trim()
-                        countriesMap.getOrPut(cleanCountry) { mutableListOf() }.add(movie)
-                        Log.d(TAG, "    [$countryIndex] ADDED to map as: '$cleanCountry'")
-                    } else {
-                        Log.d(TAG, "    [$countryIndex] SKIPPED (empty/blank/N/A)")
-                    }
-                }
-            } else {
-                Log.d(TAG, "  NO production countries for this movie")
+        val countryCount = mutableMapOf<String, Int>()
+        movies.forEach { movie ->
+            movie.productionCountries.forEach { country ->
+                val abbreviatedCountry = abbreviateCountryName(country)
+                countryCount[abbreviatedCountry] = (countryCount[abbreviatedCountry] ?: 0) + 1
             }
         }
 
-        Log.d(TAG, "countriesMap FINAL size: ${countriesMap.size}")
-        if (countriesMap.isEmpty()) {
-            Log.e(TAG, "⚠️ countriesMap is EMPTY - no data to display!")
-        } else {
-            countriesMap.forEach { (country, moviesList) ->
-                Log.d(TAG, "  COUNTRY: '$country' -> ${moviesList.size} film")
-            }
+        _countriesData.postValue(countryCount)
+
+        if (countryCount.isNotEmpty()) {
+            val top = countryCount.maxByOrNull { it.value }!!
+            _topCountry.postValue(top.key to top.value)
         }
 
-        countryMoviesMap.clear()
-        countryMoviesMap.putAll(countriesMap.mapValues { it.value.toList() })
+        Log.d(TAG, "paesi: ${countryCount.size} paesi trovati")
+    }
 
-        val countriesCounts = countriesMap.mapValues { it.value.size }
-            .toList()
-            .sortedByDescending { it.second }
-            .take(10)
-            .toMap()
-
-        Log.d(TAG, "Posting countriesCounts: $countriesCounts")
-        _countriesData.postValue(countriesCounts)
-
-        val topCountryEntry = countriesMap.maxByOrNull { it.value.size }
-        topCountryEntry?.let {
-            Log.d(TAG, "Top country: ${it.key} with ${it.value.size} films")
-            _topCountry.postValue(Pair(it.key, it.value.size))
+    //abbrevia nomi paesi lunghi
+    private fun abbreviateCountryName(country: String): String {
+        return when (country.trim()) {
+            "United States of America" -> "USA"
+            "United Kingdom" -> "UK"
+            else -> country
         }
-
-        Log.d(TAG, "============ COUNTRIES DEBUG END ============")
     }
 
     private fun calculateDecadesData(movies: List<Movie>) {
-        val decadesMap = mutableMapOf<String, MutableList<Movie>>()
+        val decadeCount = mutableMapOf<String, Int>()
+        movies.forEach { movie ->
+            movie.year?.let { year ->
+                val decade = "${(year / 10) * 10}s"
+                decadeCount[decade] = (decadeCount[decade] ?: 0) + 1
+            }
+        }
+
+        _decadesData.postValue(decadeCount)
+
+        if (decadeCount.isNotEmpty()) {
+            val top = decadeCount.maxByOrNull { it.value }!!
+            _topDecade.postValue(top.key to top.value)
+        }
+
+        Log.d(TAG, "decenni: ${decadeCount.size} decenni trovati")
+    }
+
+    private fun calculateGenreCombinationsData(movies: List<Movie>) {
+        val combinations = mutableMapOf<Pair<String, String>, Int>()
+
+        movies.forEach { movie ->
+            val genres = movie.genres
+            if (genres.size >= 2) {
+                //prende tutte le coppie di generi
+                for (i in genres.indices) {
+                    for (j in i + 1 until genres.size) {
+                        val pair = if (genres[i] <= genres[j]) {
+                            Pair(genres[i], genres[j])
+                        } else {
+                            Pair(genres[j], genres[i])
+                        }
+                        combinations[pair] = (combinations[pair] ?: 0) + 1
+                    }
+                }
+            }
+        }
+
+        _genreCombinationsData.postValue(combinations)
+
+        if (combinations.isNotEmpty()) {
+            val top = combinations.maxByOrNull { it.value }!!
+            _topGenreCombination.postValue(top.key to top.value)
+        }
+
+        Log.d(TAG, "combinazioni generi: ${combinations.size} combinazioni trovate")
+    }
+
+    private fun calculateRuntimeRangesData(movies: List<Movie>) {
+        val ranges = mutableMapOf<String, Int>()
+        ranges["0-60"] = 0
+        ranges["60-90"] = 0
+        ranges["90-120"] = 0
+        ranges["120-150"] = 0
+        ranges["150-180"] = 0
+        ranges["180+"] = 0
+
+        movies.forEach { movie ->
+            movie.runtime?.let { runtime ->
+                val range = when {
+                    runtime < 60 -> "0-60"
+                    runtime < 90 -> "60-90"
+                    runtime < 120 -> "90-120"
+                    runtime < 150 -> "120-150"
+                    runtime < 180 -> "150-180"
+                    else -> "180+"
+                }
+                ranges[range] = (ranges[range] ?: 0) + 1
+            }
+        }
+
+        _runtimeRangesData.postValue(ranges)
+
+        //calcola film piu lunghi
+        val sortedByRuntime = movies.filter { it.runtime != null }
+            .sortedByDescending { it.runtime }
+            .take(5)
+        _longestMovies.postValue(sortedByRuntime)
+
+        Log.d(TAG, "runtime ranges calcolati")
+    }
+
+    private fun calculateOriginalLanguagesData(movies: List<Movie>) {
+        val langCount = mutableMapOf<String, Int>()
+        movies.forEach { movie ->
+            movie.originalLanguage?.let { lang ->
+                langCount[lang] = (langCount[lang] ?: 0) + 1
+            }
+        }
+
+        _originalLanguagesData.postValue(langCount)
+
+        if (langCount.isNotEmpty()) {
+            val top = langCount.maxByOrNull { it.value }!!
+            _topOriginalLanguage.postValue(top.key to top.value)
+        }
+
+        Log.d(TAG, "lingue: ${langCount.size} lingue trovate")
+    }
+
+    private fun calculatePopularityVsRatingData(movies: List<Movie>) {
+        val data = movies.mapNotNull { movie ->
+            val pop = movie.popularity
+            val rating = movie.tmdbRating
+            if (pop != null && rating != null) {
+                Pair(pop, rating)
+            } else null
+        }
+
+        _popularityVsRatingData.postValue(data)
+        Log.d(TAG, "popularity vs rating: ${data.size} punti")
+    }
+
+    private fun calculatePopularityTrendData(movies: List<Movie>) {
+        val decadePopularity = mutableMapOf<String, MutableList<Double>>()
 
         movies.forEach { movie ->
             movie.year?.let { year ->
                 val decade = "${(year / 10) * 10}s"
-                decadesMap.getOrPut(decade) { mutableListOf() }.add(movie)
-            }
-        }
-
-        decadeMoviesMap.clear()
-        decadeMoviesMap.putAll(decadesMap.mapValues { it.value.toList() })
-
-        val decadesCounts = decadesMap.mapValues { it.value.size }
-            .toList()
-            .sortedBy { it.first }
-            .toMap()
-
-        _decadesData.postValue(decadesCounts)
-
-        val topDecadeEntry = decadesMap.maxByOrNull { it.value.size }
-        topDecadeEntry?.let {
-            _topDecade.postValue(Pair(it.key, it.value.size))
-        }
-    }
-
-    private fun calculateGenreCombinationsData(movies: List<Movie>) {
-        val combinationsMap = mutableMapOf<Pair<String, String>, MutableList<Movie>>()
-
-        movies.forEach { movie ->
-            if (movie.genres.size >= 2) {
-                for (i in 0 until movie.genres.size - 1) {
-                    for (j in i + 1 until movie.genres.size) {
-                        val genre1 = movie.genres[i]
-                        val genre2 = movie.genres[j]
-                        val pair = if (genre1 < genre2) Pair(genre1, genre2) else Pair(genre2, genre1)
-                        combinationsMap.getOrPut(pair) { mutableListOf() }.add(movie)
-                    }
+                movie.popularity?.let { pop ->
+                    decadePopularity.getOrPut(decade) { mutableListOf() }.add(pop)
                 }
             }
         }
 
-        genreCombinationMoviesMap.clear()
-        genreCombinationMoviesMap.putAll(combinationsMap.mapValues { it.value.distinct() })
-
-        val combinationsCounts = combinationsMap.mapValues { it.value.distinct().size }
-            .toList()
-            .sortedByDescending { it.second }
-            .take(10)
-            .toMap()
-
-        _genreCombinationsData.postValue(combinationsCounts)
-
-        val topCombination = combinationsMap.maxByOrNull { it.value.distinct().size }
-        topCombination?.let {
-            _topGenreCombination.postValue(Pair(it.key, it.value.distinct().size))
+        val avgPopularity = decadePopularity.mapValues { entry ->
+            entry.value.average()
         }
+
+        _popularityTrendData.postValue(avgPopularity)
+        Log.d(TAG, "popularity trend: ${avgPopularity.size} decenni")
     }
 
-    private fun calculateRuntimeRangesData(movies: List<Movie>) {
-        val moviesWithRuntime = movies.filter { it.runtime != null && it.runtime > 0 }
+    private fun calculateTotalWatchTime(movies: List<Movie>) {
+        val watchedMovies = movies.filter { it.isWatched }
+        val totalMinutes = watchedMovies.sumOf { it.runtime ?: 0 }
+        val hours = totalMinutes / 60
+        val minutes = totalMinutes % 60
 
-        val rangesMap = mutableMapOf<String, MutableList<Movie>>()
-
-        moviesWithRuntime.forEach { movie ->
-            val runtime = movie.runtime!!
-            val range = when {
-                runtime < 90 -> "< 90 min"
-                runtime < 120 -> "90-120 min"
-                runtime < 150 -> "120-150 min"
-                else -> "> 150 min"
-            }
-            rangesMap.getOrPut(range) { mutableListOf() }.add(movie)
-        }
-
-        runtimeRangeMoviesMap.clear()
-        runtimeRangeMoviesMap.putAll(rangesMap.mapValues { it.value.toList() })
-
-        val orderedRanges = listOf("< 90 min", "90-120 min", "120-150 min", "> 150 min")
-        val rangesCounts = orderedRanges.associateWith { range ->
-            rangesMap[range]?.size ?: 0
-        }.filter { it.value > 0 }
-
-        _runtimeRangesData.postValue(rangesCounts)
-
-        val longestMoviesList = moviesWithRuntime
-            .filter { it.runtime != null && it.runtime > 0 }
-            .sortedByDescending { it.runtime }
-            .take(10)
-
-        _longestMovies.postValue(longestMoviesList)
-    }
-
-    private fun calculateOriginalLanguagesData(movies: List<Movie>) {
-        Log.d(TAG, "============ LANGUAGES DEBUG START ============")
-        Log.d(TAG, "calculateOriginalLanguagesData: totale film = ${movies.size}")
-
-        val languagesMap = mutableMapOf<String, MutableList<Movie>>()
-
-        movies.forEachIndexed { index, movie ->
-            Log.d(TAG, "--- Film #$index ---")
-            Log.d(TAG, "  title: ${movie.title}")
-            Log.d(TAG, "  originalLanguage: '${movie.originalLanguage}'")
-            Log.d(TAG, "  originalLanguage is null: ${movie.originalLanguage == null}")
-
-            movie.originalLanguage?.let { lang ->
-                Log.d(TAG, "  originalLanguage length: ${lang.length}")
-                Log.d(TAG, "  originalLanguage isEmpty: ${lang.isEmpty()}")
-                Log.d(TAG, "  originalLanguage isBlank: ${lang.isBlank()}")
-
-                if (lang.isNotEmpty() && lang.isNotBlank() && lang != "N/A") {
-                    val langName = when (lang.trim().uppercase()) {
-                        "EN" -> "Inglese"
-                        "IT" -> "Italiano"
-                        "FR" -> "Francese"
-                        "ES" -> "Spagnolo"
-                        "DE" -> "Tedesco"
-                        "JA" -> "Giapponese"
-                        "KO" -> "Coreano"
-                        "ZH" -> "Cinese"
-                        "PT" -> "Portoghese"
-                        "RU" -> "Russo"
-                        "HI" -> "Hindi"
-                        "AR" -> "Arabo"
-                        else -> lang.trim().uppercase()
-                    }
-                    languagesMap.getOrPut(langName) { mutableListOf() }.add(movie)
-                    Log.d(TAG, "  MAPPED: '$lang' -> '$langName'")
-                } else {
-                    Log.d(TAG, "  SKIPPED (empty/blank/N/A)")
-                }
-            } ?: Log.d(TAG, "  originalLanguage is NULL")
-        }
-
-        Log.d(TAG, "languagesMap FINAL size: ${languagesMap.size}")
-        if (languagesMap.isEmpty()) {
-            Log.e(TAG, "⚠️ languagesMap is EMPTY - no data to display!")
+        val timeText = if (hours > 0) {
+            "⏱️ Durata Totale Film: $hours ore e $minutes minuti"
         } else {
-            languagesMap.forEach { (lang, moviesList) ->
-                Log.d(TAG, "  LANGUAGE: '$lang' -> ${moviesList.size} film")
-            }
+            "⏱️ Durata Totale Film: $minutes minuti"
         }
 
-        originalLanguageMoviesMap.clear()
-        originalLanguageMoviesMap.putAll(languagesMap.mapValues { it.value.toList() })
-
-        val languagesCounts = languagesMap.mapValues { it.value.size }
-            .toList()
-            .sortedByDescending { it.second }
-            .take(10)
-            .toMap()
-
-        Log.d(TAG, "Posting languagesCounts: $languagesCounts")
-        _originalLanguagesData.postValue(languagesCounts)
-
-        val topLanguageEntry = languagesMap.maxByOrNull { it.value.size }
-        topLanguageEntry?.let {
-            Log.d(TAG, "Top language: ${it.key} with ${it.value.size} films")
-            _topOriginalLanguage.postValue(Pair(it.key, it.value.size))
-        }
-
-        Log.d(TAG, "============ LANGUAGES DEBUG END ============")
+        _totalWatchTime.postValue(timeText)
+        Log.d(TAG, "tempo totale: $hours ore, $minutes minuti")
     }
 
-    //scatter plot: popolarità vs rating
-    private fun calculatePopularityVsRatingData(movies: List<Movie>) {
-        Log.d(TAG, "calculatePopularityVsRatingData: totale film = ${movies.size}")
-
-        val moviesWithData = movies.filter { movie ->
-            movie.tmdbRating != null && movie.tmdbRating > 0 &&
-                    movie.popularity != null && movie.popularity > 0
-        }
-
-        val data = moviesWithData.map { movie ->
-            Pair(movie.popularity!!, movie.tmdbRating!!)
-        }
-
-        Log.d(TAG, "popularity vs rating: ${data.size} punti")
-        _popularityVsRatingData.postValue(data)
+    //metodi per recuperare film per categoria (per dialog)
+    fun getMoviesByGenre(genre: String): List<Movie> {
+        return allMoviesCache.filter { it.genres.contains(genre) }
     }
 
-    //line chart: trend popolarità per decade
-    private fun calculatePopularityTrendData(movies: List<Movie>) {
-        Log.d(TAG, "calculatePopularityTrendData: totale film = ${movies.size}")
+    fun getMoviesByYear(year: Int): List<Movie> {
+        return allMoviesCache.filter { it.year == year }
+    }
 
-        val moviesWithData = movies.filter { movie ->
-            movie.year != null &&
-                    movie.popularity != null &&
-                    movie.popularity > 0
+    fun getMoviesByDirector(directorLastName: String): List<Movie> {
+        return allMoviesCache.filter { movie ->
+            movie.director?.let { extractLastName(it) == directorLastName } ?: false
         }
+    }
 
-        val decadePopularity = moviesWithData
-            .groupBy { movie -> "${(movie.year!! / 10) * 10}s" }
-            .mapValues { (_, moviesList) ->
-                val popularities = moviesList.mapNotNull { it.popularity }
-                if (popularities.isNotEmpty()) {
-                    popularities.average()
-                } else {
-                    0.0
+    fun getMoviesByActor(actorLastName: String): List<Movie> {
+        return allMoviesCache.filter { movie ->
+            movie.actors?.any { extractLastName(it) == actorLastName } ?: false
+        }
+    }
+
+    fun getMoviesByCountry(country: String): List<Movie> {
+        return allMoviesCache.filter { movie ->
+            movie.productionCountries.any { abbreviateCountryName(it) == country }
+        }
+    }
+
+    fun getMoviesByDecade(decade: String): List<Movie> {
+        return allMoviesCache.filter { movie ->
+            movie.year?.let { year ->
+                "${(year / 10) * 10}s" == decade
+            } ?: false
+        }
+    }
+
+    fun getMoviesByRating(rating: Int): List<Movie> {
+        return allMoviesCache.filter { movie ->
+            movie.tmdbRating?.toInt() == rating
+        }
+    }
+
+    fun getMoviesByRuntimeRange(range: String): List<Movie> {
+        return allMoviesCache.filter { movie ->
+            movie.runtime?.let { runtime ->
+                when (range) {
+                    "0-60" -> runtime < 60
+                    "60-90" -> runtime in 60 until 90
+                    "90-120" -> runtime in 90 until 120
+                    "120-150" -> runtime in 120 until 150
+                    "150-180" -> runtime in 150 until 180
+                    "180+" -> runtime >= 180
+                    else -> false
                 }
-            }
-            .toList()
-            .sortedBy { it.first }
-            .toMap()
-
-        Log.d(TAG, "popularity trend by decade: $decadePopularity")
-        _popularityTrendData.postValue(decadePopularity)
+            } ?: false
+        }
     }
 
-    //funzioni per recuperare film per categoria
-    fun getMoviesByGenre(genre: String): List<Movie> = genreMoviesMap[genre] ?: emptyList()
-    fun getMoviesByYear(year: Int): List<Movie> = yearMoviesMap[year] ?: emptyList()
-    fun getMoviesByDirector(director: String): List<Movie> = directorMoviesMap[director] ?: emptyList()
-    fun getMoviesByActor(actor: String): List<Movie> = actorMoviesMap[actor] ?: emptyList()
-    fun getMoviesByTmdbRating(rating: Int): List<Movie> = tmdbRatingMoviesMap[rating] ?: emptyList()
-    fun getMoviesByCountry(country: String): List<Movie> = countryMoviesMap[country] ?: emptyList()
-    fun getMoviesByDecade(decade: String): List<Movie> = decadeMoviesMap[decade] ?: emptyList()
-    fun getMoviesByGenreCombination(pair: Pair<String, String>): List<Movie> = genreCombinationMoviesMap[pair] ?: emptyList()
-    fun getMoviesByRuntimeRange(range: String): List<Movie> = runtimeRangeMoviesMap[range] ?: emptyList()
-    fun getMoviesByOriginalLanguage(language: String): List<Movie> = originalLanguageMoviesMap[language] ?: emptyList()
+    fun getMoviesByOriginalLanguage(language: String): List<Movie> {
+        return allMoviesCache.filter { it.originalLanguage == language }
+    }
+
+    fun getMoviesByGenreCombination(combo: Pair<String, String>): List<Movie> {
+        return allMoviesCache.filter { movie ->
+            movie.genres.contains(combo.first) && movie.genres.contains(combo.second)
+        }
+    }
 }

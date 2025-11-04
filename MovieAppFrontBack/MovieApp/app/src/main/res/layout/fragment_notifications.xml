@@ -146,15 +146,16 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- messaggio nessun dato -->
+        <!-- messaggio nessun dato - DESIGN MIGLIORATO -->
         <androidx.cardview.widget.CardView
             android:id="@+id/text_no_data"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:visibility="gone"
+            android:layout_marginTop="32dp"
             android:layout_marginBottom="16dp"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="4dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="8dp"
             app:cardBackgroundColor="@color/white">
 
             <LinearLayout
@@ -162,31 +163,39 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:gravity="center"
-                android:padding="32dp">
+                android:padding="48dp">
 
+                <!-- icona grafica -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="📊"
-                    android:textSize="48sp"
-                    android:layout_marginBottom="16dp"/>
+                    android:textSize="72sp"
+                    android:layout_marginBottom="24dp"/>
 
+                <!-- titolo principale -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/no_movies_imported"
-                    android:textSize="18sp"
+                    android:textSize="22sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
-                    android:layout_marginBottom="8dp"/>
+                    android:gravity="center"
+                    android:layout_marginBottom="12dp"/>
 
+                <!-- descrizione -->
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/import_movies_to_see_stats"
-                    android:textSize="14sp"
+                    android:textSize="15sp"
                     android:textColor="@color/text_secondary"
-                    android:textAlignment="center"/>
+                    android:gravity="center"
+                    android:lineSpacingExtra="4dp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"/>
+
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
@@ -280,13 +289,13 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="📅 anno con più film: 2019 (25 film)"
+                    tools:text="📅 anno con più film: 2023 (12 film)"
                     tools:visibility="visible"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Film per Anno"
+                    android:text="Distribuzione per Anno"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -311,13 +320,13 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="🎥 regista preferito: christopher nolan (12 film)"
+                    tools:text="🎥 regista preferito: Christopher Nolan (8 film)"
                     tools:visibility="visible"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Registi"
+                    android:text="Top Registi"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -342,13 +351,13 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="⭐ attore preferito: tom hanks (18 film)"
+                    tools:text="⭐ attore preferito: Leonardo DiCaprio (15 film)"
                     tools:visibility="visible"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Attori"
+                    android:text="Top Attori"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -361,29 +370,19 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 5: valutazioni -->
-                <TextView
-                    android:id="@+id/text_ratings_empty"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Nessuna valutazione disponibile"
-                    android:textSize="14sp"
-                    android:textColor="@color/text_secondary"
-                    android:visibility="gone"
-                    android:layout_marginBottom="16dp"/>
-
+                <!-- grafico 5: rating tmdb -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Valutazioni"
+                    android:text="Valutazioni TMDB"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp"/>
 
-                <com.github.mikephil.charting.charts.PieChart
-                    android:id="@+id/chart_ratings"
+                <com.github.mikephil.charting.charts.BarChart
+                    android:id="@+id/chart_tmdb_ratings"
                     android:layout_width="match_parent"
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
@@ -391,13 +390,14 @@
                 <!-- grafico 6: paesi -->
                 <TextView
                     android:id="@+id/text_countries_empty"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Nessun paese di produzione disponibile"
+                    android:text="Nessun dato sui paesi disponibile"
                     android:textSize="14sp"
                     android:textColor="@color/text_secondary"
-                    android:visibility="gone"
-                    android:layout_marginBottom="16dp"/>
+                    android:gravity="center"
+                    android:padding="16dp"
+                    android:visibility="gone"/>
 
                 <TextView
                     android:id="@+id/text_top_country"
@@ -410,7 +410,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="🌍 paese principale: usa (85 film)"
+                    tools:text="🌍 paese principale: USA (89 film)"
                     tools:visibility="visible"/>
 
                 <TextView
@@ -441,18 +441,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="📆 decennio preferito: 2010s (65 film)"
-                    tools:visibility="visible"/>
-
-                <TextView
-                    android:id="@+id/text_decade_description"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
-                    android:padding="8dp"
-                    android:visibility="gone"
-                    tools:text="streaming e cinema digitale"
+                    tools:text="📆 decennio preferito: 2010s (45 film)"
                     tools:visibility="visible"/>
 
                 <TextView
@@ -483,7 +472,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="🎭 combinazione più frequente: action + thriller (23 film)"
+                    tools:text="🎭 combinazione più frequente: Action + Thriller (12 film)"
                     tools:visibility="visible"/>
 
                 <TextView
@@ -502,7 +491,7 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 9: fasce durata -->
+                <!-- grafico 9: durata film -->
                 <TextView
                     android:id="@+id/text_longest_movie"
                     android:layout_width="match_parent"
@@ -514,7 +503,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="⏱️ film più lungo: the lord of the rings (201 min)"
+                    tools:text="⏱️ film più lungo: The Lord of the Rings (201 min)"
                     tools:visibility="visible"/>
 
                 <TextView
@@ -574,7 +563,7 @@
                     android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 11: film popolari vs film di qualità -->
+                <!-- grafico 11: popolarità vs qualità -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -596,10 +585,10 @@
                 <com.github.mikephil.charting.charts.ScatterChart
                     android:id="@+id/chart_popularity_vs_rating"
                     android:layout_width="match_parent"
-                    android:layout_height="350dp"
+                    android:layout_height="300dp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- grafico 12: evoluzione popolarità -->
+                <!-- grafico 12: trend popolarità -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -613,7 +602,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Come è cambiata la popolarità dei film nel tempo?"
+                    android:text="Come cambia la popolarità dei film nel corso dei decenni?"
                     android:textSize="12sp"
                     android:textColor="@color/text_secondary"
                     android:layout_marginBottom="8dp"/>
@@ -621,8 +610,7 @@
                 <com.github.mikephil.charting.charts.LineChart
                     android:id="@+id/chart_popularity_trend"
                     android:layout_width="match_parent"
-                    android:layout_height="350dp"
-                    android:layout_marginBottom="8dp"/>
+                    android:layout_height="300dp"/>
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>

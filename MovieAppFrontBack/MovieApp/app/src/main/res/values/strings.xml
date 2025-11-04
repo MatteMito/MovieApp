@@ -38,8 +38,8 @@
     <string name="error">Qualcosa è andato storto</string>
     <string name="no_data">Nessun dato disponibile</string>
     <string name="no_movies">Ancora nessun film</string>
-    <string name="no_movies_imported">Nessun film importato</string>
-    <string name="import_movies_to_see_stats">Importa i tuoi film per visualizzare le statistiche</string>
+    <string name="no_movies_imported">Nessun film ancora importato</string>
+    <string name="import_movies_to_see_stats">Importa i tuoi film per visualizzare le statistiche e i grafici dettagliati</string>
 
     <!-- stats -->
     <string name="total_movies">Totale</string>
