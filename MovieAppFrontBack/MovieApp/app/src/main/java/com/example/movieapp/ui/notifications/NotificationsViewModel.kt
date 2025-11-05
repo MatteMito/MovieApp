@@ -102,10 +102,98 @@ class NotificationsViewModel : ViewModel() {
     private val _topOriginalLanguage = MutableLiveData<Pair<String, Int>>()
     val topOriginalLanguage: LiveData<Pair<String, Int>> = _topOriginalLanguage
 
+    //statistiche avanzate per grafici
+    private val _mostPopularDecade = MutableLiveData<String>()
+    val mostPopularDecade: LiveData<String> = _mostPopularDecade
+
     //cache film per recupero veloce e per mappatura cognome->nome completo
     private var allMoviesCache: List<Movie> = emptyList()
     private val directorLastNameToFullName = mutableMapOf<String, String>()
     private val actorLastNameToFullName = mutableMapOf<String, String>()
+
+    //mappatura acronimi lingua -> nome completo
+    private val languageMap = mapOf(
+        "en" to "Inglese",
+        "it" to "Italiano",
+        "fr" to "Francese",
+        "es" to "Spagnolo",
+        "de" to "Tedesco",
+        "pt" to "Portoghese",
+        "ja" to "Giapponese",
+        "ko" to "Coreano",
+        "zh" to "Cinese",
+        "ru" to "Russo",
+        "ar" to "Arabo",
+        "hi" to "Hindi",
+        "tr" to "Turco",
+        "pl" to "Polacco",
+        "nl" to "Olandese",
+        "sv" to "Svedese",
+        "da" to "Danese",
+        "fi" to "Finlandese",
+        "no" to "Norvegese",
+        "cs" to "Ceco",
+        "hu" to "Ungherese",
+        "ro" to "Rumeno",
+        "el" to "Greco",
+        "he" to "Ebraico",
+        "th" to "Tailandese",
+        "vi" to "Vietnamita",
+        "id" to "Indonesiano",
+        "ms" to "Malese",
+        "uk" to "Ucraino",
+        "bg" to "Bulgaro",
+        "hr" to "Croato",
+        "sk" to "Slovacco",
+        "sl" to "Sloveno",
+        "sr" to "Serbo",
+        "ca" to "Catalano",
+        "eu" to "Basco",
+        "gl" to "Galiziano",
+        "fa" to "Persiano",
+        "ur" to "Urdu",
+        "bn" to "Bengali",
+        "ta" to "Tamil",
+        "te" to "Telugu",
+        "mr" to "Marathi",
+        "kn" to "Kannada",
+        "ml" to "Malayalam",
+        "pa" to "Punjabi",
+        "gu" to "Gujarati",
+        "ne" to "Nepalese",
+        "si" to "Singalese",
+        "km" to "Khmer",
+        "lo" to "Lao",
+        "my" to "Birmano",
+        "ka" to "Georgiano",
+        "hy" to "Armeno",
+        "az" to "Azero",
+        "kk" to "Kazako",
+        "uz" to "Uzbeco",
+        "mn" to "Mongolo",
+        "bo" to "Tibetano",
+        "af" to "Afrikaans",
+        "sw" to "Swahili",
+        "am" to "Amarico",
+        "so" to "Somalo",
+        "zu" to "Zulu",
+        "xh" to "Xhosa",
+        "yo" to "Yoruba",
+        "ig" to "Igbo",
+        "ha" to "Hausa",
+        "is" to "Islandese",
+        "ga" to "Irlandese",
+        "cy" to "Gallese",
+        "sq" to "Albanese",
+        "mk" to "Macedone",
+        "bs" to "Bosniaco",
+        "mt" to "Maltese",
+        "et" to "Estone",
+        "lv" to "Lettone",
+        "lt" to "Lituano",
+        "la" to "Latino",
+        "eo" to "Esperanto"
+    )
 
     fun initialize(context: Context) {
         loadMovies(context)
@@ -414,8 +502,10 @@ class NotificationsViewModel : ViewModel() {
     private fun calculateOriginalLanguagesData(movies: List<Movie>) {
         val langCount = mutableMapOf<String, Int>()
         movies.forEach { movie ->
-            movie.originalLanguage?.let { lang ->
-                langCount[lang] = (langCount[lang] ?: 0) + 1
+            movie.originalLanguage?.let { langCode ->
+                //traduci acronimo in nome completo
+                val langName = languageMap[langCode.lowercase()] ?: langCode.uppercase()
+                langCount[langName] = (langCount[langName] ?: 0) + 1
             }
         }
 
@@ -459,6 +549,13 @@ class NotificationsViewModel : ViewModel() {
         }
 
         _popularityTrendData.postValue(avgPopularity)
+
+        //trova decade piu popolare
+        if (avgPopularity.isNotEmpty()) {
+            val topDecade = avgPopularity.maxByOrNull { it.value }!!
+            _mostPopularDecade.postValue("📈 Decade più popolare: ${topDecade.key}")
+        }
+
         Log.d(TAG, "popularity trend: ${avgPopularity.size} decenni")
     }
 
@@ -536,7 +633,12 @@ class NotificationsViewModel : ViewModel() {
     }
 
     fun getMoviesByOriginalLanguage(language: String): List<Movie> {
-        return allMoviesCache.filter { it.originalLanguage == language }
+        return allMoviesCache.filter { movie ->
+            movie.originalLanguage?.let { langCode ->
+                val langName = languageMap[langCode.lowercase()] ?: langCode.uppercase()
+                langName == language
+            } ?: false
+        }
     }
 
     fun getMoviesByGenreCombination(combo: Pair<String, String>): List<Movie> {

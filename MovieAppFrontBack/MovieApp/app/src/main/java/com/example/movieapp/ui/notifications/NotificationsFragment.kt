@@ -33,15 +33,15 @@ class NotificationsFragment : Fragment() {
 
     private lateinit var notificationsViewModel: NotificationsViewModel
 
-    //colori vibranti per grafici
+    //colori originali del progetto
     private val chartColors = listOf(
-        Color.parseColor("#667eea"), Color.parseColor("#764ba2"), Color.parseColor("#f093fb"),
-        Color.parseColor("#4facfe"), Color.parseColor("#00f2fe"), Color.parseColor("#43e97b"),
-        Color.parseColor("#38f9d7"), Color.parseColor("#fa709a"), Color.parseColor("#fee140"),
-        Color.parseColor("#30cfd0"), Color.parseColor("#a8edea"), Color.parseColor("#fed6e3"),
-        Color.parseColor("#fbc2eb"), Color.parseColor("#a6c1ee"), Color.parseColor("#ffecd2"),
-        Color.parseColor("#89f7fe"), Color.parseColor("#66a6ff"), Color.parseColor("#f8b195"),
-        Color.parseColor("#c06c84"), Color.parseColor("#6c5ce7")
+        Color.parseColor("#2196F3"), Color.parseColor("#4CAF50"), Color.parseColor("#FFC107"),
+        Color.parseColor("#FF5722"), Color.parseColor("#9C27B0"), Color.parseColor("#00BCD4"),
+        Color.parseColor("#FF9800"), Color.parseColor("#E91E63"), Color.parseColor("#8BC34A"),
+        Color.parseColor("#03A9F4"), Color.parseColor("#CDDC39"), Color.parseColor("#FF6F00"),
+        Color.parseColor("#673AB7"), Color.parseColor("#009688"), Color.parseColor("#FFEB3B"),
+        Color.parseColor("#795548"), Color.parseColor("#607D8B"), Color.parseColor("#F44336"),
+        Color.parseColor("#3F51B5"), Color.parseColor("#FFCA28")
     )
 
     override fun onCreateView(
@@ -152,8 +152,8 @@ class NotificationsFragment : Fragment() {
             binding.textTopDirector.text = "🎥 regista preferito: $director ($count film)"
             binding.textTopDirector.visibility = View.VISIBLE
             binding.textTopDirector.setOnClickListener {
-                val fullName = notificationsViewModel.getDirectorFullName(director)
-                showMoviesDialogSimple("Film di $fullName", notificationsViewModel.getMoviesByDirector(director))
+                val lastName = director.split(" ").last()
+                showMoviesDialogSimple("Film di $director", notificationsViewModel.getMoviesByDirector(lastName))
             }
         }
 
@@ -168,8 +168,8 @@ class NotificationsFragment : Fragment() {
             binding.textTopActor.text = "⭐ attore preferito: $actor ($count film)"
             binding.textTopActor.visibility = View.VISIBLE
             binding.textTopActor.setOnClickListener {
-                val fullName = notificationsViewModel.getActorFullName(actor)
-                showMoviesDialogSimple("Film con $fullName", notificationsViewModel.getMoviesByActor(actor))
+                val lastName = actor.split(" ").last()
+                showMoviesDialogSimple("Film con $actor", notificationsViewModel.getMoviesByActor(lastName))
             }
         }
 
@@ -282,9 +282,14 @@ class NotificationsFragment : Fragment() {
                 setupPopularityTrendLineChart(data)
             }
         }
+
+        notificationsViewModel.mostPopularDecade.observe(viewLifecycleOwner) { stat ->
+            binding.textMostPopularDecade.text = stat
+            binding.textMostPopularDecade.visibility = View.VISIBLE
+        }
     }
 
-    //grafico generi - pie chart con legenda completa
+    //grafico generi - SOLO NUMERI con legenda completa
     private fun setupGenresPieChart(data: Map<String, Int>) {
         val entries = data.map { PieEntry(it.value.toFloat(), "") }
 
@@ -331,36 +336,33 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico anni - bar chart con scroll orizzontale e tutti gli anni
+    //grafico anni - tutti gli anni visibili, formato corretto, no valori
     private fun setupYearsBarChart(data: Map<Int, Int>) {
         val sortedData = data.toSortedMap()
-        val entries = sortedData.map { (year, count) ->
-            BarEntry(year.toFloat(), count.toFloat())
+        val entries = sortedData.entries.mapIndexed { index, entry ->
+            BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
-        val dataSet = BarDataSet(entries, "Film per anno").apply {
+        val dataSet = BarDataSet(entries, "").apply {
             color = Color.parseColor("#667eea")
-            valueTextSize = 10f
-            valueTextColor = Color.BLACK
-            valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString()
-                }
-            }
+            valueTextSize = 0f
+            setDrawValues(false)
         }
 
         binding.chartYears.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
             setVisibleXRangeMaximum(10f)
-            moveViewToX(sortedData.keys.last().toFloat())
+            moveViewToX(entries.size.toFloat() - 10f)
 
             xAxis.apply {
+                valueFormatter = IndexAxisValueFormatter(sortedData.keys.map { it.toString() })
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
                 labelRotationAngle = -45f
                 textSize = 9f
                 setDrawGridLines(false)
+                setLabelCount(sortedData.size, false)
             }
 
             axisLeft.apply {
@@ -376,7 +378,7 @@ class NotificationsFragment : Fragment() {
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     e?.let {
-                        val year = it.x.toInt()
+                        val year = sortedData.keys.toList()[it.x.toInt()]
                         showMoviesDialogSimple("Film del $year", notificationsViewModel.getMoviesByYear(year))
                     }
                 }
@@ -388,36 +390,31 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico registi - tutti con scroll orizzontale
+    //grafico registi - con rotazione etichette ridotta per maggiore leggibilità
     private fun setupDirectorsBarChart(data: Map<String, Int>) {
         val sortedDirectors = data.entries.sortedByDescending { it.value }
         val entries = sortedDirectors.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
-        val dataSet = BarDataSet(entries, "Registi").apply {
+        val dataSet = BarDataSet(entries, "").apply {
             color = Color.parseColor("#764ba2")
-            valueTextSize = 10f
-            valueTextColor = Color.BLACK
-            valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString()
-                }
-            }
+            valueTextSize = 0f
+            setDrawValues(false)
         }
 
         binding.chartDirectors.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
-            setVisibleXRangeMaximum(10f)
+            setVisibleXRangeMaximum(8f)
             moveViewToX(0f)
 
             xAxis.apply {
                 valueFormatter = IndexAxisValueFormatter(sortedDirectors.map { it.key })
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
-                labelRotationAngle = -45f
-                textSize = 9f
+                labelRotationAngle = -30f
+                textSize = 10f
                 setDrawGridLines(false)
                 setLabelCount(sortedDirectors.size, false)
             }
@@ -450,36 +447,31 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico attori - tutti con scroll orizzontale
+    //grafico attori - con rotazione etichette ridotta per maggiore leggibilità
     private fun setupActorsBarChart(data: Map<String, Int>) {
         val sortedActors = data.entries.sortedByDescending { it.value }
         val entries = sortedActors.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
-        val dataSet = BarDataSet(entries, "Attori").apply {
+        val dataSet = BarDataSet(entries, "").apply {
             color = Color.parseColor("#43e97b")
-            valueTextSize = 10f
-            valueTextColor = Color.BLACK
-            valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString()
-                }
-            }
+            valueTextSize = 0f
+            setDrawValues(false)
         }
 
         binding.chartActors.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
-            setVisibleXRangeMaximum(10f)
+            setVisibleXRangeMaximum(8f)
             moveViewToX(0f)
 
             xAxis.apply {
                 valueFormatter = IndexAxisValueFormatter(sortedActors.map { it.key })
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
-                labelRotationAngle = -45f
-                textSize = 9f
+                labelRotationAngle = -30f
+                textSize = 10f
                 setDrawGridLines(false)
                 setLabelCount(sortedActors.size, false)
             }
@@ -512,7 +504,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico valutazioni tmdb - tutti i voti 0-10
+    //grafico valutazioni tmdb - tutti i voti visibili 0-10, no valori
     private fun setupTmdbRatingsBarChart(data: Map<Int, Int>) {
         val sortedRatings = (0..10).toList()
         val entries = sortedRatings.mapIndexed { index, rating ->
@@ -528,13 +520,8 @@ class NotificationsFragment : Fragment() {
                 Color.parseColor("#4CAF50"), Color.parseColor("#009688"),
                 Color.parseColor("#00BCD4")
             )
-            valueTextSize = 10f
-            valueTextColor = Color.BLACK
-            valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString()
-                }
-            }
+            valueTextSize = 0f
+            setDrawValues(false)
         }
 
         binding.chartTmdbRatings.apply {
@@ -547,6 +534,7 @@ class NotificationsFragment : Fragment() {
                 granularity = 1f
                 textSize = 10f
                 setDrawGridLines(false)
+                setLabelCount(sortedRatings.size, false)
             }
 
             axisLeft.apply {
@@ -575,22 +563,17 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico paesi - tutti con scroll orizzontale
+    //grafico paesi - tutti con scroll, no valori
     private fun setupCountriesBarChart(data: Map<String, Int>) {
         val sortedCountries = data.entries.sortedByDescending { it.value }
         val entries = sortedCountries.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
-        val dataSet = BarDataSet(entries, "Paesi").apply {
+        val dataSet = BarDataSet(entries, "").apply {
             color = Color.parseColor("#4facfe")
-            valueTextSize = 10f
-            valueTextColor = Color.BLACK
-            valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString()
-                }
-            }
+            valueTextSize = 0f
+            setDrawValues(false)
         }
 
         binding.chartCountries.apply {
@@ -636,22 +619,17 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico decenni - tutti con scroll orizzontale
+    //grafico decenni - tutti con scroll, no valori
     private fun setupDecadesBarChart(data: Map<String, Int>) {
         val sortedDecades = data.keys.sortedBy { it.replace("s", "").toIntOrNull() ?: 0 }
         val entries = sortedDecades.mapIndexed { index, decade ->
             BarEntry(index.toFloat(), (data[decade] ?: 0).toFloat())
         }
 
-        val dataSet = BarDataSet(entries, "Decenni").apply {
+        val dataSet = BarDataSet(entries, "").apply {
             color = Color.parseColor("#fa709a")
-            valueTextSize = 10f
-            valueTextColor = Color.BLACK
-            valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString()
-                }
-            }
+            valueTextSize = 0f
+            setDrawValues(false)
         }
 
         binding.chartDecades.apply {
@@ -696,37 +674,61 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico combinazioni generi - bar chart semplice
+    //grafico combinazioni generi - con acronimi per leggibilità
     private fun setupGenreCombinationsChart(data: Map<Pair<String, String>, Int>) {
-        val topCombos = data.entries.sortedByDescending { it.value }.take(10)
-        val entries = topCombos.mapIndexed { index, entry ->
+        val sortedCombos = data.entries.sortedByDescending { it.value }
+        val entries = sortedCombos.mapIndexed { index, entry ->
             BarEntry(index.toFloat(), entry.value.toFloat())
         }
 
         val dataSet = BarDataSet(entries, "").apply {
             color = Color.parseColor("#f093fb")
-            valueTextSize = 10f
-            valueTextColor = Color.BLACK
-            valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString()
-                }
+            valueTextSize = 0f
+            setDrawValues(false)
+        }
+
+        //funzione per creare acronimi
+        fun getAcronym(genre: String): String {
+            return when (genre.lowercase()) {
+                "action" -> "AC"
+                "adventure" -> "AV"
+                "animation" -> "AN"
+                "comedy" -> "CO"
+                "crime" -> "CR"
+                "documentary" -> "DO"
+                "drama" -> "DR"
+                "family" -> "FA"
+                "fantasy" -> "FN"
+                "history" -> "HI"
+                "horror" -> "HO"
+                "music" -> "MU"
+                "mystery" -> "MY"
+                "romance" -> "RO"
+                "science fiction" -> "SF"
+                "thriller" -> "TH"
+                "war" -> "WA"
+                "western" -> "WE"
+                "tv movie" -> "TV"
+                else -> genre.take(2).uppercase()
             }
         }
 
-        val labels = topCombos.map { "${it.key.first} + ${it.key.second}" }
+        val labels = sortedCombos.map { "${getAcronym(it.key.first)}+${getAcronym(it.key.second)}" }
 
         binding.chartGenreCombinations.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
+            setVisibleXRangeMaximum(8f)
+            moveViewToX(0f)
 
             xAxis.apply {
                 valueFormatter = IndexAxisValueFormatter(labels)
                 position = XAxis.XAxisPosition.BOTTOM
                 granularity = 1f
-                labelRotationAngle = -45f
-                textSize = 7f
+                labelRotationAngle = -30f
+                textSize = 9f
                 setDrawGridLines(false)
+                setLabelCount(labels.size, false)
             }
 
             axisLeft.apply {
@@ -743,7 +745,8 @@ class NotificationsFragment : Fragment() {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     e?.let {
                         val index = it.x.toInt()
-                        val combo = topCombos[index].key
+                        val combo = sortedCombos[index].key
+                        //mostra nomi completi nel dialog
                         showMoviesDialogSimple("Film ${combo.first} + ${combo.second}",
                             notificationsViewModel.getMoviesByGenreCombination(combo))
                     }
@@ -756,7 +759,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico durata film
+    //grafico durata film - no valori
     private fun setupRuntimeRangesChart(data: Map<String, Int>) {
         val sortedRanges = listOf("0-60", "60-90", "90-120", "120-150", "150-180", "180+")
         val entries = sortedRanges.mapIndexed { index, range ->
@@ -765,13 +768,8 @@ class NotificationsFragment : Fragment() {
 
         val dataSet = BarDataSet(entries, "").apply {
             color = Color.parseColor("#30cfd0")
-            valueTextSize = 10f
-            valueTextColor = Color.BLACK
-            valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString()
-                }
-            }
+            valueTextSize = 0f
+            setDrawValues(false)
         }
 
         binding.chartRuntimeRanges.apply {
@@ -813,7 +811,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico lingue originali - pie chart
+    //grafico lingue originali - SOLO NUMERI con legenda completa
     private fun setupOriginalLanguagesPieChart(data: Map<String, Int>) {
         val entries = data.map { PieEntry(it.value.toFloat(), "") }
 

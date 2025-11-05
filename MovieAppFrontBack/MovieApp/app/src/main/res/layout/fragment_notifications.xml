@@ -146,7 +146,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- messaggio nessun dato - DESIGN MIGLIORATO -->
+        <!-- messaggio nessun dato -->
         <androidx.cardview.widget.CardView
             android:id="@+id/text_no_data"
             android:layout_width="match_parent"
@@ -165,7 +165,6 @@
                 android:gravity="center"
                 android:padding="48dp">
 
-                <!-- icona grafica -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -173,7 +172,6 @@
                     android:textSize="72sp"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- titolo principale -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -184,7 +182,6 @@
                     android:gravity="center"
                     android:layout_marginBottom="12dp"/>
 
-                <!-- descrizione -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -374,7 +371,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Valutazioni TMDB"
+                    android:text="Valutazioni"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
@@ -544,7 +541,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackground"
-                    tools:text="🌐 lingua originale principale: inglese (120 film)"
+                    tools:text="🌐 lingua originale principale: Inglese (120 film)"
                     tools:visibility="visible"/>
 
                 <TextView
@@ -574,14 +571,6 @@
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="I film più popolari sono anche i migliori?"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginBottom="8dp"/>
-
                 <com.github.mikephil.charting.charts.ScatterChart
                     android:id="@+id/chart_popularity_vs_rating"
                     android:layout_width="match_parent"
@@ -590,6 +579,17 @@
 
                 <!-- grafico 12: trend popolarità -->
                 <TextView
+                    android:id="@+id/text_most_popular_decade"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:padding="8dp"
+                    android:visibility="gone"
+                    tools:text="📈 Decade più popolare: 2010s"
+                    tools:visibility="visible"/>
+
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Evoluzione Popolarità nel Tempo"
@@ -597,14 +597,6 @@
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
                     android:layout_marginTop="8dp"
-                    android:layout_marginBottom="8dp"/>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Come cambia la popolarità dei film nel corso dei decenni?"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
                     android:layout_marginBottom="8dp"/>
 
                 <com.github.mikephil.charting.charts.LineChart
