@@ -1,8 +1,9 @@
 //file: app/src/main/java/com/example/movieapp/data/models/MovieList.kt
-//data class per lista con username
+//data class per lista con username e isfollowing
 
 package com.example.movieapp.data.models
 
+import com.example.movieapp.data.network.ApiService
 import com.google.gson.annotations.SerializedName
 
 data class MovieList(
@@ -41,4 +42,11 @@ data class MovieList(
 
     @SerializedName("updated_at")
     val updatedAt: String? = null
-)
+) {
+    //computed property: verifica se l'utente corrente segue questa lista
+    val isFollowing: Boolean
+        get() {
+            val currentUserId = ApiService.getCurrentUserId()
+            return currentUserId != null && followerIds.contains(currentUserId)
+        }
+}

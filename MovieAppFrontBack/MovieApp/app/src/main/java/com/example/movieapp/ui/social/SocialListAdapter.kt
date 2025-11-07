@@ -1,11 +1,12 @@
 //file: app/src/main/java/com/example/movieapp/ui/social/SocialListAdapter.kt
-//adapter per liste sociali con follower solo se pubblico
+//adapter per liste sociali con stato seguito/segui
 
 package com.example.movieapp.ui.social
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -18,6 +19,7 @@ class SocialListAdapter(
     private val onEditClick: ((MovieList) -> Unit)?,
     private val onDeleteClick: ((MovieList) -> Unit)?,
     private val onFollowClick: ((MovieList) -> Unit)?,
+    private val onUnfollowClick: ((MovieList) -> Unit)?,
     private val onCopyClick: ((MovieList) -> Unit)?
 ) : ListAdapter<MovieList, SocialListAdapter.ListViewHolder>(ListDiffCallback()) {
 
@@ -44,7 +46,7 @@ class SocialListAdapter(
                 tvListName.text = list.name
 
                 //descrizione
-                tvListDescription.text = list.description ?: "Nessuna descrizione"
+                tvListDescription.text = list.description ?: "nessuna descrizione"
                 tvListDescription.visibility = if (list.description.isNullOrBlank()) View.GONE else View.VISIBLE
 
                 //conteggio film
@@ -62,7 +64,7 @@ class SocialListAdapter(
                     tvUsername.visibility = View.GONE
                 }
 
-                //followers - mostra solo se lista è pubblica
+                //followers - mostra solo se lista e' pubblica
                 if (list.isPublic) {
                     tvFollowers.text = "${list.followersCount} follower"
                     tvFollowers.visibility = View.VISIBLE
@@ -86,10 +88,27 @@ class SocialListAdapter(
                     btnDelete.visibility = View.GONE
                 }
 
-                //bottone follow
-                if (onFollowClick != null) {
+                //bottone follow/following
+                if (onFollowClick != null || onUnfollowClick != null) {
                     btnFollow.visibility = View.VISIBLE
-                    btnFollow.setOnClickListener { onFollowClick.invoke(list) }
+
+                    if (list.isFollowing) {
+                        //stato: gia seguito
+                        btnFollow.text = "seguito"
+                        btnFollow.isEnabled = true
+                        btnFollow.setIconResource(R.drawable.ic_notifications)
+                        btnFollow.strokeColor = ContextCompat.getColorStateList(root.context, R.color.primary_blue)
+                        btnFollow.setTextColor(ContextCompat.getColor(root.context, R.color.primary_blue))
+                        btnFollow.setOnClickListener { onUnfollowClick?.invoke(list) }
+                    } else {
+                        //stato: non seguito
+                        btnFollow.text = "segui"
+                        btnFollow.isEnabled = true
+                        btnFollow.setIconResource(R.drawable.ic_add)
+                        btnFollow.strokeColor = ContextCompat.getColorStateList(root.context, R.color.primary_blue)
+                        btnFollow.setTextColor(ContextCompat.getColor(root.context, R.color.primary_blue))
+                        btnFollow.setOnClickListener { onFollowClick?.invoke(list) }
+                    }
                 } else {
                     btnFollow.visibility = View.GONE
                 }

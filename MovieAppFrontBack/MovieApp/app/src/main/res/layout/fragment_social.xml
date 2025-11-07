@@ -4,175 +4,172 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/background_light">
+    android:layout_height="match_parent">
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipe_refresh"
+        android:id="@+id/swipeRefresh"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <LinearLayout
+        <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:layout_height="match_parent">
 
-            <!-- header con tabs -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@color/white"
-                android:elevation="4dp"
-                android:paddingTop="16dp">
+                android:padding="16dp">
 
+                <!-- header con tabs -->
+                <com.google.android.material.tabs.TabLayout
+                    android:id="@+id/tabLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:tabMode="scrollable"
+                    app:tabGravity="fill"/>
+
+                <!-- barra ricerca -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    app:startIconDrawable="@android:drawable/ic_menu_search">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etSearch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Cerca liste..."
+                        android:inputType="text"
+                        android:maxLines="1"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- bottoni filtri -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="16dp"
-                    android:layout_marginBottom="8dp"
-                    android:gravity="center_vertical">
+                    android:layout_marginBottom="16dp"
+                    android:gravity="end">
 
-                    <TextView
-                        android:layout_width="0dp"
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSort"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Le Tue Liste"
-                        android:textSize="24sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_primary"/>
+                        android:text="Ordina"
+                        android:textAllCaps="false"
+                        app:icon="@drawable/ic_filter"/>
 
-                    <!-- bottone ordina -->
-                    <ImageButton
-                        android:id="@+id/btn_sort"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:layout_marginEnd="8dp"
-                        android:src="@drawable/ic_filter"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="ordina"/>
-
-                    <!-- bottone filtra -->
-                    <ImageButton
-                        android:id="@+id/btn_filter"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:src="@drawable/ic_filter"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="filtri"/>
-
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFilter"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="Filtra"
+                        android:textAllCaps="false"
+                        app:icon="@drawable/ic_filter"/>
                 </LinearLayout>
 
-                <!-- barra di ricerca -->
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="16dp"
-                    android:layout_marginBottom="8dp"
-                    android:hint="Cerca nelle liste..."
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_search"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="text"
-                        android:maxLines="1"
-                        android:imeOptions="actionSearch"/>
-
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <!-- tabs -->
-                <com.google.android.material.tabs.TabLayout
-                    android:id="@+id/tab_layout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@android:color/transparent"
-                    app:tabTextColor="@color/text_secondary"
-                    app:tabSelectedTextColor="@color/primary_blue"
-                    app:tabIndicatorColor="@color/primary_blue"
-                    app:tabIndicatorHeight="3dp"
-                    app:tabMode="fixed"/>
-
-            </LinearLayout>
-
-            <!-- container liste -->
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <!-- le mie liste -->
+                <!-- container le mie liste -->
                 <LinearLayout
-                    android:id="@+id/container_my_lists"
+                    android:id="@+id/containerMyLists"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="8dp">
+                    android:visibility="visible">
 
                     <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/recycler_my_lists"
+                        android:id="@+id/recyclerMyLists"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
+                        android:layout_height="wrap_content"
                         tools:listitem="@layout/item_social_list"
                         tools:itemCount="3"/>
 
                     <TextView
-                        android:id="@+id/tv_empty_my_lists"
+                        android:id="@+id/tvEmptyMyLists"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:text="Nessuna lista creata\n\nTocca + per crearne una!"
+                        android:layout_height="wrap_content"
+                        android:text="Nessuna lista creata.\nTocca + per crearne una!"
+                        android:textAlignment="center"
+                        android:padding="32dp"
                         android:textSize="16sp"
                         android:textColor="@color/text_secondary"
-                        android:visibility="gone"
-                        tools:visibility="gone"/>
-
+                        android:visibility="gone"/>
                 </LinearLayout>
 
-                <!-- liste pubbliche -->
+                <!-- container liste pubbliche -->
                 <LinearLayout
-                    android:id="@+id/container_public_lists"
+                    android:id="@+id/containerPublicLists"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="8dp"
                     android:visibility="gone">
 
                     <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/recycler_public_lists"
+                        android:id="@+id/recyclerPublicLists"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
+                        android:layout_height="wrap_content"
                         tools:listitem="@layout/item_social_list"
                         tools:itemCount="3"/>
 
                     <TextView
-                        android:id="@+id/tv_empty_public_lists"
+                        android:id="@+id/tvEmptyPublicLists"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
+                        android:layout_height="wrap_content"
                         android:text="Nessuna lista pubblica disponibile"
+                        android:textAlignment="center"
+                        android:padding="32dp"
                         android:textSize="16sp"
                         android:textColor="@color/text_secondary"
-                        android:visibility="gone"
-                        tools:visibility="gone"/>
-
+                        android:visibility="gone"/>
                 </LinearLayout>
 
-            </FrameLayout>
+                <!-- container liste seguite -->
+                <LinearLayout
+                    android:id="@+id/containerFollowedLists"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
 
-        </LinearLayout>
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerFollowedLists"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        tools:listitem="@layout/item_social_list"
+                        tools:itemCount="3"/>
+
+                    <TextView
+                        android:id="@+id/tvEmptyFollowedLists"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Non segui ancora nessuna lista.\nEsplora le liste pubbliche!"
+                        android:textAlignment="center"
+                        android:padding="32dp"
+                        android:textSize="16sp"
+                        android:textColor="@color/text_secondary"
+                        android:visibility="gone"/>
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-    <!-- fab create list -->
+    <!-- fab crea lista -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_create_list"
+        android:id="@+id/fabCreateList"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         app:srcCompat="@drawable/ic_add"
-        android:contentDescription="crea lista"/>
+        android:contentDescription="Crea lista"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

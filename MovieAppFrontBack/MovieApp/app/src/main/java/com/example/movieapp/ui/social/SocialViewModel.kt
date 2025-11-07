@@ -1,5 +1,5 @@
 //file: app/src/main/java/com/example/movieapp/ui/social/SocialViewModel.kt
-//viewmodel per socialfragment con filtri completi
+//viewmodel per socialfragment con filtri completi e liste seguite
 
 package com.example.movieapp.ui.social
 
@@ -32,12 +32,18 @@ class SocialViewModel : ViewModel() {
     private val _publicLists = MutableLiveData<List<MovieList>>()
     val publicLists: LiveData<List<MovieList>> = _publicLists
 
+    private val _followedLists = MutableLiveData<List<MovieList>>()
+    val followedLists: LiveData<List<MovieList>> = _followedLists
+
     //livedata filtrate (per ricerca e ordinamento)
     private val _filteredMyLists = MutableLiveData<List<MovieList>>()
     val filteredMyLists: LiveData<List<MovieList>> = _filteredMyLists
 
     private val _filteredPublicLists = MutableLiveData<List<MovieList>>()
     val filteredPublicLists: LiveData<List<MovieList>> = _filteredPublicLists
+
+    private val _filteredFollowedLists = MutableLiveData<List<MovieList>>()
+    val filteredFollowedLists: LiveData<List<MovieList>> = _filteredFollowedLists
 
     //livedata stati
     private val _loading = MutableLiveData<Boolean>()
@@ -49,12 +55,13 @@ class SocialViewModel : ViewModel() {
     private var context: Context? = null
     private var currentSearchQuery: String = ""
     private var currentSortType: SortType = SortType.DATE_DESC
-    private var currentVisibilityFilter: Boolean? = null //null = tutte, true = pubbliche, false = private
+    private var currentVisibilityFilter: Boolean? = null
 
     fun initialize(context: Context) {
         this.context = context
         loadMyLists()
         loadPublicLists()
+        loadFollowedLists()
     }
 
     //caricamento liste
@@ -113,10 +120,12 @@ class SocialViewModel : ViewModel() {
                 Log.d(TAG, "response code: ${response.code()}")
 
                 if (response.isSuccessful) {
-                    val lists = response.body() ?: emptyList()
-                    _publicLists.value = lists
+                    val allLists = response.body() ?: emptyList()
+                    //filtra: escludi le liste che gia segui
+                    val publicListsNotFollowed = allLists.filter { !it.isFollowing }
+                    _publicLists.value = publicListsNotFollowed
                     applyFilters()
-                    Log.d(TAG, "caricate ${lists.size} liste pubbliche")
+                    Log.d(TAG, "caricate ${publicListsNotFollowed.size} liste pubbliche (non seguite)")
                 } else {
                     val errorMsg = "errore caricamento liste pubbliche: ${response.code()}"
                     _error.value = errorMsg
@@ -133,9 +142,50 @@ class SocialViewModel : ViewModel() {
         }
     }
 
+    fun loadFollowedLists() {
+        viewModelScope.launch {
+            try {
+                _loading.value = true
+                _error.value = null
+
+                val userId = ApiService.getCurrentUserId()
+                if (userId == null) {
+                    _error.value = "utente non autenticato"
+                    Log.e(TAG, "userid null per followed lists")
+                    _loading.value = false
+                    return@launch
+                }
+
+                Log.d(TAG, "carico liste seguite per user: $userId")
+
+                //ottieni tutte le liste pubbliche e filtra quelle seguite
+                val response = ApiService.apiInterface.getPublicLists(100, userId)
+
+                if (response.isSuccessful) {
+                    val allPublicLists = response.body() ?: emptyList()
+                    //filtra solo le liste seguite (isFollowing = true)
+                    val followedLists = allPublicLists.filter { it.isFollowing }
+                    _followedLists.value = followedLists
+                    applyFilters()
+                    Log.d(TAG, "caricate ${followedLists.size} liste seguite")
+                } else {
+                    val errorMsg = "errore caricamento liste seguite: ${response.code()}"
+                    _error.value = errorMsg
+                    Log.e(TAG, errorMsg)
+                }
+            } catch (e: Exception) {
+                _error.value = "errore di rete: ${e.message}"
+                Log.e(TAG, "eccezione loadfollowedlists", e)
+            } finally {
+                _loading.value = false
+            }
+        }
+    }
+
     fun refreshLists() {
         loadMyLists()
         loadPublicLists()
+        loadFollowedLists()
     }
 
     //ricerca e filtri
@@ -165,25 +215,32 @@ class SocialViewModel : ViewModel() {
         val publicListsData = _publicLists.value ?: emptyList()
         val filteredPublicLists = filterAndSortLists(publicListsData)
         _filteredPublicLists.value = filteredPublicLists
+
+        //filtra liste seguite
+        val followedListsData = _followedLists.value ?: emptyList()
+        val filteredFollowedLists = filterAndSortLists(followedListsData)
+        _filteredFollowedLists.value = filteredFollowedLists
     }
 
     private fun filterAndSortLists(lists: List<MovieList>): List<MovieList> {
         var result = lists
 
-        //applica filtro visibilità (solo per "le mie liste")
-        if (currentVisibilityFilter != null) {
-            result = result.filter { it.isPublic == currentVisibilityFilter }
-        }
-
-        //applica ricerca per nome
+        //ricerca testuale
         if (currentSearchQuery.isNotEmpty()) {
             result = result.filter { list ->
                 list.name.lowercase().contains(currentSearchQuery) ||
-                        (list.description?.lowercase()?.contains(currentSearchQuery) == true)
+                        list.description?.lowercase()?.contains(currentSearchQuery) == true
             }
         }
 
-        //applica ordinamento
+        //filtro visibilita
+        when (currentVisibilityFilter) {
+            true -> result = result.filter { it.isPublic }
+            false -> result = result.filter { !it.isPublic }
+            null -> {} //mostra tutte
+        }
+
+        //ordinamento
         result = when (currentSortType) {
             SortType.NAME_ASC -> result.sortedBy { it.name.lowercase() }
             SortType.NAME_DESC -> result.sortedByDescending { it.name.lowercase() }
@@ -195,7 +252,7 @@ class SocialViewModel : ViewModel() {
         return result
     }
 
-    //operazioni liste
+    //azioni liste
 
     fun createList(
         name: String,
@@ -206,22 +263,19 @@ class SocialViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
-                _loading.value = true
-
                 val userId = ApiService.getCurrentUserId()
                 if (userId == null) {
                     onError("utente non autenticato")
-                    _loading.value = false
                     return@launch
                 }
 
                 Log.d(TAG, "creazione lista: $name")
+
                 val request = com.example.movieapp.data.network.CreateListRequest(
                     user_id = userId,
                     name = name,
                     description = description,
-                    is_public = isPublic,
-                    movie_ids = emptyList()
+                    is_public = isPublic
                 )
 
                 val response = ApiService.apiInterface.createList(request)
@@ -239,8 +293,6 @@ class SocialViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e(TAG, "eccezione createlist", e)
                 onError("errore: ${e.message}")
-            } finally {
-                _loading.value = false
             }
         }
     }
@@ -248,12 +300,9 @@ class SocialViewModel : ViewModel() {
     fun deleteList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                _loading.value = true
-
                 val userId = ApiService.getCurrentUserId()
                 if (userId == null) {
                     onError("utente non autenticato")
-                    _loading.value = false
                     return@launch
                 }
 
@@ -272,8 +321,6 @@ class SocialViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e(TAG, "eccezione deletelist", e)
                 onError("errore: ${e.message}")
-            } finally {
-                _loading.value = false
             }
         }
     }
@@ -281,22 +328,21 @@ class SocialViewModel : ViewModel() {
     fun followList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                _loading.value = true
-
                 val userId = ApiService.getCurrentUserId()
                 if (userId == null) {
                     onError("utente non autenticato")
-                    _loading.value = false
                     return@launch
                 }
 
                 Log.d(TAG, "follow lista: $listId")
-                val request = mapOf("userId" to userId)
-                val response = ApiService.apiInterface.followList(listId, request)
+                val body = mapOf("userId" to userId)
+                val response = ApiService.apiInterface.followList(listId, body)
 
                 if (response.isSuccessful) {
                     Log.d(TAG, "lista seguita")
+                    //ricarica liste pubbliche e seguite
                     loadPublicLists()
+                    loadFollowedLists()
                     onSuccess()
                 } else {
                     val errorMsg = "errore follow: ${response.code()}"
@@ -306,8 +352,36 @@ class SocialViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e(TAG, "eccezione followlist", e)
                 onError("errore: ${e.message}")
-            } finally {
-                _loading.value = false
+            }
+        }
+    }
+
+    fun unfollowList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val userId = ApiService.getCurrentUserId()
+                if (userId == null) {
+                    onError("utente non autenticato")
+                    return@launch
+                }
+
+                Log.d(TAG, "unfollow lista: $listId")
+                val response = ApiService.apiInterface.unfollowList(listId, userId)
+
+                if (response.isSuccessful) {
+                    Log.d(TAG, "lista non seguita piu")
+                    //ricarica liste pubbliche e seguite
+                    loadPublicLists()
+                    loadFollowedLists()
+                    onSuccess()
+                } else {
+                    val errorMsg = "errore unfollow: ${response.code()}"
+                    Log.e(TAG, errorMsg)
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "eccezione unfollowlist", e)
+                onError("errore: ${e.message}")
             }
         }
     }
@@ -315,16 +389,14 @@ class SocialViewModel : ViewModel() {
     fun copyList(listId: String, newName: String?, onSuccess: (MovieList) -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                _loading.value = true
-
                 val userId = ApiService.getCurrentUserId()
                 if (userId == null) {
                     onError("utente non autenticato")
-                    _loading.value = false
                     return@launch
                 }
 
                 Log.d(TAG, "copia lista: $listId")
+
                 val request = com.example.movieapp.data.network.CopyListRequest(
                     userId = userId,
                     newName = newName
@@ -335,6 +407,7 @@ class SocialViewModel : ViewModel() {
                 if (response.isSuccessful && response.body() != null) {
                     val copiedList = response.body()!!
                     Log.d(TAG, "lista copiata: ${copiedList.id}")
+                    loadMyLists()
                     onSuccess(copiedList)
                 } else {
                     val errorMsg = "errore copia: ${response.code()}"
@@ -344,8 +417,6 @@ class SocialViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e(TAG, "eccezione copylist", e)
                 onError("errore: ${e.message}")
-            } finally {
-                _loading.value = false
             }
         }
     }

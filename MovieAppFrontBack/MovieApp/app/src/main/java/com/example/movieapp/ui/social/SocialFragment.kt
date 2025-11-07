@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.movieapp.R
@@ -27,6 +28,7 @@ class SocialFragment : Fragment() {
 
     private lateinit var myListsAdapter: SocialListAdapter
     private lateinit var publicListsAdapter: SocialListAdapter
+    private lateinit var followedListsAdapter: SocialListAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -44,12 +46,24 @@ class SocialFragment : Fragment() {
 
         setupViews()
         setupObservers()
+        setupNavigationListener()
     }
 
-    override fun onResume() {
-        super.onResume()
-        //ricarica le liste ogni volta che torni a questa schermata
-        viewModel.refreshLists()
+    private fun setupNavigationListener() {
+        //ascolta quando torni indietro dalla schermata di dettaglio
+        val navController = findNavController()
+        val currentBackStackEntry = navController.currentBackStackEntry
+
+        currentBackStackEntry?.savedStateHandle?.getLiveData<Boolean>("refresh_lists")?.observe(
+            viewLifecycleOwner
+        ) { shouldRefresh ->
+            if (shouldRefresh == true) {
+                //ricarica le liste
+                viewModel.refreshLists()
+                //resetta il flag
+                currentBackStackEntry.savedStateHandle.remove<Boolean>("refresh_lists")
+            }
+        }
     }
 
     private fun setupViews() {
@@ -58,15 +72,17 @@ class SocialFragment : Fragment() {
             showCreateListDialog()
         }
 
-        //tabs
+        //tabs: Le Mie Liste, Liste Pubbliche, Liste Seguite
         binding.tabLayout.addTab(binding.tabLayout.newTab().setText("Le Mie Liste"))
         binding.tabLayout.addTab(binding.tabLayout.newTab().setText("Liste Pubbliche"))
+        binding.tabLayout.addTab(binding.tabLayout.newTab().setText("Liste Seguite"))
 
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 when (tab?.position) {
                     0 -> showMyLists()
                     1 -> showPublicLists()
+                    2 -> showFollowedLists()
                 }
             }
 
@@ -82,6 +98,7 @@ class SocialFragment : Fragment() {
             onEditClick = { list -> showEditListDialog(list) },
             onDeleteClick = { list -> confirmDeleteList(list.id) },
             onFollowClick = null,
+            onUnfollowClick = null,
             onCopyClick = null
         )
 
@@ -92,6 +109,18 @@ class SocialFragment : Fragment() {
             onEditClick = null,
             onDeleteClick = null,
             onFollowClick = { list -> followList(list) },
+            onUnfollowClick = { list -> unfollowList(list) },
+            onCopyClick = { list -> copyList(list) }
+        )
+
+        followedListsAdapter = SocialListAdapter(
+            onListClick = { list ->
+                openListDetail(list.id, list.name, false)
+            },
+            onEditClick = null,
+            onDeleteClick = null,
+            onFollowClick = null,
+            onUnfollowClick = { list -> unfollowList(list) },
             onCopyClick = { list -> copyList(list) }
         )
 
@@ -105,6 +134,11 @@ class SocialFragment : Fragment() {
             adapter = publicListsAdapter
         }
 
+        binding.recyclerFollowedLists.apply {
+            layoutManager = LinearLayoutManager(context)
+            adapter = followedListsAdapter
+        }
+
         //swipe refresh
         binding.swipeRefresh.setOnRefreshListener {
             viewModel.refreshLists()
@@ -115,7 +149,7 @@ class SocialFragment : Fragment() {
             showSortMenu(it)
         }
 
-        //bottone filtra (per ora stesso del sort)
+        //bottone filtra
         binding.btnFilter.setOnClickListener {
             showFilterMenu(it)
         }
@@ -153,6 +187,12 @@ class SocialFragment : Fragment() {
             binding.tvEmptyPublicLists.visibility = if (lists.isEmpty()) View.VISIBLE else View.GONE
         }
 
+        //filtered followed lists
+        viewModel.filteredFollowedLists.observe(viewLifecycleOwner) { lists ->
+            followedListsAdapter.submitList(lists)
+            binding.tvEmptyFollowedLists.visibility = if (lists.isEmpty()) View.VISIBLE else View.GONE
+        }
+
         //errors
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
@@ -164,11 +204,19 @@ class SocialFragment : Fragment() {
     private fun showMyLists() {
         binding.containerMyLists.visibility = View.VISIBLE
         binding.containerPublicLists.visibility = View.GONE
+        binding.containerFollowedLists.visibility = View.GONE
     }
 
     private fun showPublicLists() {
         binding.containerMyLists.visibility = View.GONE
         binding.containerPublicLists.visibility = View.VISIBLE
+        binding.containerFollowedLists.visibility = View.GONE
+    }
+
+    private fun showFollowedLists() {
+        binding.containerMyLists.visibility = View.GONE
+        binding.containerPublicLists.visibility = View.GONE
+        binding.containerFollowedLists.visibility = View.VISIBLE
     }
 
     private fun showCreateListDialog() {
@@ -229,6 +277,24 @@ class SocialFragment : Fragment() {
         )
     }
 
+    private fun unfollowList(list: MovieList) {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Smetti di seguire")
+            .setMessage("Vuoi smettere di seguire la lista \"${list.name}\"?")
+            .setPositiveButton("Conferma") { _, _ ->
+                viewModel.unfollowList(list.id,
+                    onSuccess = {
+                        Toast.makeText(requireContext(), "Non segui più questa lista", Toast.LENGTH_SHORT).show()
+                    },
+                    onError = { error ->
+                        Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
+                    }
+                )
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
     private fun copyList(list: MovieList) {
         val input = android.widget.EditText(requireContext())
         input.hint = list.name
@@ -263,17 +329,13 @@ class SocialFragment : Fragment() {
         val popup = PopupMenu(requireContext(), anchor)
         popup.menu.add(0, 1, 0, "Nome (A-Z)")
         popup.menu.add(0, 2, 0, "Nome (Z-A)")
-        popup.menu.add(0, 3, 0, "Più recenti")
-        popup.menu.add(0, 4, 0, "Più vecchie")
-        popup.menu.add(0, 5, 0, "Più popolari")
+        popup.menu.add(0, 3, 0, "Più popolari")
 
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> viewModel.applySortFilter(SocialViewModel.SortType.NAME_ASC)
                 2 -> viewModel.applySortFilter(SocialViewModel.SortType.NAME_DESC)
-                3 -> viewModel.applySortFilter(SocialViewModel.SortType.DATE_DESC)
-                4 -> viewModel.applySortFilter(SocialViewModel.SortType.DATE_ASC)
-                5 -> viewModel.applySortFilter(SocialViewModel.SortType.POPULARITY)
+                3 -> viewModel.applySortFilter(SocialViewModel.SortType.POPULARITY)
             }
             true
         }
