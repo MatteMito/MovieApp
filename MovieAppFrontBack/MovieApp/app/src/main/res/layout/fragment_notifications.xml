@@ -5,7 +5,6 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_light"
     android:fillViewport="true">
 
     <LinearLayout
@@ -93,7 +92,7 @@
                             android:text="0"
                             android:textSize="28sp"
                             android:textStyle="bold"
-                            android:textColor="@color/primary_blue"
+                            android:textColor="@color/success_green"
                             tools:text="120"/>
 
                         <TextView
@@ -118,7 +117,7 @@
                             android:text="0"
                             android:textSize="28sp"
                             android:textStyle="bold"
-                            android:textColor="@color/primary_blue"
+                            android:textColor="@color/warning_orange"
                             tools:text="30"/>
 
                         <TextView

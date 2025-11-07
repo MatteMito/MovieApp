@@ -1,5 +1,5 @@
 //file: src/modules/movies/user-movies.service.ts
-//service gestione associazioni user-film con gestione duplicati
+//service gestione associazioni user-film con gestione duplicati e priorità watched
 
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -74,7 +74,15 @@ export class UserMoviesService {
           });
 
           if (existing) {
-            //aggiorna solo se status diverso
+            //priorità: watched ha sempre la precedenza su watchlist
+            //se il film è già watched, non cambiare lo stato anche se arriva come watchlist
+            if (existing.status === MovieStatus.WATCHED && movieStatus === MovieStatus.WATCHLIST) {
+              this.logger.debug(`film ${movie.title} già WATCHED, skip aggiornamento a WATCHLIST`);
+              skipped++;
+              continue;
+            }
+
+            //altrimenti aggiorna se status diverso
             if (existing.status !== movieStatus) {
               existing.status = movieStatus;
               existing.userRating = movie.user_rating || existing.userRating;
@@ -83,9 +91,8 @@ export class UserMoviesService {
                 : existing.watchedDate;
               await this.userMovieRepository.save(existing);
               updated++;
-              this.logger.log(`aggiornato: ${movie.title} (${existing.status} -> ${movieStatus})`);
+              this.logger.debug(`aggiornato ${movie.title} da ${existing.status} a ${movieStatus}`);
             } else {
-              //gia presente con stesso status, skip
               skipped++;
             }
           } else {
@@ -97,205 +104,109 @@ export class UserMoviesService {
               userRating: movie.user_rating,
               watchedDate: movie.watched_date ? new Date(movie.watched_date) : null,
             });
+
             await this.userMovieRepository.save(userMovie);
             created++;
+
+            if (created <= 5) {
+              this.logger.debug(`creato: ${movie.title} (${movieStatus})`);
+            }
           }
         } catch (error) {
-          this.logger.error(`errore processing film ${movie.title}: ${error.message}`);
+          this.logger.error(`errore associazione film ${movie.title}:`, error);
           skipped++;
         }
       }
 
-      this.logger.log(`=== associazione completata ===`);
-      this.logger.log(`creati: ${created}`);
-      this.logger.log(`aggiornati: ${updated}`);
-      this.logger.log(`skippati (duplicati): ${skipped}`);
-      this.logger.log(`totale: ${created + updated}/${movies.length} film associati`);
+      this.logger.log(`associazione completata:`);
+      this.logger.log(`  creati: ${created}`);
+      this.logger.log(`  aggiornati: ${updated}`);
+      this.logger.log(`  skippati: ${skipped}`);
 
     } catch (error) {
-      this.logger.error(`errore associateMoviesToUser: ${error.message}`);
-      throw error;
-    }
-  }
-
-  async batchAssociateMovies(
-    userId: string,
-    movies: Array<{
-      movieId: string;
-      status: MovieStatus;
-      userRating?: number;
-      watchedDate?: Date;
-      userReview?: string;
-    }>,
-  ): Promise<{
-    created: number;
-    updated: number;
-    watchedInFile: number;
-    watchlistInFile: number;
-  }> {
-    try {
-      this.logger.log(`batch: ${movies.length} film per utente ${userId}`);
-
-      let created = 0;
-      let updated = 0;
-      let watchedInFile = 0;
-      let watchlistInFile = 0;
-
-      watchedInFile = movies.filter(m => m.status === MovieStatus.WATCHED).length;
-      watchlistInFile = movies.filter(m => m.status === MovieStatus.WATCHLIST).length;
-
-      const CHUNK_SIZE = 100;
-      for (let i = 0; i < movies.length; i += CHUNK_SIZE) {
-        const chunk = movies.slice(i, i + CHUNK_SIZE);
-
-        for (const movie of chunk) {
-          const existing = await this.userMovieRepository.findOne({
-            where: { userId, movieId: movie.movieId },
-          });
-
-          if (existing) {
-            existing.status = movie.status;
-            existing.userRating = movie.userRating;
-            existing.watchedDate = movie.watchedDate;
-            existing.userReview = movie.userReview;
-            await this.userMovieRepository.save(existing);
-            updated++;
-          } else {
-            const userMovie = this.userMovieRepository.create({
-              userId,
-              movieId: movie.movieId,
-              status: movie.status,
-              userRating: movie.userRating,
-              watchedDate: movie.watchedDate,
-              userReview: movie.userReview,
-            });
-            await this.userMovieRepository.save(userMovie);
-            created++;
-          }
-        }
-
-        this.logger.log(`chunk ${Math.floor(i / CHUNK_SIZE) + 1}: ${chunk.length} film`);
-      }
-
-      this.logger.log(`=== batch completato ===`);
-      this.logger.log(`creati: ${created}, aggiornati: ${updated}`);
-      this.logger.log(`watched: ${watchedInFile}, watchlist: ${watchlistInFile}`);
-
-      return { created, updated, watchedInFile, watchlistInFile };
-    } catch (error) {
-      this.logger.error(`errore batch: ${error.message}`);
-      throw error;
-    }
-  }
-
-  async getUserMovies(
-    userId: string,
-    status?: MovieStatus,
-  ): Promise<Movie[]> {
-    try {
-      const queryBuilder = this.userMovieRepository
-        .createQueryBuilder('um')
-        .leftJoinAndSelect('um.movie', 'movie')
-        .where('um.userId = :userId', { userId });
-
-      if (status) {
-        queryBuilder.andWhere('um.status = :status', { status });
-      }
-
-      const userMovies = await queryBuilder.getMany();
-
-      return userMovies
-        .filter(um => um.movie)
-        .map(um => this.userMovieToMovie(um));
-    } catch (error) {
-      this.logger.error(`errore getUserMovies: ${error.message}`);
+      this.logger.error('errore associazione batch movies:', error);
       throw error;
     }
   }
 
   async getUserMovieStats(userId: string): Promise<UserMovieStats> {
     try {
-      const [total, watched, watchlist] = await Promise.all([
-        this.userMovieRepository.count({ where: { userId } }),
-        this.userMovieRepository.count({
-          where: { userId, status: MovieStatus.WATCHED },
-        }),
-        this.userMovieRepository.count({
-          where: { userId, status: MovieStatus.WATCHLIST },
-        }),
-      ]);
-
-      const ratedMovies = await this.userMovieRepository.find({
-        where: { userId, status: MovieStatus.WATCHED },
-        select: ['userRating'],
+      const allMovies = await this.userMovieRepository.find({
+        where: { userId },
       });
 
-      const ratingsSum = ratedMovies
-        .filter(um => um.userRating !== null && um.userRating !== undefined)
-        .reduce((sum, um) => sum + um.userRating, 0);
+      const watched = allMovies.filter(m => m.status === MovieStatus.WATCHED).length;
+      const watchlist = allMovies.filter(m => m.status === MovieStatus.WATCHLIST).length;
 
-      const ratedCount = ratedMovies.filter(
-        um => um.userRating !== null && um.userRating !== undefined,
-      ).length;
-
-      const averageRating = ratedCount > 0 ? ratingsSum / ratedCount : 0;
+      const ratingsSum = allMovies
+        .filter(m => m.userRating !== null && m.userRating !== undefined)
+        .reduce((sum, m) => sum + (m.userRating || 0), 0);
+      
+      const ratingsCount = allMovies.filter(m => m.userRating).length;
+      const averageRating = ratingsCount > 0 ? ratingsSum / ratingsCount : 0;
 
       return {
         userId,
-        totalMovies: total,
+        totalMovies: allMovies.length,
         watchedCount: watched,
         watchlistCount: watchlist,
         averageRating: Math.round(averageRating * 10) / 10,
         watched,
         watchlist,
-        total,
+        total: allMovies.length,
       };
     } catch (error) {
-      this.logger.error(`errore getUserMovieStats: ${error.message}`);
+      this.logger.error(`errore recupero stats user ${userId}:`, error);
       throw error;
     }
   }
 
-  private userMovieToMovie(userMovie: UserMovieEntity): Movie {
-    const movie = userMovie.movie;
-    return {
-      id: movie.id,
-      title: movie.title,
-      year: movie.year,
-      source: movie.source,
-      tmdb_id: movie.tmdb_id,
-      is_enriched: movie.is_enriched,
-      genres: movie.genres,
-      director: movie.director,
-      actors: movie.actors,
-      overview: movie.overview,
-      tagline: movie.tagline,
-      runtime: movie.runtime,
-      poster_url: movie.poster_url,
-      backdrop_url: movie.backdrop_url,
-      tmdb_rating: movie.tmdb_rating,
-      vote_count: movie.vote_count,
-      popularity: movie.popularity,
-      budget: movie.budget,
-      revenue: movie.revenue,
-      status: userMovie.status,
-      production_companies: movie.production_companies,
-      production_countries: movie.production_countries,
-      original_language: movie.original_language,
-      original_title: movie.original_title,
-      spoken_languages: movie.spoken_languages,
-      adult: movie.adult,
-      homepage: movie.homepage,
-      imdb_id: movie.imdb_id,
-      keywords: movie.keywords,
-      certification: movie.certification,
-      trailer_url: movie.trailer_url,
-      user_rating: userMovie.userRating,
-      watched_date: userMovie.watchedDate,
-      user_review: userMovie.userReview,
-      is_favorite: userMovie.isFavorite,
-      created_at: movie.created_at,
-      updated_at: movie.updated_at,
-    };
+  async getUserMovies(
+    userId: string,
+    status?: 'watched' | 'watchlist',
+  ): Promise<Movie[]> {
+    try {
+      const queryBuilder = this.userMovieRepository
+        .createQueryBuilder('userMovie')
+        .leftJoinAndSelect('userMovie.movie', 'movie')
+        .where('userMovie.userId = :userId', { userId });
+
+      if (status) {
+        const movieStatus = status === 'watched' ? MovieStatus.WATCHED : MovieStatus.WATCHLIST;
+        queryBuilder.andWhere('userMovie.status = :status', { status: movieStatus });
+      }
+
+      const userMovies = await queryBuilder.getMany();
+
+      return userMovies.map(um => ({
+        ...um.movie,
+        user_rating: um.userRating,
+        watched_date: um.watchedDate?.toISOString(),
+        status: um.status === MovieStatus.WATCHED ? 'watched' : 'watchlist',
+      }));
+    } catch (error) {
+      this.logger.error(`errore recupero movies user ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  async deleteUserMovie(userId: string, movieId: string): Promise<void> {
+    try {
+      await this.userMovieRepository.delete({ userId, movieId });
+      this.logger.log(`eliminato film ${movieId} per user ${userId}`);
+    } catch (error) {
+      this.logger.error(`errore eliminazione film ${movieId}:`, error);
+      throw error;
+    }
+  }
+
+  async deleteAllUserMovies(userId: string): Promise<void> {
+    try {
+      await this.userMovieRepository.delete({ userId });
+      this.logger.log(`eliminati tutti i film per user ${userId}`);
+    } catch (error) {
+      this.logger.error(`errore eliminazione film user ${userId}:`, error);
+      throw error;
+    }
   }
 }

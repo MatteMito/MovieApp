@@ -136,7 +136,7 @@ class HomeFragment : Fragment() {
     private fun updateStatsCard(movies: List<com.example.movieapp.data.models.Movie>) {
         val total = movies.size
 
-        // ✅ FIX: usa status invece di isWatched!
+        //usa status invece di isWatched
         val watched = movies.count { it.status == "watched" }
         val watchlist = movies.count { it.status == "watchlist" }
 
@@ -211,10 +211,14 @@ class HomeFragment : Fragment() {
     }
 
     private fun processFile(uri: Uri, type: ImportType) {
+        //attiva subito la progress bar
+        homeViewModel.setImporting(true)
+
         try {
             val inputStream = requireContext().contentResolver.openInputStream(uri)
             if (inputStream == null) {
                 Toast.makeText(requireContext(), "Errore lettura file", Toast.LENGTH_SHORT).show()
+                homeViewModel.setImporting(false)
                 return
             }
 
@@ -237,6 +241,7 @@ class HomeFragment : Fragment() {
         } catch (e: Exception) {
             Log.e(TAG, "errore processamento file", e)
             Toast.makeText(requireContext(), "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
+            homeViewModel.setImporting(false)
         }
     }
 

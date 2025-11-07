@@ -83,6 +83,11 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    fun setImporting(isImporting: Boolean) {
+        _isImporting.value = isImporting
+        Log.d(TAG, "setImporting: $isImporting")
+    }
+
     fun startImport(filePath: String, csvType: String) {
         viewModelScope.launch {
             try {

@@ -289,20 +289,16 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico generi - SOLO NUMERI con legenda completa
+    //grafico generi
     private fun setupGenresPieChart(data: Map<String, Int>) {
         val entries = data.map { PieEntry(it.value.toFloat(), "") }
 
         val dataSet = PieDataSet(entries, "").apply {
             colors = chartColors
-            valueTextSize = 14f
+            valueTextSize = 0f
             valueTextColor = Color.WHITE
             sliceSpace = 2f
-            valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString()
-                }
-            }
+            setDrawValues(false)  //disabilita completamente i valori
         }
 
         binding.chartGenres.apply {
@@ -811,20 +807,16 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico lingue originali - SOLO NUMERI con legenda completa
+    //grafico lingue originali
     private fun setupOriginalLanguagesPieChart(data: Map<String, Int>) {
         val entries = data.map { PieEntry(it.value.toFloat(), "") }
 
         val dataSet = PieDataSet(entries, "").apply {
             colors = chartColors
-            valueTextSize = 11f
+            valueTextSize = 0f
             valueTextColor = Color.WHITE
             sliceSpace = 2f
-            valueFormatter = object : ValueFormatter() {
-                override fun getFormattedValue(value: Float): String {
-                    return value.toInt().toString()
-                }
-            }
+            setDrawValues(false)  //disabilita completamente i valori
         }
 
         binding.chartOriginalLanguages.apply {
@@ -848,8 +840,7 @@ class NotificationsFragment : Fragment() {
                     if (e is PieEntry) {
                         val index = entries.indexOf(e)
                         val language = data.keys.toList()[index]
-                        showMoviesDialogSimple("Film in $language",
-                            notificationsViewModel.getMoviesByOriginalLanguage(language))
+                        showMoviesDialogSimple("Film in $language", notificationsViewModel.getMoviesByOriginalLanguage(language))
                     }
                 }
                 override fun onNothingSelected() {}
