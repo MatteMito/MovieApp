@@ -1,5 +1,6 @@
 import { Repository } from 'typeorm';
 import { UserMovieEntity, MovieStatus } from '../../database/entities/user-movie.entity';
+import { MovieEntity } from '../../database/entities/movie.entity';
 import { Movie } from '../../common/interfaces/movie.interface';
 export interface UserMovieStats {
     userId: string;
@@ -19,8 +20,9 @@ export interface ImportCounters {
 }
 export declare class UserMoviesService {
     private readonly userMovieRepository;
+    private readonly movieRepository;
     private readonly logger;
-    constructor(userMovieRepository: Repository<UserMovieEntity>);
+    constructor(userMovieRepository: Repository<UserMovieEntity>, movieRepository: Repository<MovieEntity>);
     associateMoviesToUser(userId: string, movies: Movie[], status: 'watched' | 'watchlist'): Promise<void>;
     batchAssociateMovies(userId: string, movies: Array<{
         movieId: string;
@@ -36,4 +38,5 @@ export declare class UserMoviesService {
     }>;
     getUserMovies(userId: string, status?: MovieStatus): Promise<Movie[]>;
     getUserMovieStats(userId: string): Promise<UserMovieStats>;
+    private userMovieToMovie;
 }

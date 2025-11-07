@@ -64,10 +64,17 @@ let MoviesService = MoviesService_1 = class MoviesService {
             });
             this.logger.log(`database: ${movieCount} film, ${enrichedCount} arricchiti`);
             if (movieCount === 0) {
-                this.logger.log('database vuoto, inizializzazione non necessaria al primo avvio');
+                this.logger.log('🎬 primo avvio! avvio sync 10.000 film popolari in background...');
+                this.tmdbService.syncPopularMovies(10000)
+                    .then(result => {
+                    this.logger.log(`✅ sync iniziale completato: ${result.synced} film`);
+                })
+                    .catch(error => {
+                    this.logger.error(`❌ errore sync iniziale: ${error.message}`);
+                });
                 return {
-                    needsSync: false,
-                    message: 'database vuoto, pronto per import',
+                    needsSync: true,
+                    message: 'primo avvio: scaricamento 10k film popolari avviato in background',
                     stats: { movieCount: 0, enrichedCount: 0 },
                 };
             }
@@ -106,21 +113,24 @@ let MoviesService = MoviesService_1 = class MoviesService {
         for (let i = 0; i < movies.length; i++) {
             const movie = movies[i];
             try {
-                const enrichedMovie = await this.tmdbService.enrichMovie(movie);
-                if (enrichedMovie) {
-                    successfulMovies.push(enrichedMovie);
-                    if (enrichedMovie.is_enriched) {
-                        const existingMovie = await this.databaseService.findMovieByTmdbId(enrichedMovie.tmdb_id);
-                        if (existingMovie?.is_enriched) {
-                            cacheHits++;
-                        }
-                    }
+                const existingMovie = await this.databaseService.findMovieById(movie.id);
+                if (existingMovie?.is_enriched) {
+                    this.logger.log(`cache hit: ${movie.title} (${movie.id})`);
+                    successfulMovies.push(existingMovie);
+                    cacheHits++;
                 }
                 else {
-                    failedMovies.push({
-                        movie,
-                        error: 'enrichment fallito',
-                    });
+                    const enrichedMovie = await this.tmdbService.enrichMovie(movie);
+                    if (enrichedMovie) {
+                        await this.databaseService.saveMovie(enrichedMovie);
+                        successfulMovies.push(enrichedMovie);
+                    }
+                    else {
+                        failedMovies.push({
+                            movie,
+                            error: 'enrichment fallito',
+                        });
+                    }
                 }
                 this.websocketGateway.notifyEnrichmentProgress(sessionId, i + 1, totalMovies, movie.title);
             }
@@ -273,6 +283,7 @@ let MoviesService = MoviesService_1 = class MoviesService {
                 .filter(um => um.movie)
                 .map(um => ({
                 ...this.entityToMovie(um.movie),
+                status: um.status,
                 user_rating: um.userRating,
                 watched_date: um.watchedDate,
                 user_review: um.userReview,

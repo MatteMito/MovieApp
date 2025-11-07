@@ -135,8 +135,10 @@ class HomeFragment : Fragment() {
 
     private fun updateStatsCard(movies: List<com.example.movieapp.data.models.Movie>) {
         val total = movies.size
-        val watched = movies.count { it.isWatched }
-        val watchlist = movies.count { !it.isWatched }
+
+        // ✅ FIX: usa status invece di isWatched!
+        val watched = movies.count { it.status == "watched" }
+        val watchlist = movies.count { it.status == "watchlist" }
 
         binding.textTotalMovies.text = total.toString()
         binding.textWatchedMovies.text = watched.toString()

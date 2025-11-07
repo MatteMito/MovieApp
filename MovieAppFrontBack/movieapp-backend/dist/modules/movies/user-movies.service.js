@@ -18,39 +18,70 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const user_movie_entity_1 = require("../../database/entities/user-movie.entity");
+const movie_entity_1 = require("../../database/entities/movie.entity");
 let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
-    constructor(userMovieRepository) {
+    constructor(userMovieRepository, movieRepository) {
         this.userMovieRepository = userMovieRepository;
+        this.movieRepository = movieRepository;
         this.logger = new common_1.Logger(UserMoviesService_1.name);
     }
     async associateMoviesToUser(userId, movies, status) {
         try {
             this.logger.log(`associazione ${movies.length} film (${status}) a user ${userId}`);
             const movieStatus = status === 'watched' ? user_movie_entity_1.MovieStatus.WATCHED : user_movie_entity_1.MovieStatus.WATCHLIST;
+            let created = 0;
+            let updated = 0;
+            let skipped = 0;
             for (const movie of movies) {
-                const existing = await this.userMovieRepository.findOne({
-                    where: { userId, movieId: movie.id },
-                });
-                if (existing) {
-                    if (existing.status !== movieStatus) {
-                        existing.status = movieStatus;
-                        existing.userRating = movie.user_rating || existing.userRating;
-                        existing.watchedDate = movie.watched_date ? new Date(movie.watched_date) : existing.watchedDate;
-                        await this.userMovieRepository.save(existing);
+                try {
+                    const movieExists = await this.movieRepository.findOne({
+                        where: { id: movie.id },
+                    });
+                    if (!movieExists) {
+                        this.logger.warn(`film ${movie.title} (${movie.id}) non trovato in tabella movies, skip`);
+                        skipped++;
+                        continue;
+                    }
+                    const existing = await this.userMovieRepository.findOne({
+                        where: { userId, movieId: movie.id },
+                    });
+                    if (existing) {
+                        if (existing.status !== movieStatus) {
+                            existing.status = movieStatus;
+                            existing.userRating = movie.user_rating || existing.userRating;
+                            existing.watchedDate = movie.watched_date
+                                ? new Date(movie.watched_date)
+                                : existing.watchedDate;
+                            await this.userMovieRepository.save(existing);
+                            updated++;
+                            this.logger.log(`aggiornato: ${movie.title} (${existing.status} -> ${movieStatus})`);
+                        }
+                        else {
+                            skipped++;
+                        }
+                    }
+                    else {
+                        const userMovie = this.userMovieRepository.create({
+                            userId,
+                            movieId: movie.id,
+                            status: movieStatus,
+                            userRating: movie.user_rating,
+                            watchedDate: movie.watched_date ? new Date(movie.watched_date) : null,
+                        });
+                        await this.userMovieRepository.save(userMovie);
+                        created++;
                     }
                 }
-                else {
-                    const userMovie = this.userMovieRepository.create({
-                        userId,
-                        movieId: movie.id,
-                        status: movieStatus,
-                        userRating: movie.user_rating,
-                        watchedDate: movie.watched_date ? new Date(movie.watched_date) : null,
-                    });
-                    await this.userMovieRepository.save(userMovie);
+                catch (error) {
+                    this.logger.error(`errore processing film ${movie.title}: ${error.message}`);
+                    skipped++;
                 }
             }
-            this.logger.log(`associati ${movies.length} film come ${status}`);
+            this.logger.log(`=== associazione completata ===`);
+            this.logger.log(`creati: ${created}`);
+            this.logger.log(`aggiornati: ${updated}`);
+            this.logger.log(`skippati (duplicati): ${skipped}`);
+            this.logger.log(`totale: ${created + updated}/${movies.length} film associati`);
         }
         catch (error) {
             this.logger.error(`errore associateMoviesToUser: ${error.message}`);
@@ -116,20 +147,9 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
                 queryBuilder.andWhere('um.status = :status', { status });
             }
             const userMovies = await queryBuilder.getMany();
-            const result = userMovies
+            return userMovies
                 .filter(um => um.movie)
-                .map(um => {
-                const isWatched = um.status === 'watched';
-                return {
-                    ...um.movie,
-                    user_rating: um.userRating,
-                    watched_date: um.watchedDate,
-                    user_review: um.userReview,
-                    is_favorite: um.isFavorite,
-                    is_watched: isWatched,
-                };
-            });
-            return result;
+                .map(um => this.userMovieToMovie(um));
         }
         catch (error) {
             this.logger.error(`errore getUserMovies: ${error.message}`);
@@ -138,24 +158,33 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
     }
     async getUserMovieStats(userId) {
         try {
-            const allMovies = await this.userMovieRepository.find({
-                where: { userId },
+            const [total, watched, watchlist] = await Promise.all([
+                this.userMovieRepository.count({ where: { userId } }),
+                this.userMovieRepository.count({
+                    where: { userId, status: user_movie_entity_1.MovieStatus.WATCHED },
+                }),
+                this.userMovieRepository.count({
+                    where: { userId, status: user_movie_entity_1.MovieStatus.WATCHLIST },
+                }),
+            ]);
+            const ratedMovies = await this.userMovieRepository.find({
+                where: { userId, status: user_movie_entity_1.MovieStatus.WATCHED },
+                select: ['userRating'],
             });
-            const watchedMovies = allMovies.filter(um => um.status === user_movie_entity_1.MovieStatus.WATCHED);
-            const watchlistMovies = allMovies.filter(um => um.status === user_movie_entity_1.MovieStatus.WATCHLIST);
-            const watchedWithRating = watchedMovies.filter(um => um.userRating != null);
-            const averageRating = watchedWithRating.length > 0
-                ? watchedWithRating.reduce((sum, um) => sum + um.userRating, 0) / watchedWithRating.length
-                : 0;
+            const ratingsSum = ratedMovies
+                .filter(um => um.userRating !== null && um.userRating !== undefined)
+                .reduce((sum, um) => sum + um.userRating, 0);
+            const ratedCount = ratedMovies.filter(um => um.userRating !== null && um.userRating !== undefined).length;
+            const averageRating = ratedCount > 0 ? ratingsSum / ratedCount : 0;
             return {
                 userId,
-                totalMovies: allMovies.length,
-                watchedCount: watchedMovies.length,
-                watchlistCount: watchlistMovies.length,
-                averageRating,
-                watched: watchedMovies.length,
-                watchlist: watchlistMovies.length,
-                total: allMovies.length,
+                totalMovies: total,
+                watchedCount: watched,
+                watchlistCount: watchlist,
+                averageRating: Math.round(averageRating * 10) / 10,
+                watched,
+                watchlist,
+                total,
             };
         }
         catch (error) {
@@ -163,11 +192,55 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
             throw error;
         }
     }
+    userMovieToMovie(userMovie) {
+        const movie = userMovie.movie;
+        return {
+            id: movie.id,
+            title: movie.title,
+            year: movie.year,
+            source: movie.source,
+            tmdb_id: movie.tmdb_id,
+            is_enriched: movie.is_enriched,
+            genres: movie.genres,
+            director: movie.director,
+            actors: movie.actors,
+            overview: movie.overview,
+            tagline: movie.tagline,
+            runtime: movie.runtime,
+            poster_url: movie.poster_url,
+            backdrop_url: movie.backdrop_url,
+            tmdb_rating: movie.tmdb_rating,
+            vote_count: movie.vote_count,
+            popularity: movie.popularity,
+            budget: movie.budget,
+            revenue: movie.revenue,
+            status: userMovie.status,
+            production_companies: movie.production_companies,
+            production_countries: movie.production_countries,
+            original_language: movie.original_language,
+            original_title: movie.original_title,
+            spoken_languages: movie.spoken_languages,
+            adult: movie.adult,
+            homepage: movie.homepage,
+            imdb_id: movie.imdb_id,
+            keywords: movie.keywords,
+            certification: movie.certification,
+            trailer_url: movie.trailer_url,
+            user_rating: userMovie.userRating,
+            watched_date: userMovie.watchedDate,
+            user_review: userMovie.userReview,
+            is_favorite: userMovie.isFavorite,
+            created_at: movie.created_at,
+            updated_at: movie.updated_at,
+        };
+    }
 };
 exports.UserMoviesService = UserMoviesService;
 exports.UserMoviesService = UserMoviesService = UserMoviesService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_movie_entity_1.UserMovieEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(movie_entity_1.MovieEntity)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository])
 ], UserMoviesService);
 //# sourceMappingURL=user-movies.service.js.map

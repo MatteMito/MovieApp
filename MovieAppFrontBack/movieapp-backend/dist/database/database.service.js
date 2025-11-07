@@ -98,27 +98,82 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
     }
     async saveMovie(movie) {
         try {
-            if (movie.tmdb_id) {
-                const existing = await this.movieRepository.findOne({
-                    where: { tmdb_id: movie.tmdb_id }
+            let entity = await this.movieRepository.findOne({
+                where: { id: movie.id },
+            });
+            if (entity) {
+                Object.assign(entity, {
+                    title: movie.title,
+                    year: movie.year,
+                    source: movie.source,
+                    tmdb_id: movie.tmdb_id,
+                    is_enriched: movie.is_enriched,
+                    genres: movie.genres,
+                    director: movie.director,
+                    actors: movie.actors,
+                    overview: movie.overview,
+                    tagline: movie.tagline,
+                    runtime: movie.runtime,
+                    poster_url: movie.poster_url,
+                    backdrop_url: movie.backdrop_url,
+                    tmdb_rating: movie.tmdb_rating,
+                    vote_count: movie.vote_count,
+                    popularity: movie.popularity,
+                    budget: movie.budget,
+                    revenue: movie.revenue,
+                    status: movie.status,
+                    production_companies: movie.production_companies,
+                    production_countries: movie.production_countries,
+                    original_language: movie.original_language,
+                    original_title: movie.original_title,
+                    spoken_languages: movie.spoken_languages,
+                    adult: movie.adult,
+                    homepage: movie.homepage,
+                    imdb_id: movie.imdb_id,
+                    keywords: movie.keywords,
+                    certification: movie.certification,
+                    trailer_url: movie.trailer_url,
                 });
-                if (existing) {
-                    this.logger.debug(`aggiornamento film esistente: ${movie.title} (tmdb_id: ${movie.tmdb_id})`);
-                    const entity = this.movieToEntity({
-                        ...movie,
-                        id: existing.id,
-                    });
-                    const saved = await this.movieRepository.save(entity);
-                    return this.entityToMovie(saved);
-                }
             }
-            const entity = this.movieToEntity(movie);
-            const saved = await this.movieRepository.save(entity);
-            this.logger.debug(`film salvato: ${movie.title}`);
-            return this.entityToMovie(saved);
+            else {
+                entity = this.movieRepository.create({
+                    id: movie.id,
+                    title: movie.title,
+                    year: movie.year,
+                    source: movie.source,
+                    tmdb_id: movie.tmdb_id,
+                    is_enriched: movie.is_enriched || false,
+                    genres: movie.genres || [],
+                    director: movie.director,
+                    actors: movie.actors || [],
+                    overview: movie.overview,
+                    tagline: movie.tagline,
+                    runtime: movie.runtime,
+                    poster_url: movie.poster_url,
+                    backdrop_url: movie.backdrop_url,
+                    tmdb_rating: movie.tmdb_rating,
+                    vote_count: movie.vote_count,
+                    popularity: movie.popularity,
+                    budget: movie.budget,
+                    revenue: movie.revenue,
+                    status: movie.status,
+                    production_companies: movie.production_companies || [],
+                    production_countries: movie.production_countries || [],
+                    original_language: movie.original_language,
+                    original_title: movie.original_title,
+                    spoken_languages: movie.spoken_languages || [],
+                    adult: movie.adult,
+                    homepage: movie.homepage,
+                    imdb_id: movie.imdb_id,
+                    keywords: movie.keywords || [],
+                    certification: movie.certification,
+                    trailer_url: movie.trailer_url,
+                });
+            }
+            return await this.movieRepository.save(entity);
         }
         catch (error) {
-            this.logger.error(`errore salvataggio film ${movie.title}: ${error.message}`);
+            this.logger.error(`errore save movie: ${error.message}`);
             throw error;
         }
     }

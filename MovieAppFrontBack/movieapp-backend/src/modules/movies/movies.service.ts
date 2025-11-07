@@ -1,4 +1,5 @@
-//movies.service.ts - VERSIONE CORRETTA COMPLETA
+//file: src/modules/movies/movies.service.ts
+//service principale gestione film con enrichment e batch
 
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -129,11 +130,22 @@ export class MoviesService {
 
       this.logger.log(`database: ${movieCount} film, ${enrichedCount} arricchiti`);
 
+      //primo avvio: scarica 10k film popolari per autocomplete
       if (movieCount === 0) {
-        this.logger.log('database vuoto, inizializzazione non necessaria al primo avvio');
+        this.logger.log('🎬 primo avvio! avvio sync 10.000 film popolari in background...');
+        
+        //avvia sync in background senza bloccare
+        this.tmdbService.syncPopularMovies(10000)
+          .then(result => {
+            this.logger.log(`✅ sync iniziale completato: ${result.synced} film`);
+          })
+          .catch(error => {
+            this.logger.error(`❌ errore sync iniziale: ${error.message}`);
+          });
+        
         return {
-          needsSync: false,
-          message: 'database vuoto, pronto per import',
+          needsSync: true,
+          message: 'primo avvio: scaricamento 10k film popolari avviato in background',
           stats: { movieCount: 0, enrichedCount: 0 },
         };
       }
@@ -179,24 +191,29 @@ export class MoviesService {
       const movie = movies[i];
 
       try {
-        const enrichedMovie = await this.tmdbService.enrichMovie(movie);
+        //cerca film esistente usando l'ID univoco del film, NON il tmdb_id
+        const existingMovie = await this.databaseService.findMovieById(movie.id);
 
-        if (enrichedMovie) {
-          successfulMovies.push(enrichedMovie);
-          
-          if (enrichedMovie.is_enriched) {
-            const existingMovie = await this.databaseService.findMovieByTmdbId(
-              enrichedMovie.tmdb_id,
-            );
-            if (existingMovie?.is_enriched) {
-              cacheHits++;
-            }
-          }
+        if (existingMovie?.is_enriched) {
+          //film gia arricchito nel database
+          this.logger.log(`cache hit: ${movie.title} (${movie.id})`);
+          successfulMovies.push(existingMovie);
+          cacheHits++;
         } else {
-          failedMovies.push({
-            movie,
-            error: 'enrichment fallito',
-          });
+          //arricchisci il film con tmdb
+          const enrichedMovie = await this.tmdbService.enrichMovie(movie);
+
+          if (enrichedMovie) {
+            //salva il film arricchito nel database
+            await this.databaseService.saveMovie(enrichedMovie);
+            
+            successfulMovies.push(enrichedMovie);
+          } else {
+            failedMovies.push({
+              movie,
+              error: 'enrichment fallito',
+            });
+          }
         }
 
         this.websocketGateway.notifyEnrichmentProgress(
@@ -305,7 +322,6 @@ export class MoviesService {
     };
   }
 
-  //fix definitivo: NON ciclare sui film, usa batch!
   async batchUploadWithUserAssociation(
     userId: string,
     watchlist: Movie[],
@@ -427,6 +443,7 @@ export class MoviesService {
         .filter(um => um.movie)
         .map(um => ({
           ...this.entityToMovie(um.movie),
+          status: um.status,
           user_rating: um.userRating,
           watched_date: um.watchedDate,
           user_review: um.userReview,

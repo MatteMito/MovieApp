@@ -40,92 +40,80 @@ export class TmdbService {
     this.logger.log('tmdb service inizializzato (cache = movies table)');
   }
 
-  //============================================
-  //enrichment singolo film
-  //============================================
   async enrichMovie(movie: Movie): Promise<Movie> {
     try {
-      //step 1: controlla cache nel database
-      const existingMovie = await this.databaseService.findMovieByTitleYear(
-        movie.title, 
-        movie.year
-      );
-
-      //se il film esiste ed e' gia arricchito, ritorna quello
-      if (existingMovie && existingMovie.tmdb_id && existingMovie.is_enriched) {
-        this.logger.log(`cache hit (gia arricchito): ${movie.title}`);
-        return {
-          ...existingMovie,
-          id: movie.id,
-          source: movie.source,
-        };
-      }
-
-      //se il film esiste ma NON e' arricchito (is_enriched = false)
-      if (existingMovie && existingMovie.tmdb_id && !existingMovie.is_enriched) {
-        this.logger.log(`film trovato nel db ma non arricchito: ${movie.title}, arricchisco ora...`);
-        
-        //usa il tmdb_id esistente per arricchire
-        const tmdbMovie = await this.getMovieDetails(existingMovie.tmdb_id);
-        
-        if (tmdbMovie) {
-          const enrichedMovie = this.mapTmdbToMovie(movie, tmdbMovie);
-          
-          //aggiorna nel database con is_enriched = true
-          await this.databaseService.saveMovie({
-            ...enrichedMovie,
-            id: existingMovie.id, //mantieni id del database
-          });
-          
-          this.logger.log(`film arricchito e salvato: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
-          
-          return {
-            ...enrichedMovie,
-            id: movie.id,
-            source: movie.source,
-          };
-        }
-      }
-
-      //step 2: film non trovato nel db, cerca su tmdb
       this.logger.log(`ricerca tmdb: ${movie.title} (${movie.year})`);
 
-      await this.enforceRateLimit();
-      let tmdbMovie: TmdbMovieDetails | null = null;
+      //cerca su tmdb
+      const tmdbData = await this.searchByTitle(movie.title, movie.year);
 
-      //strategia 1: imdb id
-      if (movie.id.startsWith('tt')) {
-        tmdbMovie = await this.findByImdbId(movie.id);
-        if (tmdbMovie) {
-          this.logger.log(`trovato via imdb id: ${tmdbMovie.id} per ${movie.title}`);
-        }
+      if (!tmdbData) {
+        this.logger.warn(`film non trovato su tmdb: ${movie.title}`);
+        return null;
       }
 
-      //strategia 2: titolo e anno
-      if (!tmdbMovie) {
-        tmdbMovie = await this.searchByTitle(movie.title, movie.year);
-        if (tmdbMovie) {
-          this.logger.log(`trovato via titolo: ${tmdbMovie.id} per ${movie.title}`);
-        }
-      }
+      this.logger.log(`trovato via titolo: ${tmdbData.id} per ${movie.title}`);
 
-      if (!tmdbMovie) {
-        this.logger.warn(`nessun risultato tmdb per: ${movie.title}`);
-        return movie;
-      }
+      //CRITICO: mantieni l'ID ORIGINALE del film!
+      const enrichedMovie: Movie = {
+        id: movie.id,  // ✅ USA L'ID ORIGINALE (lbxd_xxx o imdb_xxx)
+        title: tmdbData.title || movie.title,
+        year: tmdbData.release_date 
+          ? new Date(tmdbData.release_date).getFullYear() 
+          : movie.year,
+        source: movie.source,  // ✅ mantieni source originale
+        
+        //dati tmdb
+        tmdb_id: tmdbData.id,
+        is_enriched: true,
+        genres: tmdbData.genres?.map(g => g.name) || [],
+        director: tmdbData.credits?.crew
+          ?.find(c => c.job === 'Director')?.name || movie.director,
+        actors: tmdbData.credits?.cast
+          ?.slice(0, 10)
+          .map(a => a.name) || [],
+        overview: tmdbData.overview,
+        tagline: tmdbData.tagline,
+        runtime: tmdbData.runtime,
+        poster_url: tmdbData.poster_path
+          ? `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}`
+          : undefined,
+        backdrop_url: tmdbData.backdrop_path
+          ? `https://image.tmdb.org/t/p/original${tmdbData.backdrop_path}`
+          : undefined,
+        tmdb_rating: tmdbData.vote_average,  // ✅ numero, non string
+        vote_count: tmdbData.vote_count,
+        popularity: tmdbData.popularity,  // ✅ numero, non string
+        budget: tmdbData.budget,  // ✅ numero, non string
+        revenue: tmdbData.revenue,  // ✅ numero, non string
+        status: tmdbData.status,
+        production_companies: tmdbData.production_companies?.map(c => c.name) || [],
+        production_countries: tmdbData.production_countries?.map(c => c.name) || [],
+        original_language: tmdbData.original_language,
+        original_title: tmdbData.original_title,
+        spoken_languages: tmdbData.spoken_languages?.map(l => l.english_name) || [],
+        adult: tmdbData.adult,
+        homepage: tmdbData.homepage,
+        imdb_id: tmdbData.imdb_id,
+        keywords: tmdbData.keywords?.keywords?.map(k => k.name) || [],
+        certification: this.extractCertification(tmdbData),  // ✅ metodo corretto
+        trailer_url: this.extractTrailerUrl(tmdbData.videos),  // ✅ metodo corretto
+        
+        //mantieni dati utente originali
+        user_rating: movie.user_rating,
+        watched_date: movie.watched_date,
+      };
 
-      //step 3: crea film arricchito
-      const enrichedMovie = this.mapTmdbToMovie(movie, tmdbMovie);
-      
-      //step 4: salva in database con is_enriched = true
+      //salva nel database
       await this.databaseService.saveMovie(enrichedMovie);
-      
-      this.logger.log(`film arricchito e salvato: ${movie.title} (tmdb_id: ${tmdbMovie.id})`);
+
+      this.logger.log(`film arricchito e salvato: ${enrichedMovie.title} (tmdb_id: ${enrichedMovie.tmdb_id})`);
 
       return enrichedMovie;
+
     } catch (error) {
-      this.logger.error(`errore enrichment per ${movie.title}: ${error.message}`);
-      return movie;
+      this.logger.error(`errore enrichment ${movie.title}: ${error.message}`);
+      return null;
     }
   }
 

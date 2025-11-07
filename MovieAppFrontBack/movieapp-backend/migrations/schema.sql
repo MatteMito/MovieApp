@@ -70,7 +70,7 @@ CREATE TABLE movies (
     source VARCHAR(50) DEFAULT 'UNKNOWN',
     
     -- tmdb enrichment
-    tmdb_id INTEGER UNIQUE,
+    tmdb_id INTEGER,
     is_enriched BOOLEAN DEFAULT false,
     
     -- metadata base
@@ -125,6 +125,7 @@ CREATE INDEX idx_movies_director ON movies(director);
 CREATE INDEX idx_movies_source ON movies(source);
 CREATE INDEX idx_movies_is_enriched ON movies(is_enriched);
 CREATE INDEX idx_movies_popularity ON movies(popularity DESC NULLS LAST);
+CREATE INDEX idx_movies_tmdb_id_lookup ON movies(tmdb_id) WHERE tmdb_id IS NOT NULL;
 
 CREATE TRIGGER update_movies_updated_at
     BEFORE UPDATE ON movies

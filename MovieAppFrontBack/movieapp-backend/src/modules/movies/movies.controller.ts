@@ -268,7 +268,7 @@ export class MoviesController {
     try {
       this.logger.log(`richiesta film per user ${userId} (status: ${status || 'all'})`);
 
-      const movies = await this.moviesService.getUserMovies(userId, status);  //⭐ CAMBIATO QUI!
+      const movies = await this.moviesService.getAllMovies(userId, status);
 
       return {
         success: true,
@@ -343,7 +343,7 @@ export class MoviesController {
 
       this.logger.log('richiesta tutti i film (deprecato)');
 
-      const movies = await this.moviesService.getUserMovies(userId);  //⭐ CAMBIATO ANCHE QUI!
+      const movies = await this.moviesService.getAllMovies(userId);
 
       return {
         success: true,

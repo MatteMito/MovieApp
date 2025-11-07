@@ -8,7 +8,7 @@ export declare class DatabaseService {
     constructor(movieRepository: Repository<MovieEntity>);
     private movieToEntity;
     private entityToMovie;
-    saveMovie(movie: Movie): Promise<Movie>;
+    saveMovie(movie: Movie): Promise<MovieEntity>;
     saveMovies(movies: Movie[]): Promise<MovieEntity[]>;
     findMovieById(id: string): Promise<Movie | null>;
     findMovieByTitleYear(title: string, year?: number): Promise<Movie | null>;
