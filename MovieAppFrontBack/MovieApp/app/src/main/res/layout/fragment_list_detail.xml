@@ -1,125 +1,263 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--file: app/src/main/res/layout/fragment_list_detail.xml-->
+<!--layout dettaglio lista con filtri e conteggio follower-->
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
-    <com.google.android.material.appbar.AppBarLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/ic_back"
-            app:title="Dettaglio Lista"/>
-
-    </com.google.android.material.appbar.AppBarLayout>
+    android:layout_height="match_parent"
+    android:background="@color/md_theme_light_background">
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:layout_height="match_parent">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="12dp">
 
-            <!-- header con badge e descrizione -->
-            <LinearLayout
+            <!-- card informazioni lista (rimpicciolita) -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="8dp">
+                app:cardCornerRadius="8dp"
+                app:cardElevation="2dp"
+                android:layout_marginBottom="12dp">
 
-                <TextView
-                    android:id="@+id/badgeVisibility"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/badge_public_background"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
-                    android:paddingTop="4dp"
-                    android:paddingBottom="4dp"
-                    android:text="PUBBLICA"
-                    android:textColor="@android:color/white"
-                    android:textSize="10sp"
-                    android:textStyle="bold"/>
+                    android:orientation="vertical"
+                    android:padding="12dp">
 
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_weight="1"/>
+                    <!-- nome lista -->
+                    <TextView
+                        android:id="@+id/text_list_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        tools:text="la mia lista"/>
 
-                <TextView
-                    android:id="@+id/textMovieCount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="0 film"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"/>
+                    <!-- descrizione -->
+                    <TextView
+                        android:id="@+id/text_list_description"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary"
+                        tools:text="descrizione lista"/>
 
-            </LinearLayout>
+                    <!-- info lista: film count + follower (solo liste pubbliche) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
 
-            <TextView
-                android:id="@+id/textDescription"
+                        <!-- numero film -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:src="@drawable/ic_menu"
+                                android:tint="@color/md_theme_light_primary"
+                                android:contentDescription="film"/>
+
+                            <TextView
+                                android:id="@+id/text_movie_count"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="4dp"
+                                android:textSize="13sp"
+                                android:textColor="@color/text_secondary"
+                                tools:text="25 film"/>
+                        </LinearLayout>
+
+                        <!-- numero follower (solo liste pubbliche) -->
+                        <LinearLayout
+                            android:id="@+id/layout_follower_count"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:visibility="gone"
+                            tools:visibility="visible">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:src="@drawable/ic_notifications"
+                                android:tint="@color/md_theme_light_primary"
+                                android:contentDescription="follower"/>
+
+                            <TextView
+                                android:id="@+id/text_follower_count"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="4dp"
+                                android:textSize="13sp"
+                                android:textColor="@color/text_secondary"
+                                tools:text="12 follower"/>
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- bottoni azioni (owner only) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_edit_list"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:text="modifica"
+                            android:textSize="12sp"
+                            android:visibility="gone"
+                            tools:visibility="visible"/>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_delete_list"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:text="elimina"
+                            android:textSize="12sp"
+                            android:textColor="@color/md_theme_light_error"
+                            app:strokeColor="@color/md_theme_light_error"
+                            android:visibility="gone"
+                            tools:visibility="visible"/>
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- sezione filtri -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:text="Descrizione lista"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"/>
+                app:cardCornerRadius="8dp"
+                app:cardElevation="2dp"
+                android:layout_marginBottom="12dp">
 
-            <!-- bottoni modifica/elimina (solo owner) -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="16dp"
-                android:gravity="center">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnEditList"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    android:text="Modifica"
-                    app:icon="@drawable/ic_filter"
-                    android:visibility="gone"
-                    tools:visibility="visible"/>
+                    android:orientation="vertical"
+                    android:padding="12dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnDeleteList"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:text="Elimina"
-                    app:icon="@drawable/ic_delete"
-                    android:textColor="@android:color/holo_red_light"
-                    app:iconTint="@android:color/holo_red_light"
-                    android:visibility="gone"
-                    tools:visibility="visible"/>
+                    <!-- titolo filtri -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="FILTRA FILM"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginBottom="8dp"/>
 
-            </LinearLayout>
+                    <!-- search box -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        app:boxStrokeWidth="1dp"
+                        app:endIconMode="clear_text"
+                        android:layout_marginBottom="8dp">
 
-            <!-- progress bar -->
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edit_search"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="cerca per titolo"
+                            android:textSize="14sp"
+                            android:inputType="text"
+                            android:imeOptions="actionSearch"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- chip group filtri -->
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/chip_group_filters"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:singleSelection="false"
+                        app:chipSpacingHorizontal="4dp">
+
+                        <!-- chip anni -->
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip_filter_year"
+                            style="@style/Widget.Material3.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="anno"
+                            android:textSize="12sp"/>
+
+                        <!-- chip generi -->
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip_filter_genre"
+                            style="@style/Widget.Material3.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="genere"
+                            android:textSize="12sp"/>
+
+                        <!-- chip registi -->
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip_filter_director"
+                            style="@style/Widget.Material3.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="regista"
+                            android:textSize="12sp"/>
+
+                        <!-- chip reset -->
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip_filter_reset"
+                            style="@style/Widget.Material3.Chip.Assist"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="reset"
+                            android:textSize="12sp"
+                            android:visibility="gone"/>
+                    </com.google.android.material.chip.ChipGroup>
+
+                    <!-- chip group valori selezionati -->
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/chip_group_selected"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        app:chipSpacingHorizontal="4dp"/>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- loading indicator -->
             <ProgressBar
-                android:id="@+id/progressBar"
+                android:id="@+id/progress_bar"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:layout_margin="32dp"
+                android:layout_margin="24dp"
                 android:visibility="gone"
                 tools:visibility="visible"/>
 
@@ -128,8 +266,8 @@
                 android:id="@+id/tvFilmTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Film nella lista"
-                android:textSize="18sp"
+                android:text="FILM NELLA LISTA"
+                android:textSize="15sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
                 android:layout_marginBottom="8dp"
@@ -149,13 +287,13 @@
                 android:id="@+id/text_empty"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="48dp"
+                android:padding="32dp"
                 android:gravity="center"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textColor="@color/text_secondary"
                 android:visibility="gone"
                 tools:visibility="visible"
-                android:text="Nessun film nella lista\n\nTocca + per aggiungerne!"/>
+                android:text="nessun film nella lista\n\ntocca + per aggiungerne!"/>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

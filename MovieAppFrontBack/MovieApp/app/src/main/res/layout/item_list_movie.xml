@@ -1,30 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--file: app/src/main/res/layout/item_list_movie.xml-->
+<!--layout item film lista (compatto)-->
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardBackgroundColor="@color/card_background"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="3dp"
-    app:strokeWidth="0dp">
+    android:layout_margin="4dp"
+    app:cardCornerRadius="6dp"
+    app:cardElevation="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="12dp">
+        android:padding="8dp">
 
         <!-- poster -->
         <ImageView
-            android:id="@+id/ivMoviePoster"
-            android:layout_width="70dp"
-            android:layout_height="105dp"
+            android:id="@+id/image_poster"
+            android:layout_width="50dp"
+            android:layout_height="75dp"
             android:scaleType="centerCrop"
-            android:contentDescription="poster film"
-            tools:src="@drawable/ic_home"/>
+            android:background="@color/md_theme_light_surfaceVariant"
+            android:contentDescription="poster"/>
 
         <!-- info film -->
         <LinearLayout
@@ -32,55 +32,58 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="12dp"
-            android:orientation="vertical"
-            android:layout_gravity="center_vertical">
+            android:layout_marginEnd="8dp"
+            android:orientation="vertical">
 
+            <!-- titolo -->
             <TextView
-                android:id="@+id/textTitle"
+                android:id="@+id/text_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
                 android:maxLines="2"
                 android:ellipsize="end"
-                tools:text="The Shawshank Redemption"/>
+                tools:text="inception"/>
 
+            <!-- anno e regista -->
             <TextView
-                android:id="@+id/textDetails"
+                android:id="@+id/text_details"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textSize="14sp"
-                android:textColor="@color/text_secondary"
-                android:maxLines="1"
-                android:ellipsize="end"
-                tools:text="1994 • Frank Darabont"/>
-
-            <TextView
-                android:id="@+id/textGenres"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="2dp"
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
                 android:maxLines="1"
                 android:ellipsize="end"
-                tools:text="Drama, Crime"/>
+                tools:text="2010 • christopher nolan"/>
+
+            <!-- generi -->
+            <TextView
+                android:id="@+id/text_genres"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textSize="11sp"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="action, thriller, sci-fi"/>
 
         </LinearLayout>
 
-        <!-- bottone rimuovi -->
-        <ImageButton
-            android:id="@+id/btnRemove"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+        <!-- bottone rimuovi (owner only) -->
+        <ImageView
+            android:id="@+id/btn_remove"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:layout_gravity="center_vertical"
-            android:layout_marginStart="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_delete"
-            android:contentDescription="rimuovi film"
-            app:tint="@android:color/holo_red_light"/>
+            android:tint="@color/md_theme_light_error"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="4dp"
+            android:contentDescription="rimuovi"/>
 
     </LinearLayout>
 

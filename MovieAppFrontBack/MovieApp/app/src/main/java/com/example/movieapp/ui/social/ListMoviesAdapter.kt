@@ -15,6 +15,7 @@ import com.example.movieapp.databinding.ItemListMovieBinding
 import com.example.movieapp.data.models.Movie
 
 class ListMoviesAdapter(
+    private val isOwner: Boolean,
     private val onRemoveClick: (Movie) -> Unit
 ) : ListAdapter<Movie, ListMoviesAdapter.MovieViewHolder>(MovieDiffCallback()) {
 
@@ -65,14 +66,17 @@ class ListMoviesAdapter(
                         .placeholder(R.drawable.ic_home)
                         .error(R.drawable.ic_home)
                         .centerCrop()
-                        .into(ivMoviePoster)
+                        .into(imagePoster)
                 } else {
-                    ivMoviePoster.setImageResource(R.drawable.ic_home)
+                    imagePoster.setImageResource(R.drawable.ic_home)
                 }
 
-                //bottone rimuovi
+                //bottone rimuovi visibile solo se owner
+                btnRemove.isVisible = isOwner
                 btnRemove.setOnClickListener {
-                    onRemoveClick(movie)
+                    if (isOwner) {
+                        onRemoveClick(movie)
+                    }
                 }
             }
         }
