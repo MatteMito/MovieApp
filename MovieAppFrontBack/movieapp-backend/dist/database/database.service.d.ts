@@ -14,16 +14,23 @@ export declare class DatabaseService {
     findMovieByTitleYear(title: string, year?: number): Promise<Movie | null>;
     findMovieByTmdbId(tmdbId: number): Promise<Movie | null>;
     getAllMovies(): Promise<Movie[]>;
-    deleteAllMovies(): Promise<number>;
-    getMoviesCount(): Promise<number>;
-    searchMoviesForAutocomplete(query: string, limit?: number): Promise<Movie[]>;
-    getSyncStats(): Promise<{
-        total: number;
-        enriched: number;
+    getStats(): Promise<{
+        totalMovies: number;
+        enrichedMovies: number;
         notEnriched: number;
         withTmdbId: number;
+        enrichmentRate: number;
     }>;
-    setAnalyticsCache(key: string, data: any, ttlMinutes?: number): void;
-    getAnalyticsCache(key: string): any | null;
+    getSyncStats(): Promise<{
+        totalMovies: number;
+        enrichedMovies: number;
+        notEnriched: number;
+        withTmdbId: number;
+        enrichmentRate: number;
+    }>;
+    searchMoviesForAutocomplete(query: string, limit?: number): Promise<Movie[]>;
+    deleteAllMovies(): Promise<void>;
+    getCachedAnalytics(key: string): any;
+    setCachedAnalytics(key: string, data: any, ttlMinutes?: number): void;
     clearAnalyticsCache(): void;
 }

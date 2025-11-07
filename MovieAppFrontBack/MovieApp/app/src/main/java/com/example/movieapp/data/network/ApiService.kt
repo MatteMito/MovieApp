@@ -96,8 +96,11 @@ data class EnrichedMovieDto(
     val userRating: Double?,
     @SerializedName("watched_date")
     val watchedDate: String?,
-    @SerializedName("is_watched")
-    val isWatched: Boolean,
+
+    //campo status dal backend (watched/watchlist)
+    @SerializedName("status")
+    val status: String? = null,
+
     val source: String,
 
     @SerializedName("production_countries")
@@ -111,7 +114,11 @@ data class EnrichedMovieDto(
 
     @SerializedName("is_enriched")
     val isEnriched: Boolean = false
-)
+) {
+    //calcola iswatched dal campo status
+    val isWatched: Boolean
+        get() = status == "watched"
+}
 
 data class FailedMovie(
     val movie: MovieDto,
@@ -928,7 +935,6 @@ object ApiService {
     // UTILITY
     // ============================================
 
-    //converti enrichedmoviedto a movie
     private fun dtoToMovie(dto: com.example.movieapp.data.network.EnrichedMovieDto): Movie {
         return Movie(
             id = dto.id,
@@ -942,6 +948,7 @@ object ApiService {
             userRating = dto.userRating,
             dateRated = dto.watchedDate,
             isWatched = dto.isWatched,
+            status = dto.status,
             source = try {
                 DataSource.valueOf(dto.source)
             } catch (e: Exception) {

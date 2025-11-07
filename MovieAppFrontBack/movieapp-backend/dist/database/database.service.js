@@ -101,6 +101,19 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
             let entity = await this.movieRepository.findOne({
                 where: { id: movie.id },
             });
+            if (!entity && movie.title && movie.year) {
+                entity = await this.movieRepository.findOne({
+                    where: {
+                        title: movie.title,
+                        year: movie.year,
+                        source: movie.source,
+                    },
+                });
+                if (entity) {
+                    this.logger.log(`film duplicato trovato: ${movie.title} (${movie.year}) - uso id esistente: ${entity.id}`);
+                    movie.id = entity.id;
+                }
+            }
             if (entity) {
                 Object.assign(entity, {
                     title: movie.title,
@@ -179,10 +192,13 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
     }
     async saveMovies(movies) {
         try {
-            const entities = movies.map((movie) => this.movieToEntity(movie));
-            const saved = await this.movieRepository.save(entities, { chunk: 100 });
-            this.logger.log(`salvati ${saved.length} film nel database`);
-            return saved;
+            const savedEntities = [];
+            for (const movie of movies) {
+                const entity = await this.saveMovie(movie);
+                savedEntities.push(entity);
+            }
+            this.logger.log(`salvati ${savedEntities.length} film nel database (con deduplicazione)`);
+            return savedEntities;
         }
         catch (error) {
             this.logger.error(`errore salvataggio batch: ${error.message}`);
@@ -221,99 +237,91 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
             return entity ? this.entityToMovie(entity) : null;
         }
         catch (error) {
-            this.logger.error(`errore ricerca tmdb_id ${tmdbId}: ${error.message}`);
+            this.logger.error(`errore ricerca tmdb ${tmdbId}: ${error.message}`);
             return null;
         }
     }
     async getAllMovies() {
         try {
-            const entities = await this.movieRepository.find();
-            return entities.map(entity => this.entityToMovie(entity));
+            const entities = await this.movieRepository.find({
+                order: { title: 'ASC' },
+            });
+            return entities.map((entity) => this.entityToMovie(entity));
         }
         catch (error) {
-            this.logger.error(`errore caricamento film: ${error.message}`);
+            this.logger.error(`errore recupero tutti i film: ${error.message}`);
+            throw error;
+        }
+    }
+    async getStats() {
+        try {
+            const totalMovies = await this.movieRepository.count();
+            const enrichedMovies = await this.movieRepository.count({
+                where: { is_enriched: true },
+            });
+            const withTmdbId = await this.movieRepository.count({
+                where: { tmdb_id: (0, typeorm_2.Not)((0, typeorm_2.IsNull)()) },
+            });
+            return {
+                totalMovies,
+                enrichedMovies,
+                notEnriched: totalMovies - enrichedMovies,
+                withTmdbId,
+                enrichmentRate: totalMovies > 0
+                    ? Math.round((enrichedMovies / totalMovies) * 100)
+                    : 0,
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore stats: ${error.message}`);
+            throw error;
+        }
+    }
+    async getSyncStats() {
+        return this.getStats();
+    }
+    async searchMoviesForAutocomplete(query, limit = 10) {
+        try {
+            const entities = await this.movieRepository
+                .createQueryBuilder('movie')
+                .where('LOWER(movie.title) LIKE LOWER(:query)', {
+                query: `%${query}%`,
+            })
+                .orderBy('movie.popularity', 'DESC', 'NULLS LAST')
+                .addOrderBy('movie.title', 'ASC')
+                .limit(limit)
+                .getMany();
+            return entities.map((entity) => this.entityToMovie(entity));
+        }
+        catch (error) {
+            this.logger.error(`errore autocomplete search: ${error.message}`);
             return [];
         }
     }
     async deleteAllMovies() {
         try {
-            const result = await this.movieRepository.delete({});
-            const count = result.affected || 0;
-            this.logger.log(`eliminati ${count} film dal database`);
-            return count;
+            await this.movieRepository.clear();
+            this.logger.log('tutti i film eliminati dal database');
         }
         catch (error) {
             this.logger.error(`errore eliminazione film: ${error.message}`);
             throw error;
         }
     }
-    async getMoviesCount() {
-        try {
-            return await this.movieRepository.count();
+    getCachedAnalytics(key) {
+        const cached = this.analyticsCache.get(key);
+        if (cached && cached.expiresAt > new Date()) {
+            return cached.data;
         }
-        catch (error) {
-            this.logger.error(`errore conteggio film: ${error.message}`);
-            return 0;
-        }
+        return null;
     }
-    async searchMoviesForAutocomplete(query, limit = 10) {
-        try {
-            const normalized = query.toLowerCase().trim();
-            const entities = await this.movieRepository
-                .createQueryBuilder('movie')
-                .where('LOWER(movie.title) LIKE :query', { query: `%${normalized}%` })
-                .orderBy('movie.popularity', 'DESC', 'NULLS LAST')
-                .addOrderBy('movie.year', 'DESC', 'NULLS LAST')
-                .limit(limit)
-                .getMany();
-            return entities.map(entity => this.entityToMovie(entity));
-        }
-        catch (error) {
-            this.logger.error(`errore autocomplete: ${error.message}`);
-            return [];
-        }
-    }
-    async getSyncStats() {
-        try {
-            const [total, enriched, withTmdbId] = await Promise.all([
-                this.movieRepository.count(),
-                this.movieRepository.count({ where: { is_enriched: true } }),
-                this.movieRepository.count({ where: { tmdb_id: (0, typeorm_2.Not)((0, typeorm_2.IsNull)()) } }),
-            ]);
-            return {
-                total,
-                enriched,
-                notEnriched: total - enriched,
-                withTmdbId,
-            };
-        }
-        catch (error) {
-            this.logger.error(`errore stats sync: ${error.message}`);
-            throw error;
-        }
-    }
-    setAnalyticsCache(key, data, ttlMinutes = 30) {
+    setCachedAnalytics(key, data, ttlMinutes = 5) {
         const expiresAt = new Date();
         expiresAt.setMinutes(expiresAt.getMinutes() + ttlMinutes);
         this.analyticsCache.set(key, { data, expiresAt });
-        this.logger.debug(`cache analytics salvata: ${key} (ttl: ${ttlMinutes}min)`);
-    }
-    getAnalyticsCache(key) {
-        const cached = this.analyticsCache.get(key);
-        if (!cached) {
-            return null;
-        }
-        if (new Date() > cached.expiresAt) {
-            this.analyticsCache.delete(key);
-            this.logger.debug(`cache analytics scaduta: ${key}`);
-            return null;
-        }
-        this.logger.debug(`cache analytics hit: ${key}`);
-        return cached.data;
     }
     clearAnalyticsCache() {
         this.analyticsCache.clear();
-        this.logger.log('cache analytics svuotata');
     }
 };
 exports.DatabaseService = DatabaseService;
