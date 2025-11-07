@@ -101,10 +101,28 @@ class AddMoviesDialogFragment : DialogFragment() {
     }
 
     private fun setupObservers() {
-        //risultati ricerca
-        viewModel.searchResults.observe(viewLifecycleOwner) { movies ->
-            searchAdapter.submitList(movies)
-            binding.recyclerSearchResults.isVisible = movies.isNotEmpty()
+        //risultati ricerca con filtro film gia presenti
+        viewModel.searchResults.observe(viewLifecycleOwner) { allMovies ->
+            //ottieni lista corrente per escludere film gia presenti
+            val currentList = viewModel.currentList.value
+            val existingMovieIds = currentList?.movies?.map { it.id }?.toSet() ?: emptySet()
+
+            //filtra escludendo film gia presenti nella lista
+            val filteredMovies = allMovies.filter { movie ->
+                !existingMovieIds.contains(movie.id)
+            }
+
+            searchAdapter.submitList(filteredMovies)
+            binding.recyclerSearchResults.isVisible = filteredMovies.isNotEmpty()
+
+            //mostra messaggio se tutti i risultati sono gia nella lista
+            if (allMovies.isNotEmpty() && filteredMovies.isEmpty()) {
+                Toast.makeText(
+                    requireContext(),
+                    "tutti i film trovati sono gia nella lista",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
 
         //loading
@@ -137,7 +155,7 @@ class AddMoviesDialogFragment : DialogFragment() {
             },
             onError = { error ->
                 binding.progressSearch.isVisible = false
-                Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), "errore: $error", Toast.LENGTH_LONG).show()
             }
         )
     }

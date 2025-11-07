@@ -38,15 +38,15 @@ class ListDetailViewModel : ViewModel() {
 
     private var searchJob: Job? = null
 
-    //carica lista
-    fun loadList(listId: String) {
+    //carica lista con forza aggiornamento
+    fun loadList(listId: String, forceUpdate: Boolean = false) {
         viewModelScope.launch {
             try {
                 _loading.value = true
                 _error.value = null
 
                 val userId = ApiService.getCurrentUserId()
-                Log.d(TAG, "carico lista: $listId (userId: $userId)")
+                Log.d(TAG, "carico lista: $listId (userId: $userId, force: $forceUpdate)")
 
                 //passa userid per accesso liste private
                 val response = if (userId != null) {
@@ -59,7 +59,14 @@ class ListDetailViewModel : ViewModel() {
 
                 if (response.isSuccessful && response.body() != null) {
                     val list = response.body()!!
-                    _currentList.value = list
+
+                    //forza aggiornamento anche se uguale usando postValue
+                    if (forceUpdate) {
+                        _currentList.postValue(list)
+                    } else {
+                        _currentList.value = list
+                    }
+
                     Log.d(TAG, "lista caricata: ${list.name}, ${list.movies.size} film")
                 } else {
                     val errorMsg = "errore caricamento lista: ${response.code()}"
@@ -144,7 +151,9 @@ class ListDetailViewModel : ViewModel() {
                 val response = ApiService.apiInterface.addMovieToList(listId, request, userId)
 
                 if (response.isSuccessful) {
-                    Log.d(TAG, "film aggiunto con successo")
+                    Log.d(TAG, "film aggiunto con successo, ricarico lista...")
+                    //ricarica automaticamente la lista per mostrare il film aggiunto
+                    loadList(listId, forceUpdate = true)
                     onSuccess()
                 } else {
                     val errorMsg = "errore aggiunta: ${response.code()}"
@@ -158,7 +167,7 @@ class ListDetailViewModel : ViewModel() {
         }
     }
 
-    //arricchisci film chiamando backend
+    //arricchisci film chiamando backend con endpoint enrichMovies (batch)
     private suspend fun enrichMovieBeforeAdding(movie: Movie): Movie? {
         return try {
             Log.d(TAG, "chiamata enrichment per ${movie.title}")
@@ -249,7 +258,9 @@ class ListDetailViewModel : ViewModel() {
                 val response = ApiService.apiInterface.removeMovieFromList(listId, movieId, userId)
 
                 if (response.isSuccessful) {
-                    Log.d(TAG, "film rimosso")
+                    Log.d(TAG, "film rimosso, ricarico lista...")
+                    //ricarica automaticamente la lista
+                    loadList(listId, forceUpdate = true)
                     onSuccess()
                 } else {
                     val errorMsg = "errore rimozione: ${response.code()}"
@@ -291,7 +302,9 @@ class ListDetailViewModel : ViewModel() {
                 val response = ApiService.apiInterface.updateList(listId, request, userId)
 
                 if (response.isSuccessful) {
-                    Log.d(TAG, "lista aggiornata")
+                    Log.d(TAG, "lista aggiornata con successo, ricarico...")
+                    //ricarica automaticamente la lista per mostrare le modifiche
+                    loadList(listId, forceUpdate = true)
                     onSuccess()
                 } else {
                     val errorMsg = "errore aggiornamento: ${response.code()}"

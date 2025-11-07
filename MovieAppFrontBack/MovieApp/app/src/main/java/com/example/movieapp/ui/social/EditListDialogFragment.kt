@@ -59,7 +59,15 @@ class EditListDialogFragment : DialogFragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = DialogEditListBinding.inflate(inflater, container, false)
-        detailViewModel = ViewModelProvider(this)[ListDetailViewModel::class.java]
+
+        //prova a prendere il detailviewmodel dal parent fragment
+        try {
+            detailViewModel = ViewModelProvider(requireParentFragment())[ListDetailViewModel::class.java]
+        } catch (e: Exception) {
+            //se non c'e' il parent (siamo in SocialFragment), crea una nuova istanza
+            detailViewModel = ViewModelProvider(this)[ListDetailViewModel::class.java]
+        }
+
         return binding.root
     }
 
@@ -91,7 +99,7 @@ class EditListDialogFragment : DialogFragment() {
         val isPublic = binding.switchPublic.isChecked
 
         if (name.isNullOrBlank()) {
-            Toast.makeText(requireContext(), "Inserisci un nome per la lista", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "inserisci un nome per la lista", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -104,11 +112,13 @@ class EditListDialogFragment : DialogFragment() {
                 description = description?.ifBlank { null },
                 isPublic = isPublic,
                 onSuccess = { newList ->
-                    Toast.makeText(requireContext(), "Lista creata!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "lista creata!", Toast.LENGTH_SHORT).show()
+                    //ricarica le liste in SocialFragment
+                    socialViewModel.refreshLists()
                     dismiss()
                 },
                 onError = { error ->
-                    Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
+                    Toast.makeText(requireContext(), "errore: $error", Toast.LENGTH_LONG).show()
                 }
             )
         } else {
@@ -119,11 +129,14 @@ class EditListDialogFragment : DialogFragment() {
                 description = description?.ifBlank { null },
                 isPublic = isPublic,
                 onSuccess = {
-                    Toast.makeText(requireContext(), "Lista aggiornata!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "lista aggiornata!", Toast.LENGTH_SHORT).show()
+                    //ricarica le liste in SocialFragment
+                    socialViewModel.refreshLists()
+                    //il ListDetailFragment si aggiornerà automaticamente tramite il ViewModel
                     dismiss()
                 },
                 onError = { error ->
-                    Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
+                    Toast.makeText(requireContext(), "errore: $error", Toast.LENGTH_LONG).show()
                 }
             )
         }

@@ -10,12 +10,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.movieapp.R
 import com.example.movieapp.data.models.Movie
 import com.example.movieapp.databinding.FragmentListDetailBinding
 import com.google.android.material.chip.Chip
@@ -74,8 +72,6 @@ class ListDetailFragment : Fragment() {
     }
 
     private fun setupUI() {
-        //non serve più configurare la toolbar, è stata rimossa
-
         //setup movies recyclerview
         moviesAdapter = ListMoviesAdapter(
             isOwner = isOwner,
@@ -175,47 +171,46 @@ class ListDetailFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) {
                 searchQuery = s?.toString()?.trim() ?: ""
                 applyFilters()
-                updateResetButtonVisibility()
             }
         })
 
-        //chip anno
+        //filtri anno
         binding.chipFilterYear.setOnClickListener {
-            showYearFilterDialog()
+            showYearPicker()
         }
 
-        //chip genere
+        //filtri genere
         binding.chipFilterGenre.setOnClickListener {
-            showGenreFilterDialog()
+            showGenrePicker()
         }
 
-        //chip regista
+        //filtri regista
         binding.chipFilterDirector.setOnClickListener {
-            showDirectorFilterDialog()
+            showDirectorPicker()
         }
 
-        //chip reset
+        //reset filtri
         binding.chipFilterReset.setOnClickListener {
             resetAllFilters()
         }
     }
 
-    //applica tutti i filtri attivi
+    //applica filtri attivi
     private fun applyFilters() {
         var filtered = allMovies
 
-        //filtro search
+        //filtro ricerca testuale
         if (searchQuery.isNotEmpty()) {
             filtered = filtered.filter { movie ->
-                movie.title.contains(searchQuery, ignoreCase = true)
+                movie.title.contains(searchQuery, ignoreCase = true) ||
+                        movie.director?.contains(searchQuery, ignoreCase = true) == true ||
+                        movie.actors.any { it.contains(searchQuery, ignoreCase = true) }
             }
         }
 
         //filtro anno
         if (selectedYear != null) {
-            filtered = filtered.filter { movie ->
-                movie.year == selectedYear
-            }
+            filtered = filtered.filter { it.year == selectedYear }
         }
 
         //filtro genere
@@ -227,113 +222,95 @@ class ListDetailFragment : Fragment() {
 
         //filtro regista
         if (selectedDirector != null) {
-            filtered = filtered.filter { movie ->
-                movie.director?.equals(selectedDirector, ignoreCase = true) == true
-            }
+            filtered = filtered.filter { it.director?.equals(selectedDirector, ignoreCase = true) == true }
         }
 
-        //aggiorna adapter
         moviesAdapter.submitList(filtered)
-
-        //aggiorna titolo con count filtrato
-        if (searchQuery.isNotEmpty() || selectedYear != null || selectedGenre != null || selectedDirector != null) {
-            binding.tvFilmTitle.text = "FILM NELLA LISTA (${filtered.size}/${allMovies.size})"
-        } else {
-            binding.tvFilmTitle.text = "FILM NELLA LISTA"
-        }
-
-        //mostra empty se nessun risultato dopo filtro
-        binding.textEmpty.isVisible = filtered.isEmpty() && allMovies.isNotEmpty()
-        if (filtered.isEmpty() && allMovies.isNotEmpty()) {
-            binding.textEmpty.text = "nessun film corrisponde ai filtri"
-        } else if (allMovies.isEmpty()) {
-            binding.textEmpty.text = "nessun film nella lista\n\ntocca + per aggiungerne!"
-        }
     }
 
-    //mostra dialog selezione anno
-    private fun showYearFilterDialog() {
+    //mostra picker anno
+    private fun showYearPicker() {
         val years = allMovies.mapNotNull { it.year }.distinct().sorted()
-
         if (years.isEmpty()) {
             Toast.makeText(requireContext(), "nessun anno disponibile", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val yearStrings = years.map { it.toString() }.toTypedArray()
+        val yearsArray: Array<CharSequence> = years.map { it.toString() }.toTypedArray()
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("filtra per anno")
-            .setItems(yearStrings) { _, which ->
+            .setItems(yearsArray) { _, which ->
                 selectedYear = years[which]
-                addSelectedChip("anno: ${selectedYear}", FilterType.YEAR)
+                addFilterChip("anno: $selectedYear", "year")
                 applyFilters()
                 updateResetButtonVisibility()
             }
-            .setNegativeButton("annulla", null)
             .show()
     }
 
-    //mostra dialog selezione genere
-    private fun showGenreFilterDialog() {
+    //mostra picker genere
+    private fun showGenrePicker() {
         val genres = allMovies.flatMap { it.genres }.distinct().sorted()
-
         if (genres.isEmpty()) {
             Toast.makeText(requireContext(), "nessun genere disponibile", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val genreArray = genres.toTypedArray()
+        val genresArray: Array<CharSequence> = genres.toTypedArray()
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("filtra per genere")
-            .setItems(genreArray) { _, which ->
+            .setItems(genresArray) { _, which ->
                 selectedGenre = genres[which]
-                addSelectedChip("genere: ${selectedGenre}", FilterType.GENRE)
+                addFilterChip("genere: $selectedGenre", "genre")
                 applyFilters()
                 updateResetButtonVisibility()
             }
-            .setNegativeButton("annulla", null)
             .show()
     }
 
-    //mostra dialog selezione regista
-    private fun showDirectorFilterDialog() {
+    //mostra picker regista
+    private fun showDirectorPicker() {
         val directors = allMovies.mapNotNull { it.director }.distinct().sorted()
-
         if (directors.isEmpty()) {
             Toast.makeText(requireContext(), "nessun regista disponibile", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val directorArray = directors.toTypedArray()
+        val directorsArray: Array<CharSequence> = directors.toTypedArray()
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("filtra per regista")
-            .setItems(directorArray) { _, which ->
+            .setItems(directorsArray) { _, which ->
                 selectedDirector = directors[which]
-                addSelectedChip("regista: ${selectedDirector}", FilterType.DIRECTOR)
+                addFilterChip("regista: $selectedDirector", "director")
                 applyFilters()
                 updateResetButtonVisibility()
             }
-            .setNegativeButton("annulla", null)
             .show()
     }
 
-    //aggiungi chip per filtro selezionato
-    private fun addSelectedChip(label: String, type: FilterType) {
+    //aggiungi chip filtro selezionato
+    private fun addFilterChip(label: String, type: String) {
         //rimuovi chip precedente dello stesso tipo
-        binding.chipGroupSelected.removeAllViews()
+        for (i in 0 until binding.chipGroupSelected.childCount) {
+            val chip = binding.chipGroupSelected.getChildAt(i) as? Chip
+            if (chip?.tag == type) {
+                binding.chipGroupSelected.removeView(chip)
+                break
+            }
+        }
 
-        //crea nuovo chip
         val chip = Chip(requireContext()).apply {
             text = label
+            tag = type
             isCloseIconVisible = true
             setOnCloseIconClickListener {
                 when (type) {
-                    FilterType.YEAR -> selectedYear = null
-                    FilterType.GENRE -> selectedGenre = null
-                    FilterType.DIRECTOR -> selectedDirector = null
+                    "year" -> selectedYear = null
+                    "genre" -> selectedGenre = null
+                    "director" -> selectedDirector = null
                 }
                 binding.chipGroupSelected.removeView(this)
                 applyFilters()
@@ -386,7 +363,7 @@ class ListDetailFragment : Fragment() {
                 viewModel.removeMovie(listId, movie.id,
                     onSuccess = {
                         Toast.makeText(requireContext(), "film rimosso", Toast.LENGTH_SHORT).show()
-                        viewModel.loadList(listId)
+                        //non serve piu chiamare loadList manualmente, lo fa gia il viewmodel
                     },
                     onError = { error ->
                         Toast.makeText(requireContext(), "errore: $error", Toast.LENGTH_SHORT).show()
@@ -403,15 +380,9 @@ class ListDetailFragment : Fragment() {
             .setTitle("elimina lista")
             .setMessage("sei sicuro? questa azione non può essere annullata.")
             .setPositiveButton("elimina") { _, _ ->
-                viewModel.deleteList(listId,
-                    onSuccess = {
-                        Toast.makeText(requireContext(), "lista eliminata", Toast.LENGTH_SHORT).show()
-                        requireActivity().onBackPressedDispatcher.onBackPressed()
-                    },
-                    onError = { error ->
-                        Toast.makeText(requireContext(), "errore: $error", Toast.LENGTH_SHORT).show()
-                    }
-                )
+                //torna alla schermata precedente (SocialFragment)
+                requireActivity().onBackPressedDispatcher.onBackPressed()
+                Toast.makeText(requireContext(), "lista eliminata", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("annulla", null)
             .show()
@@ -420,23 +391,5 @@ class ListDetailFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-
-    //enum per tipi di filtro
-    private enum class FilterType {
-        YEAR, GENRE, DIRECTOR
-    }
-
-    companion object {
-        fun newInstance(listId: String, listName: String, isOwner: Boolean): ListDetailFragment {
-            val fragment = ListDetailFragment()
-            val args = Bundle().apply {
-                putString("listId", listId)
-                putString("listName", listName)
-                putBoolean("isOwner", isOwner)
-            }
-            fragment.arguments = args
-            return fragment
-        }
     }
 }

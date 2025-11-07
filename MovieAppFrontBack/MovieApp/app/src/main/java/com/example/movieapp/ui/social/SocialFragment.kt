@@ -46,6 +46,12 @@ class SocialFragment : Fragment() {
         setupObservers()
     }
 
+    override fun onResume() {
+        super.onResume()
+        //ricarica le liste ogni volta che torni a questa schermata
+        viewModel.refreshLists()
+    }
+
     private fun setupViews() {
         //fab create list
         binding.fabCreateList.setOnClickListener {
