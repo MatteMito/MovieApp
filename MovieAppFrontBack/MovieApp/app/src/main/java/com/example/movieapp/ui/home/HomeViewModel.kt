@@ -43,6 +43,7 @@ class HomeViewModel : ViewModel() {
         repository = MovieRepository.getInstance(context)
         workManager = WorkManager.getInstance(context)
 
+        //osserva i cambiamenti del repository
         repository.movies.observeForever { moviesList ->
             _movies.value = moviesList
             Log.d(TAG, "movies aggiornati: ${moviesList.size}")
@@ -54,21 +55,12 @@ class HomeViewModel : ViewModel() {
             Log.d(TAG, "websocket connesso")
         }
 
-        loadMovies()
+        //carica i dati immediatamente dal backend al primo avvio
+        refreshFromBackend()
     }
 
     fun observeWebSocketUpdates(): StateFlow<EnrichmentUpdate?> {
         return webSocketService.enrichmentUpdates
-    }
-
-    fun loadMovies() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            val movies = repository.movies.value ?: emptyList()
-            _movies.value = movies
-            _isLoading.value = false
-            Log.d(TAG, "film caricati: ${movies.size}")
-        }
     }
 
     fun refreshFromBackend() {
@@ -121,7 +113,7 @@ class HomeViewModel : ViewModel() {
                             }
                             WorkInfo.State.SUCCEEDED -> {
                                 Log.d(TAG, "worker completato, enrichment sul server...")
-                                //✅ NON fare refresh qui! aspetta websocket 'completed'
+                                //non fare refresh qui, aspetta websocket 'completed'
                             }
                             WorkInfo.State.FAILED -> {
                                 Log.e(TAG, "worker fallito")
