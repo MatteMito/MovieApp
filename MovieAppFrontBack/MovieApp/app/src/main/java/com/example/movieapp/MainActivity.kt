@@ -9,7 +9,6 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.setupWithNavController
 import com.example.movieapp.databinding.ActivityMainBinding
 import com.example.movieapp.config.AppConfig
-import com.example.movieapp.config.LanguageManager
 import com.example.movieapp.data.network.ApiService
 import com.example.movieapp.ui.auth.LoginActivity
 import kotlinx.coroutines.CoroutineScope
@@ -18,9 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
-/**
- * main activity con bottom navigation e logo nella toolbar
- */
+//main activity con bottom navigation e logo nella toolbar
 class MainActivity : AppCompatActivity() {
 
     private val TAG = "MainActivity"
@@ -28,9 +25,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        //applica lingua salvata all'avvio
-        LanguageManager.applyLanguage(this)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -51,9 +45,7 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "mainactivity creata con successo")
     }
 
-    /**
-     * setup menu nella toolbar
-     */
+    //setup menu nella toolbar
     private fun setupToolbarMenu() {
         val menuIcon = findViewById<ImageView>(R.id.toolbar_menu)
         menuIcon?.setOnClickListener {
@@ -61,9 +53,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * mostra menu account con opzioni migrate e visibili
-     */
+    //mostra menu account
     private fun showAccountMenu() {
         val currentUser = ApiService.getCurrentUser()
 
@@ -75,7 +65,6 @@ class MainActivity : AppCompatActivity() {
 
         val items = arrayOf(
             getString(R.string.account_info),
-            getString(R.string.language),
             getString(R.string.logout)
         )
 
@@ -84,16 +73,13 @@ class MainActivity : AppCompatActivity() {
             .setItems(items) { _, which ->
                 when (which) {
                     0 -> showAccountInfo()
-                    1 -> showLanguageDialog()
-                    2 -> showLogoutDialog()
+                    1 -> showLogoutDialog()
                 }
             }
             .show()
     }
 
-    /**
-     * mostra informazioni account
-     */
+    //mostra informazioni account
     private fun showAccountInfo() {
         val currentUser = ApiService.getCurrentUser()
 
@@ -119,41 +105,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * mostra dialog selezione lingua
-     */
-    private fun showLanguageDialog() {
-        val languages = LanguageManager.SUPPORTED_LANGUAGES.values.toTypedArray()
-        val languageCodes = LanguageManager.SUPPORTED_LANGUAGES.keys.toTypedArray()
-
-        //ottieni lingua corrente salvata
-        val currentLanguage = LanguageManager.getSavedLanguage(this)
-        val currentIndex = languageCodes.indexOf(currentLanguage).takeIf { it >= 0 } ?: 0
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle(getString(R.string.select_language))
-            .setSingleChoiceItems(languages, currentIndex) { dialog, which ->
-                val selectedLanguage = languageCodes[which]
-                changeLanguage(selectedLanguage)
-                dialog.dismiss()
-            }
-            .setNegativeButton(getString(R.string.cancel), null)
-            .show()
-    }
-
-    /**
-     * cambia lingua applicazione e salva la scelta
-     */
-    private fun changeLanguage(languageCode: String) {
-        LanguageManager.applyLanguage(this, languageCode)
-        Log.d(TAG, "lingua cambiata in: $languageCode")
-    }
-
-    /**
-     * mostra dialog di conferma logout
-     */
+    //mostra dialog di conferma logout
     private fun showLogoutDialog() {
-
         val message = getString(R.string.logout_confirm_message)
 
         MaterialAlertDialogBuilder(this)
@@ -166,9 +119,7 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    /**
-     * esegue logout completo
-     */
+    //esegue logout completo
     private fun performLogout() {
         Log.d(TAG, "logout in corso...")
 
@@ -182,9 +133,7 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "logout completato")
     }
 
-    /**
-     * inizializza tutti i servizi critici
-     */
+    //inizializza tutti i servizi critici
     private fun initializeServices() {
         try {
             Log.d(TAG, "inizializzazione servizi...")
@@ -201,9 +150,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * inizializza database film popolari al primo avvio
-     */
+    //inizializza database film popolari al primo avvio
     private fun initializeAppDatabase() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -217,24 +164,21 @@ class MainActivity : AppCompatActivity() {
                     val moviesInDb = data?.get("moviesInDb") as? Double ?: 0.0
                     val message = data?.get("message") as? String ?: ""
 
-                    withContext(Dispatchers.Main) {
-                        Log.d(TAG, "initialize app completato")
-                        Log.d(TAG, "needs sync: $needsSync")
-                        Log.d(TAG, "movies in db: ${moviesInDb.toInt()}")
-                        Log.d(TAG, "message: $message")
+                    Log.d(TAG, "inizializzazione: needsSync=$needsSync, films=$moviesInDb")
+                    Log.d(TAG, "messaggio server: $message")
 
-                        if (needsSync) {
-                            Log.i(TAG, "sincronizzazione film popolari avviata in background")
-                        } else {
-                            Log.i(TAG, "database gia inizializzato con ${moviesInDb.toInt()} film")
+                    if (needsSync) {
+                        withContext(Dispatchers.Main) {
+                            Log.d(TAG, "primo avvio: sync film popolari in background")
                         }
                     }
                 } else {
                     val error = result.exceptionOrNull()
-                    Log.w(TAG, "errore initialize app: ${error?.message}")
+                    Log.e(TAG, "errore inizializzazione app", error)
                 }
+
             } catch (e: Exception) {
-                Log.e(TAG, "errore initialize database", e)
+                Log.e(TAG, "eccezione durante inizializzazione", e)
             }
         }
     }
@@ -258,10 +202,5 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "errore test backend", e)
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d(TAG, "mainactivity distrutta")
     }
 }

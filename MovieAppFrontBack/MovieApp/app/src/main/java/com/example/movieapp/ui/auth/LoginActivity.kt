@@ -13,17 +13,14 @@ import com.example.movieapp.databinding.ActivityLoginBinding
 import com.example.movieapp.data.network.ApiService
 import kotlinx.coroutines.launch
 
-/**
- * activity di login
- *
- * utilizza apiservice per autenticazione
- */
+//activity di login utilizza apiservice per autenticazione
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
     private val TAG = "LoginActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -45,20 +42,14 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.textRegister.setOnClickListener {
-            Log.d(TAG, "Navigazione a RegisterActivity")
-            val intent = Intent(this, RegisterActivity::class.java)
-            startActivity(intent)
+            Log.d(TAG, "Vai a RegisterActivity")
+            startActivity(Intent(this, RegisterActivity::class.java))
         }
     }
 
     private fun validateInput(email: String, password: String): Boolean {
         if (email.isEmpty()) {
             Toast.makeText(this, "Inserisci l'email", Toast.LENGTH_SHORT).show()
-            return false
-        }
-
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            Toast.makeText(this, "Email non valida", Toast.LENGTH_SHORT).show()
             return false
         }
 
@@ -71,46 +62,47 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun performLogin(email: String, password: String) {
+        Log.d(TAG, "Tentativo login per: $email")
+        showLoading(true)
+
         lifecycleScope.launch {
-            binding.progressBar.visibility = View.VISIBLE
-            binding.buttonLogin.isEnabled = false
+            try {
+                val result = ApiService.login(email, password)
 
-            val result = ApiService.login(email, password)
+                if (result.isSuccess) {
+                    Log.d(TAG, "Login riuscito!")
+                    Toast.makeText(this@LoginActivity, "Accesso effettuato!", Toast.LENGTH_SHORT).show()
 
-            binding.progressBar.visibility = View.GONE
-            binding.buttonLogin.isEnabled = true
-
-            if (result.isSuccess) {
-                Log.d(TAG, "login completato con successo")
-
-                //reinizializza apiservice per caricare i dati utente
-                ApiService.initialize(applicationContext)
-
-                //verifica che l'utente sia stato caricato
-                val userId = ApiService.getCurrentUserId()
-                Log.d(TAG, "dopo re-init: userId = $userId")
-
-                if (userId != null) {
-                    Toast.makeText(this@LoginActivity, "Benvenuto!", Toast.LENGTH_SHORT).show()
-
-                    //naviga alla mainactivity
                     val intent = Intent(this@LoginActivity, MainActivity::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     startActivity(intent)
                     finish()
                 } else {
-                    Log.e(TAG, "userid ancora null dopo re-init")
+                    val error = result.exceptionOrNull()
+                    Log.e(TAG, "Login fallito: ${error?.message}")
                     Toast.makeText(
                         this@LoginActivity,
-                        "Errore caricamento dati utente",
+                        "Errore: ${error?.message ?: "Login fallito"}",
                         Toast.LENGTH_LONG
                     ).show()
+                    showLoading(false)
                 }
-            } else {
-                val error = result.exceptionOrNull()?.message ?: "Errore login"
-                Toast.makeText(this@LoginActivity, error, Toast.LENGTH_LONG).show()
-                Log.e(TAG, "login fallito: $error")
+            } catch (e: Exception) {
+                Log.e(TAG, "Eccezione durante login", e)
+                Toast.makeText(
+                    this@LoginActivity,
+                    "Errore di connessione: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+                showLoading(false)
             }
         }
+    }
+
+    private fun showLoading(show: Boolean) {
+        binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
+        binding.buttonLogin.isEnabled = !show
+        binding.editEmail.isEnabled = !show
+        binding.editPassword.isEnabled = !show
     }
 }

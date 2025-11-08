@@ -91,8 +91,6 @@
     <string name="account">Account</string>
     <string name="account_info">Info Account</string>
     <string name="logout">Esci</string>
-    <string name="language">Lingua</string>
-    <string name="select_language">Seleziona lingua</string>
     <string name="logout_confirm_title">Disconnessione</string>
     <string name="logout_confirm_message">Vuoi disconnetterti?\n\nI tuoi film rimarranno salvati.</string>
     <string name="logout_button">Esci</string>
