@@ -11,9 +11,11 @@ import com.example.movieapp.data.models.MovieList
 import com.example.movieapp.data.network.ApiService
 import kotlinx.coroutines.launch
 
+// viewmodel per gestione liste condivise con ricerca, filtri e ordinamento
 class SocialViewModel : ViewModel() {
     private val TAG = "SocialViewModel"
 
+    // enum per tipi di ordinamento
     enum class SortType {
         NAME_ASC,
         NAME_DESC,
@@ -22,14 +24,14 @@ class SocialViewModel : ViewModel() {
         POPULARITY
     }
 
-    //livedata liste
+    // livedata liste originali dal backend
     private val _myLists = MutableLiveData<List<MovieList>>()
 
     private val _publicLists = MutableLiveData<List<MovieList>>()
 
     private val _followedLists = MutableLiveData<List<MovieList>>()
 
-    //livedata filtrate (per ricerca e ordinamento)
+    // livedata filtrate per ui (dopo ricerca, ordinamento, filtri)
     private val _filteredMyLists = MutableLiveData<List<MovieList>>()
     val filteredMyLists: LiveData<List<MovieList>> = _filteredMyLists
 
@@ -39,7 +41,7 @@ class SocialViewModel : ViewModel() {
     private val _filteredFollowedLists = MutableLiveData<List<MovieList>>()
     val filteredFollowedLists: LiveData<List<MovieList>> = _filteredFollowedLists
 
-    //livedata stati
+    // stati loading ed errori
     private val _loading = MutableLiveData<Boolean>()
     val loading: LiveData<Boolean> = _loading
 
@@ -47,19 +49,20 @@ class SocialViewModel : ViewModel() {
     val error: LiveData<String?> = _error
 
     private var context: Context? = null
+    // stato filtri correnti
     private var currentSearchQuery: String = ""
     private var currentSortType: SortType = SortType.DATE_DESC
     private var currentVisibilityFilter: Boolean? = null
 
     fun initialize(context: Context) {
         this.context = context
+        // carica tutte le liste all'inizializzazione
         loadMyLists()
         loadPublicLists()
         loadFollowedLists()
     }
 
-    //caricamento liste
-
+    // carica liste personali dell'utente corrente
     fun loadMyLists() {
         viewModelScope.launch {
             try {
@@ -82,6 +85,7 @@ class SocialViewModel : ViewModel() {
                 if (response.isSuccessful) {
                     val lists = response.body() ?: emptyList()
                     _myLists.value = lists
+                    // applica filtri correnti
                     applyFilters()
                     Log.d(TAG, "caricate ${lists.size} liste personali")
                 } else {
@@ -100,6 +104,7 @@ class SocialViewModel : ViewModel() {
         }
     }
 
+    // carica liste pubbliche escludendo quelle già seguite
     fun loadPublicLists() {
         viewModelScope.launch {
             try {
@@ -115,7 +120,7 @@ class SocialViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     val allLists = response.body() ?: emptyList()
-                    //filtra: escludi le liste che gia segui
+                    // filtra solo liste non ancora seguite
                     val publicListsNotFollowed = allLists.filter { !it.isFollowing }
                     _publicLists.value = publicListsNotFollowed
                     applyFilters()
@@ -136,6 +141,7 @@ class SocialViewModel : ViewModel() {
         }
     }
 
+    // carica liste pubbliche che l'utente sta seguendo
     fun loadFollowedLists() {
         viewModelScope.launch {
             try {
@@ -152,12 +158,12 @@ class SocialViewModel : ViewModel() {
 
                 Log.d(TAG, "carico liste seguite per user: $userId")
 
-                //ottieni tutte le liste pubbliche e filtra quelle seguite
+                // ottieni tutte le liste pubbliche e filtra quelle seguite
                 val response = ApiService.apiInterface.getPublicLists(100, userId)
 
                 if (response.isSuccessful) {
                     val allPublicLists = response.body() ?: emptyList()
-                    //filtra solo le liste seguite (isFollowing = true)
+                    // filtra solo liste con flag isFollowing true
                     val followedLists = allPublicLists.filter { it.isFollowing }
                     _followedLists.value = followedLists
                     applyFilters()
@@ -176,50 +182,56 @@ class SocialViewModel : ViewModel() {
         }
     }
 
+    // ricarica tutte le liste
     fun refreshLists() {
         loadMyLists()
         loadPublicLists()
         loadFollowedLists()
     }
 
-    //ricerca e filtri
+    // ricerca e filtri
 
+    // applica filtro ricerca testuale
     fun applySearchFilter(query: String) {
         currentSearchQuery = query.trim().lowercase()
         applyFilters()
     }
 
+    // applica ordinamento
     fun applySortFilter(sortType: SortType) {
         currentSortType = sortType
         applyFilters()
     }
 
+    // applica filtro visibilità (pubbliche/private)
     fun applyVisibilityFilter(isPublic: Boolean?) {
         currentVisibilityFilter = isPublic
         applyFilters()
     }
 
+    // applica tutti i filtri correnti a tutte le liste
     private fun applyFilters() {
-        //filtra le mie liste
+        // filtra mie liste
         val myListsData = _myLists.value ?: emptyList()
         val filteredMyLists = filterAndSortLists(myListsData)
         _filteredMyLists.value = filteredMyLists
 
-        //filtra liste pubbliche (sempre pubbliche)
+        // filtra liste pubbliche
         val publicListsData = _publicLists.value ?: emptyList()
         val filteredPublicLists = filterAndSortLists(publicListsData)
         _filteredPublicLists.value = filteredPublicLists
 
-        //filtra liste seguite
+        // filtra liste seguite
         val followedListsData = _followedLists.value ?: emptyList()
         val filteredFollowedLists = filterAndSortLists(followedListsData)
         _filteredFollowedLists.value = filteredFollowedLists
     }
 
+    // filtra e ordina lista in base ai filtri correnti
     private fun filterAndSortLists(lists: List<MovieList>): List<MovieList> {
         var result = lists
 
-        //ricerca testuale
+        // ricerca testuale su nome e descrizione
         if (currentSearchQuery.isNotEmpty()) {
             result = result.filter { list ->
                 list.name.lowercase().contains(currentSearchQuery) ||
@@ -227,14 +239,14 @@ class SocialViewModel : ViewModel() {
             }
         }
 
-        //filtro visibilita
+        // filtro visibilità pubblico/privato
         when (currentVisibilityFilter) {
             true -> result = result.filter { it.isPublic }
             false -> result = result.filter { !it.isPublic }
-            null -> {} //mostra tutte
+            null -> {} // mostra tutte
         }
 
-        //ordinamento
+        // ordinamento
         result = when (currentSortType) {
             SortType.NAME_ASC -> result.sortedBy { it.name.lowercase() }
             SortType.NAME_DESC -> result.sortedByDescending { it.name.lowercase() }
@@ -246,8 +258,9 @@ class SocialViewModel : ViewModel() {
         return result
     }
 
-    //azioni liste
+    // azioni crud liste
 
+    // crea nuova lista
     fun createList(
         name: String,
         description: String?,
@@ -277,6 +290,7 @@ class SocialViewModel : ViewModel() {
                 if (response.isSuccessful && response.body() != null) {
                     val newList = response.body()!!
                     Log.d(TAG, "lista creata: ${newList.id}")
+                    // ricarica mie liste
                     loadMyLists()
                     onSuccess(newList)
                 } else {
@@ -291,6 +305,7 @@ class SocialViewModel : ViewModel() {
         }
     }
 
+    // elimina lista
     fun deleteList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
@@ -305,6 +320,7 @@ class SocialViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     Log.d(TAG, "lista eliminata")
+                    // ricarica mie liste
                     loadMyLists()
                     onSuccess()
                 } else {
@@ -319,6 +335,7 @@ class SocialViewModel : ViewModel() {
         }
     }
 
+    // segui lista pubblica
     fun followList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
@@ -334,7 +351,7 @@ class SocialViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     Log.d(TAG, "lista seguita")
-                    //ricarica liste pubbliche e seguite
+                    // ricarica liste pubbliche e seguite
                     loadPublicLists()
                     loadFollowedLists()
                     onSuccess()
@@ -350,6 +367,7 @@ class SocialViewModel : ViewModel() {
         }
     }
 
+    // smetti di seguire lista
     fun unfollowList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
@@ -364,7 +382,7 @@ class SocialViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     Log.d(TAG, "lista non seguita piu")
-                    //ricarica liste pubbliche e seguite
+                    // ricarica liste pubbliche e seguite
                     loadPublicLists()
                     loadFollowedLists()
                     onSuccess()
@@ -380,6 +398,7 @@ class SocialViewModel : ViewModel() {
         }
     }
 
+    // copia lista pubblica nelle proprie liste
     fun copyList(listId: String, newName: String?, onSuccess: (MovieList) -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
@@ -401,6 +420,7 @@ class SocialViewModel : ViewModel() {
                 if (response.isSuccessful && response.body() != null) {
                     val copiedList = response.body()!!
                     Log.d(TAG, "lista copiata: ${copiedList.id}")
+                    // ricarica mie liste per visualizzare copia
                     loadMyLists()
                     onSuccess(copiedList)
                 } else {

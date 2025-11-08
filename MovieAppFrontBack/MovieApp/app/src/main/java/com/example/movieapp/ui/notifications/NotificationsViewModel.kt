@@ -12,17 +12,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.content.Context
 
-//viewmodel per grafici analytics avanzati
+// viewmodel per grafici analytics avanzati, calcola statistiche dettagliate sui film
 class NotificationsViewModel : ViewModel() {
     private val TAG = "NotificationsViewModel"
 
     private val _movies = MutableLiveData<List<Movie>>()
     val movies: LiveData<List<Movie>> = _movies
 
+    // flag per indicare quando i grafici sono pronti da visualizzare
     private val _chartsReady = MutableLiveData<Boolean>()
     val chartsReady: LiveData<Boolean> = _chartsReady
 
-    //contatori per card riepilogo
+    // contatori per card riepilogo
     private val _totalMovies = MutableLiveData<Int>()
     val totalMovies: LiveData<Int> = _totalMovies
 
@@ -32,11 +33,11 @@ class NotificationsViewModel : ViewModel() {
     private val _watchlistMovies = MutableLiveData<Int>()
     val watchlistMovies: LiveData<Int> = _watchlistMovies
 
-    //statistiche testuali
+    // statistiche testuali
     private val _totalWatchTime = MutableLiveData<String>()
     val totalWatchTime: LiveData<String> = _totalWatchTime
 
-    //dati per grafici base
+    // dati per grafici base
     private val _genresData = MutableLiveData<Map<String, Int>>()
     val genresData: LiveData<Map<String, Int>> = _genresData
 
@@ -67,14 +68,14 @@ class NotificationsViewModel : ViewModel() {
     private val _originalLanguagesData = MutableLiveData<Map<String, Int>>()
     val originalLanguagesData: LiveData<Map<String, Int>> = _originalLanguagesData
 
-    //grafici avanzati
+    // grafici avanzati
     private val _popularityVsRatingData = MutableLiveData<List<Pair<Double, Double>>>()
     val popularityVsRatingData: LiveData<List<Pair<Double, Double>>> = _popularityVsRatingData
 
     private val _popularityTrendData = MutableLiveData<Map<String, Double>>()
     val popularityTrendData: LiveData<Map<String, Double>> = _popularityTrendData
 
-    //statistiche top cliccabili
+    // statistiche top cliccabili per mostrare film specifici
     private val _topGenre = MutableLiveData<Pair<String, Int>>()
     val topGenre: LiveData<Pair<String, Int>> = _topGenre
 
@@ -102,16 +103,17 @@ class NotificationsViewModel : ViewModel() {
     private val _topOriginalLanguage = MutableLiveData<Pair<String, Int>>()
     val topOriginalLanguage: LiveData<Pair<String, Int>> = _topOriginalLanguage
 
-    //statistiche avanzate per grafici
     private val _mostPopularDecade = MutableLiveData<String>()
     val mostPopularDecade: LiveData<String> = _mostPopularDecade
 
-    //cache film per recupero veloce e per mappatura cognome->nome completo
+    // cache film per recupero veloce nei dialog
     private var allMoviesCache: List<Movie> = emptyList()
+
+    // mappature cognome -> nome completo per registi e attori
     private val directorLastNameToFullName = mutableMapOf<String, String>()
     private val actorLastNameToFullName = mutableMapOf<String, String>()
 
-    //mappatura acronimi lingua -> nome completo
+    // mappatura codici iso lingua -> nome italiano completo
     private val languageMap = mapOf(
         "en" to "Inglese",
         "it" to "Italiano",
@@ -195,10 +197,12 @@ class NotificationsViewModel : ViewModel() {
         "eo" to "Esperanto"
     )
 
+    // inizializza viewmodel e carica film dal repository
     fun initialize(context: Context) {
         loadMovies(context)
     }
 
+    // ricalcola tutte le statistiche
     fun refreshData() {
         _chartsReady.value = false
         _movies.value?.let { movies ->
@@ -211,12 +215,13 @@ class NotificationsViewModel : ViewModel() {
         }
     }
 
+    // carica film dal repository
     private fun loadMovies(context: Context) {
         viewModelScope.launch {
             try {
                 val repository = MovieRepository.getInstance(context)
 
-                //usa il LiveData del repository
+                // usa livedata del repository per sincronizzazione automatica
                 val allMovies = repository.movies.value ?: emptyList()
 
                 allMoviesCache = allMovies
@@ -224,12 +229,12 @@ class NotificationsViewModel : ViewModel() {
 
                 Log.d(TAG, "film caricati: ${allMovies.size}")
 
-                //aggiorna contatori
+                // aggiorna contatori base
                 _totalMovies.value = allMovies.size
                 _watchedMovies.value = allMovies.count { movie: Movie -> movie.isWatched }
                 _watchlistMovies.value = allMovies.count { movie: Movie -> !movie.isWatched }
 
-                //genera analytics
+                // genera tutte le analytics
                 generateAnalytics(allMovies)
 
                 _chartsReady.value = true
@@ -240,12 +245,13 @@ class NotificationsViewModel : ViewModel() {
         }
     }
 
+    // genera tutte le statistiche in background thread
     private suspend fun generateAnalytics(allMovies: List<Movie>) {
         withContext(Dispatchers.Default) {
             Log.d(TAG, "=== calcolo statistiche ===")
             Log.d(TAG, "film totali: ${allMovies.size}")
 
-            //statistiche base
+            // statistiche base
             calculateGenresData(allMovies)
             calculateYearsData(allMovies)
             calculateDirectorsData(allMovies)
@@ -257,15 +263,16 @@ class NotificationsViewModel : ViewModel() {
             calculateRuntimeRangesData(allMovies)
             calculateOriginalLanguagesData(allMovies)
 
-            //grafici avanzati
+            // grafici avanzati
             calculatePopularityVsRatingData(allMovies)
             calculatePopularityTrendData(allMovies)
 
-            //tempo totale visione
+            // tempo totale visione
             calculateTotalWatchTime(allMovies)
         }
     }
 
+    // conta occorrenze per ogni genere
     private fun calculateGenresData(movies: List<Movie>) {
         val genreCount = mutableMapOf<String, Int>()
         movies.forEach { movie ->
@@ -284,6 +291,7 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "generi: ${genreCount.size} generi trovati")
     }
 
+    // conta film per anno
     private fun calculateYearsData(movies: List<Movie>) {
         val yearCount = mutableMapOf<Int, Int>()
         movies.forEach { movie ->
@@ -302,6 +310,7 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "anni: ${yearCount.size} anni trovati")
     }
 
+    // conta film per regista, usa solo cognome per compattezza
     private fun calculateDirectorsData(movies: List<Movie>) {
         val directorCount = mutableMapOf<String, Int>()
         directorLastNameToFullName.clear()
@@ -310,7 +319,7 @@ class NotificationsViewModel : ViewModel() {
             movie.director?.let { fullName ->
                 val lastName = extractLastName(fullName)
                 directorCount[lastName] = (directorCount[lastName] ?: 0) + 1
-                //salva mapping cognome -> nome completo
+                // salva mapping cognome -> nome completo per dialog
                 if (!directorLastNameToFullName.containsKey(lastName)) {
                     directorLastNameToFullName[lastName] = fullName
                 }
@@ -328,6 +337,7 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "registi: ${directorCount.size} registi trovati")
     }
 
+    // conta film per attore, usa solo cognome per compattezza
     private fun calculateActorsData(movies: List<Movie>) {
         val actorCount = mutableMapOf<String, Int>()
         actorLastNameToFullName.clear()
@@ -336,7 +346,7 @@ class NotificationsViewModel : ViewModel() {
             movie.actors?.forEach { fullName ->
                 val lastName = extractLastName(fullName)
                 actorCount[lastName] = (actorCount[lastName] ?: 0) + 1
-                //salva mapping cognome -> nome completo
+                // salva mapping cognome -> nome completo per dialog
                 if (!actorLastNameToFullName.containsKey(lastName)) {
                     actorLastNameToFullName[lastName] = fullName
                 }
@@ -354,13 +364,13 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "attori: ${actorCount.size} attori trovati")
     }
 
-    //estrae solo il cognome da un nome completo
+    // estrae solo il cognome da un nome completo
     private fun extractLastName(fullName: String): String {
         val parts = fullName.trim().split(" ")
         return if (parts.size > 1) parts.last() else fullName
     }
 
-    //ottieni nome completo da cognome (per dialog)
+    // recupera nome completo da cognome per visualizzazione dialog
     fun getDirectorFullName(lastName: String): String {
         return directorLastNameToFullName[lastName] ?: lastName
     }
@@ -369,10 +379,11 @@ class NotificationsViewModel : ViewModel() {
         return actorLastNameToFullName[lastName] ?: lastName
     }
 
+    // distribuisce i film per rating tmdb (0-10)
     private fun calculateTmdbRatingsData(movies: List<Movie>) {
         val ratingCount = mutableMapOf<Int, Int>()
 
-        //inizializza tutti i valori da 0 a 10
+        // inizializza tutti i valori da 0 a 10
         for (i in 0..10) {
             ratingCount[i] = 0
         }
@@ -388,6 +399,7 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "rating tmdb: distribuzioni calcolate da 0 a 10")
     }
 
+    // conta film per paese di produzione
     private fun calculateCountriesData(movies: List<Movie>) {
         val countryCount = mutableMapOf<String, Int>()
         movies.forEach { movie ->
@@ -407,7 +419,7 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "paesi: ${countryCount.size} paesi trovati")
     }
 
-    //abbrevia nomi paesi lunghi
+    // abbrevia nomi paesi lunghi per compattezza
     private fun abbreviateCountryName(country: String): String {
         return when (country.trim()) {
             "United States of America" -> "USA"
@@ -416,6 +428,7 @@ class NotificationsViewModel : ViewModel() {
         }
     }
 
+    // raggruppa film per decennio
     private fun calculateDecadesData(movies: List<Movie>) {
         val decadeCount = mutableMapOf<String, Int>()
         movies.forEach { movie ->
@@ -435,15 +448,17 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "decenni: ${decadeCount.size} decenni trovati")
     }
 
+    // trova combinazioni di generi più frequenti
     private fun calculateGenreCombinationsData(movies: List<Movie>) {
         val combinations = mutableMapOf<Pair<String, String>, Int>()
 
         movies.forEach { movie ->
             val genres = movie.genres
             if (genres.size >= 2) {
-                //prende tutte le coppie di generi
+                // genera tutte le coppie di generi per film
                 for (i in genres.indices) {
                     for (j in i + 1 until genres.size) {
+                        // ordina alfabeticamente per evitare duplicati
                         val pair = if (genres[i] <= genres[j]) {
                             Pair(genres[i], genres[j])
                         } else {
@@ -465,6 +480,7 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "combinazioni generi: ${combinations.size} combinazioni trovate")
     }
 
+    // raggruppa film per durata in range predefiniti
     private fun calculateRuntimeRangesData(movies: List<Movie>) {
         val ranges = mutableMapOf<String, Int>()
         ranges["0-60"] = 0
@@ -490,7 +506,7 @@ class NotificationsViewModel : ViewModel() {
 
         _runtimeRangesData.postValue(ranges)
 
-        //calcola film piu lunghi
+        // trova i 5 film più lunghi
         val sortedByRuntime = movies.filter { it.runtime != null }
             .sortedByDescending { it.runtime }
             .take(5)
@@ -499,11 +515,12 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "runtime ranges calcolati")
     }
 
+    // conta film per lingua originale
     private fun calculateOriginalLanguagesData(movies: List<Movie>) {
         val langCount = mutableMapOf<String, Int>()
         movies.forEach { movie ->
             movie.originalLanguage?.let { langCode ->
-                //traduci acronimo in nome completo
+                // traduce codice iso in nome italiano
                 val langName = languageMap[langCode.lowercase()] ?: langCode.uppercase()
                 langCount[langName] = (langCount[langName] ?: 0) + 1
             }
@@ -519,6 +536,7 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "lingue: ${langCount.size} lingue trovate")
     }
 
+    // crea scatter plot popularity vs rating
     private fun calculatePopularityVsRatingData(movies: List<Movie>) {
         val data = movies.mapNotNull { movie ->
             val pop = movie.popularity
@@ -532,6 +550,7 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "popularity vs rating: ${data.size} punti")
     }
 
+    // calcola trend popularity medio per decennio
     private fun calculatePopularityTrendData(movies: List<Movie>) {
         val decadePopularity = mutableMapOf<String, MutableList<Double>>()
 
@@ -544,13 +563,14 @@ class NotificationsViewModel : ViewModel() {
             }
         }
 
+        // calcola media per decennio
         val avgPopularity = decadePopularity.mapValues { entry ->
             entry.value.average()
         }
 
         _popularityTrendData.postValue(avgPopularity)
 
-        //trova decade piu popolare
+        // trova decade più popolare
         if (avgPopularity.isNotEmpty()) {
             val topDecade = avgPopularity.maxByOrNull { it.value }!!
             _mostPopularDecade.postValue("📈 Decade più popolare: ${topDecade.key}")
@@ -559,6 +579,7 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "popularity trend: ${avgPopularity.size} decenni")
     }
 
+    // calcola tempo totale di visione dei film watched
     private fun calculateTotalWatchTime(movies: List<Movie>) {
         val watchedMovies = movies.filter { it.isWatched }
         val totalMinutes = watchedMovies.sumOf { it.runtime ?: 0 }
@@ -575,7 +596,7 @@ class NotificationsViewModel : ViewModel() {
         Log.d(TAG, "tempo totale: $hours ore, $minutes minuti")
     }
 
-    //metodi per recuperare film per categoria (per dialog)
+    // metodi per recuperare film specifici per categoria, usati nei dialog cliccabili
     fun getMoviesByGenre(genre: String): List<Movie> {
         return allMoviesCache.filter { it.genres.contains(genre) }
     }

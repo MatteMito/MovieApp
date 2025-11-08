@@ -18,6 +18,7 @@ import com.example.movieapp.databinding.FragmentHomeBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
 
+// fragment home per import csv e visualizzazione statistiche
 class HomeFragment : Fragment() {
 
     private val TAG = "HomeFragment"
@@ -27,6 +28,7 @@ class HomeFragment : Fragment() {
 
     private lateinit var homeViewModel: HomeViewModel
 
+    // tipi di import supportati
     private enum class ImportType {
         IMDB_WATCHED,
         IMDB_WATCHLIST,
@@ -34,8 +36,10 @@ class HomeFragment : Fragment() {
         LETTERBOXD_WATCHLIST
     }
 
+    // memorizza il tipo di import in attesa dopo selezione file
     private var pendingImportType: ImportType? = null
 
+    // launcher per apertura file picker
     private val pickFileLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -59,12 +63,14 @@ class HomeFragment : Fragment() {
 
         setupUI()
         setupObservers()
+        // inizializza viewmodel con context per apiservice
         homeViewModel.initialize(requireContext())
 
         Log.d(TAG, "homefragment creato")
         return binding.root
     }
 
+    // setup listener bottoni import
     private fun setupUI() {
         binding.buttonImportImdbWatched.setOnClickListener {
             Log.d(TAG, "click: import imdb watched")
@@ -83,6 +89,7 @@ class HomeFragment : Fragment() {
             showLetterboxdWatchlistHelp()
         }
 
+        // pull to refresh per ricaricare dati dal backend
         binding.swipeRefresh.setOnRefreshListener {
             Log.d(TAG, "swipe refresh")
             homeViewModel.refreshFromBackend()
@@ -90,19 +97,19 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupObservers() {
-        //loading generale
+        // loading generale
         homeViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             binding.swipeRefresh.isRefreshing = isLoading
             Log.d(TAG, "loading: $isLoading")
         }
 
-        //aggiorna statistiche
+        // aggiorna statistiche quando cambiano i film
         homeViewModel.movies.observe(viewLifecycleOwner) { movies ->
             updateStatsCard(movies)
             Log.d(TAG, "movies aggiornati: ${movies.size} film")
         }
 
-        //import in corso
+        // stato import in corso
         homeViewModel.isImporting.observe(viewLifecycleOwner) { isImporting ->
             binding.importLoadingContainer.isVisible = isImporting
             enableImportButtons(!isImporting)
@@ -114,7 +121,7 @@ class HomeFragment : Fragment() {
             Log.d(TAG, "isImporting: $isImporting (bottoni ${if (isImporting) "disabilitati" else "abilitati"})")
         }
 
-        //ascolta websocket per completion
+        // ascolta websocket per notifiche di completamento enrichment
         viewLifecycleOwner.lifecycleScope.launch {
             homeViewModel.observeWebSocketUpdates().collect { update ->
                 if (update != null && update.type == "completed") {
@@ -124,7 +131,7 @@ class HomeFragment : Fragment() {
             }
         }
 
-        //messaggio di completamento
+        // mostra messaggi toast
         homeViewModel.message.observe(viewLifecycleOwner) { message ->
             if (message.isNotEmpty()) {
                 Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
@@ -133,10 +140,11 @@ class HomeFragment : Fragment() {
         }
     }
 
+    // calcola e aggiorna le statistiche nella card
     private fun updateStatsCard(movies: List<com.example.movieapp.data.models.Movie>) {
         val total = movies.size
 
-        //usa status invece di isWatched
+        // conta film per status (watched/watchlist)
         val watched = movies.count { it.status == "watched" }
         val watchlist = movies.count { it.status == "watchlist" }
 
@@ -147,6 +155,7 @@ class HomeFragment : Fragment() {
         Log.d(TAG, "stats: total=$total, watched=$watched, watchlist=$watchlist")
     }
 
+    // abilita/disabilita bottoni import durante operazioni
     private fun enableImportButtons(enabled: Boolean) {
         binding.buttonImportImdbWatched.isEnabled = enabled
         binding.buttonImportImdbWatchlist.isEnabled = enabled
@@ -154,6 +163,7 @@ class HomeFragment : Fragment() {
         binding.buttonImportLetterboxdWatchlist.isEnabled = enabled
     }
 
+    // dialog con istruzioni per export da imdb watched
     private fun showImdbWatchedHelp() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Import IMDb Watched")
@@ -166,6 +176,7 @@ class HomeFragment : Fragment() {
             .show()
     }
 
+    // dialog con istruzioni per export da imdb watchlist
     private fun showImdbWatchlistHelp() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Import IMDb Watchlist")
@@ -178,6 +189,7 @@ class HomeFragment : Fragment() {
             .show()
     }
 
+    // dialog con istruzioni per export da letterboxd watched
     private fun showLetterboxdWatchedHelp() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Import Letterboxd Watched")
@@ -190,6 +202,7 @@ class HomeFragment : Fragment() {
             .show()
     }
 
+    // dialog con istruzioni per export da letterboxd watchlist
     private fun showLetterboxdWatchlistHelp() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Import Letterboxd Watchlist")
@@ -202,6 +215,7 @@ class HomeFragment : Fragment() {
             .show()
     }
 
+    // apre file picker per selezione csv
     private fun openFilePicker() {
         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             type = "*/*"
@@ -210,8 +224,9 @@ class HomeFragment : Fragment() {
         pickFileLauncher.launch(intent)
     }
 
+    // processa il file csv selezionato
     private fun processFile(uri: Uri, type: ImportType) {
-        //attiva subito la progress bar
+        // attiva subito la progress bar
         homeViewModel.setImporting(true)
 
         try {
@@ -222,12 +237,14 @@ class HomeFragment : Fragment() {
                 return
             }
 
+            // copia file in cache temporanea per invio al backend
             val tempFile = createTempFile("import_", ".csv", requireContext().cacheDir)
             tempFile.outputStream().use { output ->
                 inputStream.copyTo(output)
             }
             inputStream.close()
 
+            // mappa enum a stringa per api backend
             val csvType = when (type) {
                 ImportType.IMDB_WATCHED -> "IMDB_WATCHED"
                 ImportType.IMDB_WATCHLIST -> "IMDB_WATCHLIST"

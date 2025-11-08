@@ -23,7 +23,7 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import com.github.mikephil.charting.highlight.Highlight
 
-//fragment con grafici interattivi avanzati per analisi cinematografica
+// fragment con grafici interattivi avanzati per analisi cinematografica usando mpandroidchart
 class NotificationsFragment : Fragment() {
 
     private val TAG = "NotificationsFragment"
@@ -33,7 +33,7 @@ class NotificationsFragment : Fragment() {
 
     private lateinit var notificationsViewModel: NotificationsViewModel
 
-    //colori originali del progetto
+    // palette colori per grafici, riutilizzata per coerenza visiva
     private val chartColors = listOf(
         Color.parseColor("#2196F3"), Color.parseColor("#4CAF50"), Color.parseColor("#FFC107"),
         Color.parseColor("#FF5722"), Color.parseColor("#9C27B0"), Color.parseColor("#00BCD4"),
@@ -59,8 +59,9 @@ class NotificationsFragment : Fragment() {
         return binding.root
     }
 
+    // configura tutti gli observer per aggiornare ui quando cambiano i dati
     private fun setupObservers() {
-        //gestisce visualizzazione messaggio quando non ci sono film
+        // gestisce visualizzazione quando non ci sono film
         notificationsViewModel.movies.observe(viewLifecycleOwner) { movies ->
             if (movies.isEmpty()) {
                 binding.textNoData.visibility = View.VISIBLE
@@ -74,7 +75,7 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //contatori per card riepilogo
+        // contatori per card riepilogo in alto
         notificationsViewModel.totalMovies.observe(viewLifecycleOwner) { count ->
             binding.textTotalMovies.text = count.toString()
         }
@@ -87,13 +88,13 @@ class NotificationsFragment : Fragment() {
             binding.textWatchlistMovies.text = count.toString()
         }
 
-        //tempo totale visione
+        // tempo totale visione film watched
         notificationsViewModel.totalWatchTime.observe(viewLifecycleOwner) { timeText ->
             binding.textTotalWatchTime.text = timeText
             binding.textTotalWatchTime.visibility = View.VISIBLE
         }
 
-        //charts loading state
+        // gestisce stato loading grafici
         notificationsViewModel.chartsReady.observe(viewLifecycleOwner) { ready ->
             if (ready) {
                 binding.cardChartsLoading.visibility = View.GONE
@@ -111,7 +112,7 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico generi
+        // grafico generi con testo cliccabile
         notificationsViewModel.genresData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 setupGenresPieChart(data)
@@ -121,12 +122,13 @@ class NotificationsFragment : Fragment() {
         notificationsViewModel.topGenre.observe(viewLifecycleOwner) { (genre, count) ->
             binding.textTopGenre.text = "🎬 genere più visto: $genre ($count film)"
             binding.textTopGenre.visibility = View.VISIBLE
+            // click mostra dialog con lista film
             binding.textTopGenre.setOnClickListener {
                 showMoviesDialogSimple("Film $genre", notificationsViewModel.getMoviesByGenre(genre))
             }
         }
 
-        //grafico anni
+        // grafico anni
         notificationsViewModel.yearsData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 setupYearsBarChart(data)
@@ -141,7 +143,7 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico registi
+        // grafico registi
         notificationsViewModel.directorsData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 setupDirectorsBarChart(data)
@@ -157,7 +159,7 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico attori
+        // grafico attori
         notificationsViewModel.actorsData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 setupActorsBarChart(data)
@@ -173,14 +175,14 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico rating tmdb
+        // grafico rating tmdb
         notificationsViewModel.tmdbRatingsData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 setupTmdbRatingsBarChart(data)
             }
         }
 
-        //grafico paesi
+        // grafico paesi
         notificationsViewModel.countriesData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 setupCountriesBarChart(data)
@@ -200,7 +202,7 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico decenni
+        // grafico decenni
         notificationsViewModel.decadesData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 setupDecadesBarChart(data)
@@ -215,7 +217,7 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico combinazioni generi
+        // grafico combinazioni generi
         notificationsViewModel.genreCombinationsData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 setupGenreCombinationsChart(data)
@@ -231,7 +233,7 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico range runtime
+        // grafico range runtime
         notificationsViewModel.runtimeRangesData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 setupRuntimeRangesChart(data)
@@ -249,7 +251,7 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico lingue originali
+        // grafico lingue originali
         notificationsViewModel.originalLanguagesData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 binding.textOriginalLanguagesEmpty.visibility = View.GONE
@@ -269,14 +271,14 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        //grafico scatter popolarità vs rating
+        // grafico scatter popolarità vs rating
         notificationsViewModel.popularityVsRatingData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 setupPopularityVsRatingScatter(data)
             }
         }
 
-        //grafico trend popolarità
+        // grafico trend popolarità per decennio
         notificationsViewModel.popularityTrendData.observe(viewLifecycleOwner) { data ->
             if (data.isNotEmpty()) {
                 setupPopularityTrendLineChart(data)
@@ -289,7 +291,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico generi
+    // grafico a torta per generi, cliccabile per vedere film
     private fun setupGenresPieChart(data: Map<String, Int>) {
         val entries = data.map { PieEntry(it.value.toFloat(), "") }
 
@@ -298,12 +300,13 @@ class NotificationsFragment : Fragment() {
             valueTextSize = 0f
             valueTextColor = Color.WHITE
             sliceSpace = 2f
-            setDrawValues(false)  //disabilita completamente i valori
+            setDrawValues(false)
         }
 
         binding.chartGenres.apply {
             this.data = PieData(dataSet)
             description.isEnabled = false
+            // legenda custom con nomi generi
             legend.apply {
                 textSize = 10f
                 isWordWrapEnabled = true
@@ -317,6 +320,7 @@ class NotificationsFragment : Fragment() {
             setDrawEntryLabels(false)
             animateY(1000, Easing.EaseInOutQuad)
 
+            // listener per click su fetta
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     if (e is PieEntry) {
@@ -332,7 +336,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico anni - tutti gli anni visibili, formato corretto, no valori
+    // grafico a barre per anni, scrollabile orizzontalmente
     private fun setupYearsBarChart(data: Map<Int, Int>) {
         val sortedData = data.toSortedMap()
         val entries = sortedData.entries.mapIndexed { index, entry ->
@@ -348,6 +352,7 @@ class NotificationsFragment : Fragment() {
         binding.chartYears.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
+            // mostra max 10 anni alla volta, scrollabile
             setVisibleXRangeMaximum(10f)
             moveViewToX(entries.size.toFloat() - 10f)
 
@@ -371,6 +376,7 @@ class NotificationsFragment : Fragment() {
             axisRight.isEnabled = false
             legend.isEnabled = false
 
+            // listener per click su barra
             setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
                 override fun onValueSelected(e: Entry?, h: Highlight?) {
                     e?.let {
@@ -386,7 +392,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico registi - con rotazione etichette ridotta per maggiore leggibilità
+    // grafico a barre per registi, ordinato per numero film
     private fun setupDirectorsBarChart(data: Map<String, Int>) {
         val sortedDirectors = data.entries.sortedByDescending { it.value }
         val entries = sortedDirectors.mapIndexed { index, entry ->
@@ -402,6 +408,7 @@ class NotificationsFragment : Fragment() {
         binding.chartDirectors.apply {
             this.data = BarData(dataSet)
             description.isEnabled = false
+            // mostra max 8 registi alla volta
             setVisibleXRangeMaximum(8f)
             moveViewToX(0f)
 
@@ -430,6 +437,7 @@ class NotificationsFragment : Fragment() {
                     e?.let {
                         val index = it.x.toInt()
                         val directorLastName = sortedDirectors[index].key
+                        // recupera nome completo per dialog
                         val fullName = notificationsViewModel.getDirectorFullName(directorLastName)
                         showMoviesDialogSimple("Film di $fullName",
                             notificationsViewModel.getMoviesByDirector(directorLastName))
@@ -443,7 +451,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico attori - con rotazione etichette ridotta per maggiore leggibilità
+    // grafico a barre per attori, ordinato per numero film
     private fun setupActorsBarChart(data: Map<String, Int>) {
         val sortedActors = data.entries.sortedByDescending { it.value }
         val entries = sortedActors.mapIndexed { index, entry ->
@@ -500,13 +508,14 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico valutazioni tmdb - tutti i voti visibili 0-10, no valori
+    // grafico a barre per valutazioni tmdb, mostra distribuzione 0-10
     private fun setupTmdbRatingsBarChart(data: Map<Int, Int>) {
         val sortedRatings = (0..10).toList()
         val entries = sortedRatings.mapIndexed { index, rating ->
             BarEntry(index.toFloat(), (data[rating] ?: 0).toFloat())
         }
 
+        // colori gradient dal rosso al blu per valutazioni basse/alte
         val dataSet = BarDataSet(entries, "").apply {
             colors = listOf(
                 Color.parseColor("#F44336"), Color.parseColor("#E91E63"),
@@ -559,7 +568,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico paesi - tutti con scroll, no valori
+    // grafico a barre per paesi di produzione
     private fun setupCountriesBarChart(data: Map<String, Int>) {
         val sortedCountries = data.entries.sortedByDescending { it.value }
         val entries = sortedCountries.mapIndexed { index, entry ->
@@ -615,7 +624,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico decenni - tutti con scroll, no valori
+    // grafico a barre per decenni
     private fun setupDecadesBarChart(data: Map<String, Int>) {
         val sortedDecades = data.keys.sortedBy { it.replace("s", "").toIntOrNull() ?: 0 }
         val entries = sortedDecades.mapIndexed { index, decade ->
@@ -670,7 +679,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico combinazioni generi - con acronimi per leggibilità
+    // grafico combinazioni generi, usa acronimi per compattezza
     private fun setupGenreCombinationsChart(data: Map<Pair<String, String>, Int>) {
         val sortedCombos = data.entries.sortedByDescending { it.value }
         val entries = sortedCombos.mapIndexed { index, entry ->
@@ -683,7 +692,7 @@ class NotificationsFragment : Fragment() {
             setDrawValues(false)
         }
 
-        //funzione per creare acronimi
+        // mappa generi a acronimi di 2 lettere
         fun getAcronym(genre: String): String {
             return when (genre.lowercase()) {
                 "action" -> "AC"
@@ -742,7 +751,7 @@ class NotificationsFragment : Fragment() {
                     e?.let {
                         val index = it.x.toInt()
                         val combo = sortedCombos[index].key
-                        //mostra nomi completi nel dialog
+                        // dialog mostra nomi completi
                         showMoviesDialogSimple("Film ${combo.first} + ${combo.second}",
                             notificationsViewModel.getMoviesByGenreCombination(combo))
                     }
@@ -755,7 +764,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico durata film - no valori
+    // grafico range durata film
     private fun setupRuntimeRangesChart(data: Map<String, Int>) {
         val sortedRanges = listOf("0-60", "60-90", "90-120", "120-150", "150-180", "180+")
         val entries = sortedRanges.mapIndexed { index, range ->
@@ -807,7 +816,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //grafico lingue originali
+    // grafico a torta per lingue originali
     private fun setupOriginalLanguagesPieChart(data: Map<String, Int>) {
         val entries = data.map { PieEntry(it.value.toFloat(), "") }
 
@@ -816,7 +825,7 @@ class NotificationsFragment : Fragment() {
             valueTextSize = 0f
             valueTextColor = Color.WHITE
             sliceSpace = 2f
-            setDrawValues(false)  //disabilita completamente i valori
+            setDrawValues(false)
         }
 
         binding.chartOriginalLanguages.apply {
@@ -850,7 +859,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //scatter plot: film popolari vs film di qualità
+    // scatter plot per analizzare correlazione popolarità/rating
     private fun setupPopularityVsRatingScatter(data: List<Pair<Double, Double>>) {
         val entries = data.map { (popularity, rating) ->
             Entry(popularity.toFloat(), rating.toFloat())
@@ -889,7 +898,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //line chart: trend popolarità per decade
+    // line chart per trend popolarità media per decennio
     private fun setupPopularityTrendLineChart(data: Map<String, Double>) {
         val sortedData = data.toList().sortedBy { it.first }
         val entries = sortedData.mapIndexed { index, (_, avgPopularity) ->
@@ -904,6 +913,7 @@ class NotificationsFragment : Fragment() {
             setDrawValues(true)
             valueTextSize = 10f
             valueTextColor = Color.parseColor("#667eea")
+            // linea curva per effetto smooth
             mode = LineDataSet.Mode.CUBIC_BEZIER
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
@@ -939,7 +949,7 @@ class NotificationsFragment : Fragment() {
         }
     }
 
-    //dialog semplice: nome - anno
+    // dialog semplice: titolo - anno
     private fun showMoviesDialogSimple(title: String, movies: List<com.example.movieapp.data.models.Movie>) {
         if (movies.isEmpty()) {
             Log.w(TAG, "showMoviesDialog chiamato con lista vuota per: $title")
@@ -958,7 +968,7 @@ class NotificationsFragment : Fragment() {
             .show()
     }
 
-    //dialog con rating: nome - anno - rating
+    // dialog con rating: titolo - anno - rating
     private fun showMoviesDialogWithRating(title: String, movies: List<com.example.movieapp.data.models.Movie>) {
         if (movies.isEmpty()) {
             Log.w(TAG, "showMoviesDialog chiamato con lista vuota per: $title")
@@ -978,7 +988,7 @@ class NotificationsFragment : Fragment() {
             .show()
     }
 
-    //dialog con durata: nome - anno - durata con emoji
+    // dialog con durata: titolo - anno - minuti
     private fun showMoviesDialogWithRuntime(title: String, movies: List<com.example.movieapp.data.models.Movie>) {
         if (movies.isEmpty()) {
             Log.w(TAG, "showMoviesDialog chiamato con lista vuota per: $title")
@@ -998,6 +1008,7 @@ class NotificationsFragment : Fragment() {
             .show()
     }
 
+    // ricarica dati quando fragment torna visibile
     override fun onResume() {
         super.onResume()
         notificationsViewModel.refreshData()
@@ -1006,6 +1017,7 @@ class NotificationsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // pulisce binding per evitare memory leak
         _binding = null
     }
 }

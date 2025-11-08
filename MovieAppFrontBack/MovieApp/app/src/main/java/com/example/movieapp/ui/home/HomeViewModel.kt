@@ -19,50 +19,59 @@ import com.example.movieapp.data.network.EnrichmentUpdate
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 
+// viewmodel per home fragment, gestisce import csv e sincronizzazione con backend
 class HomeViewModel : ViewModel() {
 
     private val TAG = "HomeViewModel"
 
+    // lista film osservabile
     private val _movies = MutableLiveData<List<Movie>>()
     val movies: LiveData<List<Movie>> = _movies
 
+    // stato loading generale
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
+    // stato import in corso
     private val _isImporting = MutableLiveData<Boolean>()
     val isImporting: LiveData<Boolean> = _isImporting
 
+    // messaggi da mostrare all'utente
     private val _message = MutableLiveData<String>()
     val message: LiveData<String> = _message
 
     private lateinit var repository: MovieRepository
     private lateinit var workManager: WorkManager
+    // singleton websocket per notifiche real-time
     private val webSocketService = WebSocketService.getInstance()
 
+    // inizializza repository, workmanager e websocket
     fun initialize(context: Context) {
         repository = MovieRepository.getInstance(context)
         workManager = WorkManager.getInstance(context)
 
-        //osserva i cambiamenti del repository
+        // osserva cambiamenti nel repository e aggiorna livedata
         repository.movies.observeForever { moviesList ->
             _movies.value = moviesList
             Log.d(TAG, "movies aggiornati: ${moviesList.size}")
         }
 
-        //connetti websocket
+        // connetti websocket per notifiche enrichment
         if (!webSocketService.isConnected()) {
             webSocketService.connect()
             Log.d(TAG, "websocket connesso")
         }
 
-        //carica i dati immediatamente dal backend al primo avvio
+        // carica dati dal backend al primo avvio
         refreshFromBackend()
     }
 
+    // espone flow websocket per osservare aggiornamenti enrichment
     fun observeWebSocketUpdates(): StateFlow<EnrichmentUpdate?> {
         return webSocketService.enrichmentUpdates
     }
 
+    // ricarica film dal backend
     fun refreshFromBackend() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -83,17 +92,20 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    // aggiorna stato import per ui
     fun setImporting(isImporting: Boolean) {
         _isImporting.value = isImporting
         Log.d(TAG, "setImporting: $isImporting")
     }
 
+    // avvia import csv usando workmanager per esecuzione in background
     fun startImport(filePath: String, csvType: String) {
         viewModelScope.launch {
             try {
                 Log.d(TAG, "avvio import worker")
                 _isImporting.value = true
 
+                // crea work request con parametri file e tipo csv
                 val workRequest = OneTimeWorkRequestBuilder<ImportWorker>()
                     .setInputData(
                         workDataOf(
@@ -103,13 +115,14 @@ class HomeViewModel : ViewModel() {
                     )
                     .build()
 
+                // accoda worker con politica replace per sostituzione import precedenti
                 workManager.enqueueUniqueWork(
                     "movie_import",
                     ExistingWorkPolicy.REPLACE,
                     workRequest
                 )
 
-                //monitora il worker
+                // monitora stato worker
                 workManager.getWorkInfoByIdLiveData(workRequest.id).observeForever { workInfo ->
                     if (workInfo != null) {
                         when (workInfo.state) {
@@ -118,7 +131,7 @@ class HomeViewModel : ViewModel() {
                             }
                             WorkInfo.State.SUCCEEDED -> {
                                 Log.d(TAG, "worker completato, enrichment sul server...")
-                                //non fare refresh qui, aspetta websocket 'completed'
+                                // non fare refresh qui, aspetta notifica websocket 'completed'
                             }
                             WorkInfo.State.FAILED -> {
                                 Log.e(TAG, "worker fallito")
@@ -138,13 +151,15 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    // chiamato quando websocket riceve notifica di enrichment completato
     fun onEnrichmentCompleted() {
         viewModelScope.launch {
             Log.d(TAG, "enrichment completato dal websocket!")
 
+            // ricarica dati aggiornati dal backend
             refreshFromBackend()
 
-            //nascondi loader
+            // nasconde loader e mostra messaggio successo
             _isImporting.value = false
             _message.value = "Import completato!"
         }

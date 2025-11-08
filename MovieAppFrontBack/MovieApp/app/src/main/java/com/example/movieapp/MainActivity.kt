@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
-//main activity con bottom navigation e logo nella toolbar
+// main activity con bottom navigation e menu account nella toolbar
 class MainActivity : AppCompatActivity() {
 
     private val TAG = "MainActivity"
@@ -29,23 +29,23 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        //inizializza servizi
+        // inizializza servizi critici
         initializeServices()
 
-        //setup navigation
+        // setup navigation controller con bottom nav
         val navController = findNavController(R.id.nav_host_fragment_activity_main)
         binding.navView.setupWithNavController(navController)
 
-        //setup menu click nella toolbar
+        // setup icona menu nella toolbar
         setupToolbarMenu()
 
-        //inizializza database al primo avvio
+        // inizializza database film popolari al primo avvio
         initializeAppDatabase()
 
         Log.d(TAG, "mainactivity creata con successo")
     }
 
-    //setup menu nella toolbar
+    // configura listener per icona menu nella toolbar
     private fun setupToolbarMenu() {
         val menuIcon = findViewById<ImageView>(R.id.toolbar_menu)
         menuIcon?.setOnClickListener {
@@ -53,10 +53,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    //mostra menu account
+    // mostra menu con opzioni account e logout
     private fun showAccountMenu() {
         val currentUser = ApiService.getCurrentUser()
 
+        // determina nome visualizzato: username o parte email
         val displayName = when {
             currentUser != null && !currentUser.username.isNullOrBlank() -> currentUser.username
             currentUser != null -> currentUser.email.substringBefore("@")
@@ -79,7 +80,7 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    //mostra informazioni account
+    // mostra dialog con informazioni account utente
     private fun showAccountInfo() {
         val currentUser = ApiService.getCurrentUser()
 
@@ -105,7 +106,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    //mostra dialog di conferma logout
+    // mostra dialog conferma logout
     private fun showLogoutDialog() {
         val message = getString(R.string.logout_confirm_message)
 
@@ -119,12 +120,14 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    //esegue logout completo
+    // esegue logout e torna a loginactivity
     private fun performLogout() {
         Log.d(TAG, "logout in corso...")
 
+        // pulisce token e dati utente
         ApiService.logout()
 
+        // torna a login e pulisce back stack
         val intent = Intent(this, LoginActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
@@ -133,14 +136,16 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "logout completato")
     }
 
-    //inizializza tutti i servizi critici
+    // inizializza apiservice e testa connessione backend
     private fun initializeServices() {
         try {
             Log.d(TAG, "inizializzazione servizi...")
 
+            // inizializza apiservice con context per shared preferences
             ApiService.initialize(applicationContext)
             Log.d(TAG, "apiservice inizializzato")
 
+            // verifica raggiungibilità backend
             testBackendConnection()
 
             Log.d(TAG, "tutti i servizi inizializzati")
@@ -150,7 +155,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    //inizializza database film popolari al primo avvio
+    // inizializza database film popolari al primo avvio app
     private fun initializeAppDatabase() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -183,9 +188,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * test connessione backend
-     */
+    // testa connessione al backend
     private fun testBackendConnection() {
         CoroutineScope(Dispatchers.IO).launch {
             try {

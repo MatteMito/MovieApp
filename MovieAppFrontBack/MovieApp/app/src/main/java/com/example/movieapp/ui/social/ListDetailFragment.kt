@@ -18,8 +18,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class ListDetailFragment : Fragment() {
 
-    private val TAG = "ListDetailFragment"
-
     private var _binding: FragmentListDetailBinding? = null
     private val binding get() = _binding!!
 

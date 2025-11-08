@@ -244,11 +244,6 @@ interface ApiInterface {
         @Query("status") status: String? = null
     ): Response<ApiResponse<MoviesListResponse>>
 
-    @GET("movies/user/{userId}/stats")
-    suspend fun getUserStats(
-        @Path("userId") userId: String
-    ): Response<ApiResponse<UserStatsResponse>>
-
     @GET("movies/initialize")
     suspend fun initializeApp(): Response<ApiResponse<Map<String, Any>>>
 

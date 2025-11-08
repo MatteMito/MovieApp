@@ -13,10 +13,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+// viewmodel per dettaglio lista condivisa, gestisce crud film e ricerca con arricchimento automatico
 class ListDetailViewModel : ViewModel() {
     private val TAG = "ListDetailViewModel"
 
-    //livedata
+    // livedata lista corrente
     private val _currentList = MutableLiveData<MovieList>()
     val currentList: LiveData<MovieList> = _currentList
 
@@ -26,16 +27,17 @@ class ListDetailViewModel : ViewModel() {
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
-    //autocomplete
+    // livedata per ricerca film da aggiungere
     private val _searchResults = MutableLiveData<List<Movie>>()
     val searchResults: LiveData<List<Movie>> = _searchResults
 
     private val _searchLoading = MutableLiveData<Boolean>()
     val searchLoading: LiveData<Boolean> = _searchLoading
 
+    // job per cancellare ricerca precedente durante debounce
     private var searchJob: Job? = null
 
-    //carica lista con forza aggiornamento
+    // carica lista dal backend con opzione force update per aggiornare ui
     fun loadList(listId: String, forceUpdate: Boolean = false) {
         viewModelScope.launch {
             try {
@@ -45,7 +47,7 @@ class ListDetailViewModel : ViewModel() {
                 val userId = ApiService.getCurrentUserId()
                 Log.d(TAG, "carico lista: $listId (userId: $userId, force: $forceUpdate)")
 
-                //passa userid per accesso liste private
+                // passa userid per accedere a liste private
                 val response = if (userId != null) {
                     ApiService.apiInterface.getListById(listId, userId)
                 } else {
@@ -57,7 +59,7 @@ class ListDetailViewModel : ViewModel() {
                 if (response.isSuccessful && response.body() != null) {
                     val list = response.body()!!
 
-                    //forza aggiornamento anche se uguale usando postValue
+                    // forza aggiornamento ui anche se dati uguali usando postvalue
                     if (forceUpdate) {
                         _currentList.postValue(list)
                     } else {
@@ -80,16 +82,18 @@ class ListDetailViewModel : ViewModel() {
         }
     }
 
-    //search movies con debounce - cerca in database "movies" (tutti i film disponibili)
+    // ricerca film nel database con debounce per ottimizzare chiamate
     fun searchMovies(query: String) {
+        // cancella ricerca precedente
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             try {
-                delay(500) //debounce
+                // debounce 500ms per evitare troppe chiamate durante digitazione
+                delay(500)
                 _searchLoading.value = true
 
                 Log.d(TAG, "autocomplete database movies: $query")
-                //usa autocomplete tmdb che cerca nel database movies
+                // cerca in database "movies" (tutti i film disponibili)
                 val response = ApiService.apiInterface.autocompleteMovies(query, 10)
 
                 if (response.isSuccessful && response.body() != null) {
@@ -113,7 +117,7 @@ class ListDetailViewModel : ViewModel() {
         _searchResults.value = emptyList()
     }
 
-    //aggiungi film alla lista con arricchimento automatico se necessario
+    // aggiunge film alla lista con arricchimento automatico se necessario
     fun addMovie(
         listId: String,
         movie: Movie,
@@ -128,11 +132,11 @@ class ListDetailViewModel : ViewModel() {
                     return@launch
                 }
 
-                //step 1: controlla se il film e' gia arricchito
+                // step 1: verifica se film ha dati tmdb completi
                 if (!movie.isEnriched) {
                     Log.d(TAG, "film non arricchito: ${movie.title}, arricchisco prima di aggiungere...")
 
-                    //arricchisci il film prima di aggiungerlo
+                    // arricchisci film con dati tmdb prima di aggiungere
                     val enrichResult = enrichMovieBeforeAdding(movie)
 
                     if (enrichResult == null) {
@@ -142,14 +146,14 @@ class ListDetailViewModel : ViewModel() {
                     }
                 }
 
-                //step 2: aggiungi film alla lista (usa id del film dal database)
+                // step 2: aggiungi film alla lista
                 Log.d(TAG, "aggiungo film ${movie.id} alla lista $listId")
                 val request = com.example.movieapp.data.network.AddMovieToListRequest(movie_id = movie.id)
                 val response = ApiService.apiInterface.addMovieToList(listId, request, userId)
 
                 if (response.isSuccessful) {
                     Log.d(TAG, "film aggiunto con successo, ricarico lista...")
-                    //ricarica automaticamente la lista per mostrare il film aggiunto
+                    // ricarica lista per mostrare film aggiunto
                     loadList(listId, forceUpdate = true)
                     onSuccess()
                 } else {
@@ -164,11 +168,12 @@ class ListDetailViewModel : ViewModel() {
         }
     }
 
-    //arricchisci film chiamando backend con endpoint enrichMovies (batch)
+    // arricchisce film con dati tmdb chiamando endpoint enrichment
     private suspend fun enrichMovieBeforeAdding(movie: Movie): Movie? {
         return try {
             Log.d(TAG, "chiamata enrichment per ${movie.title}")
 
+            // prepara richiesta enrichment
             val request = com.example.movieapp.data.network.EnrichRequest(
                 movies = listOf(
                     com.example.movieapp.data.network.MovieDto(
@@ -194,7 +199,7 @@ class ListDetailViewModel : ViewModel() {
                     val enrichedDto = enrichedMovies[0]
                     Log.d(TAG, "film arricchito: ${enrichedDto.title} (tmdb_id: ${enrichedDto.tmdbId})")
 
-                    //converti enrichedmoviedto a movie
+                    // converti dto a movie model
                     dtoToMovie(enrichedDto)
                 } else {
                     Log.w(TAG, "nessun film arricchito nella risposta")
@@ -210,7 +215,7 @@ class ListDetailViewModel : ViewModel() {
         }
     }
 
-    //converti enrichedmoviedto a movie
+    // converte dto enrichment a model movie
     private fun dtoToMovie(dto: com.example.movieapp.data.network.EnrichedMovieDto): Movie {
         return Movie(
             id = dto.id,
@@ -241,7 +246,7 @@ class ListDetailViewModel : ViewModel() {
         )
     }
 
-    //rimuovi film
+    // rimuove film dalla lista
     fun removeMovie(listId: String, movieId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
@@ -256,7 +261,7 @@ class ListDetailViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     Log.d(TAG, "film rimosso, ricarico lista...")
-                    //ricarica automaticamente la lista
+                    // ricarica lista per aggiornare ui
                     loadList(listId, forceUpdate = true)
                     onSuccess()
                 } else {
@@ -271,7 +276,7 @@ class ListDetailViewModel : ViewModel() {
         }
     }
 
-    //update lista
+    // aggiorna metadati lista (nome, descrizione, visibilità)
     fun updateList(
         listId: String,
         name: String,
@@ -300,7 +305,7 @@ class ListDetailViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     Log.d(TAG, "lista aggiornata con successo, ricarico...")
-                    //ricarica automaticamente la lista per mostrare le modifiche
+                    // ricarica lista per mostrare modifiche
                     loadList(listId, forceUpdate = true)
                     onSuccess()
                 } else {

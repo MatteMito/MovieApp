@@ -11,7 +11,9 @@ import com.example.movieapp.R
 import com.example.movieapp.databinding.ItemListMovieBinding
 import com.example.movieapp.data.models.Movie
 
+// adapter per visualizzare film in una lista condivisa con possibilità di rimozione
 class ListMoviesAdapter(
+    // flag per mostrare bottone rimuovi solo al proprietario
     private val isOwner: Boolean,
     private val onRemoveClick: (Movie) -> Unit
 ) : ListAdapter<Movie, ListMoviesAdapter.MovieViewHolder>(MovieDiffCallback()) {
@@ -35,10 +37,10 @@ class ListMoviesAdapter(
 
         fun bind(movie: Movie) {
             binding.apply {
-                //titolo
+                // titolo film
                 textTitle.text = movie.title
 
-                //anno e regista
+                // riga dettagli: anno • regista
                 val details = buildString {
                     if (movie.year != null) {
                         append(movie.year)
@@ -51,12 +53,12 @@ class ListMoviesAdapter(
                 textDetails.text = details
                 textDetails.isVisible = details.isNotEmpty()
 
-                //generi
+                // generi separati da virgola
                 val genres = movie.genres.joinToString(", ")
                 textGenres.text = genres
                 textGenres.isVisible = genres.isNotEmpty()
 
-                //poster
+                // carica poster con glide, fallback su icona default
                 if (movie.posterUrl != null) {
                     Glide.with(root.context)
                         .load(movie.posterUrl)
@@ -68,7 +70,7 @@ class ListMoviesAdapter(
                     imagePoster.setImageResource(R.drawable.ic_home)
                 }
 
-                //bottone rimuovi visibile solo se owner
+                // bottone rimuovi visibile solo se utente è proprietario lista
                 btnRemove.isVisible = isOwner
                 btnRemove.setOnClickListener {
                     if (isOwner) {
@@ -79,6 +81,7 @@ class ListMoviesAdapter(
         }
     }
 
+    // diffutil per ottimizzare aggiornamenti recyclerview
     private class MovieDiffCallback : DiffUtil.ItemCallback<Movie>() {
         override fun areItemsTheSame(oldItem: Movie, newItem: Movie): Boolean {
             return oldItem.id == newItem.id

@@ -10,6 +10,7 @@ import com.example.movieapp.R
 import com.example.movieapp.data.models.Movie
 import com.example.movieapp.databinding.ItemSearchMovieBinding
 
+// adapter per risultati ricerca film, layout compatto per dialog aggiunta
 class SearchMovieAdapter(
     private val onMovieClick: (Movie) -> Unit
 ) : ListAdapter<Movie, SearchMovieAdapter.ViewHolder>(MovieDiffCallback()) {
@@ -33,10 +34,12 @@ class SearchMovieAdapter(
 
         fun bind(movie: Movie) {
             binding.apply {
+                // titolo film
                 tvMovieTitle.text = movie.title
+                // anno o n/a se non disponibile
                 tvMovieYear.text = movie.year?.toString() ?: "N/A"
 
-                //poster
+                // carica poster con glide, fallback su icona default
                 if (movie.posterUrl != null) {
                     Glide.with(root.context)
                         .load(movie.posterUrl)
@@ -47,7 +50,7 @@ class SearchMovieAdapter(
                     ivMoviePoster.setImageResource(R.drawable.ic_home)
                 }
 
-                //click
+                // click sull'intero item per aggiungere film
                 root.setOnClickListener {
                     onMovieClick(movie)
                 }
@@ -55,6 +58,7 @@ class SearchMovieAdapter(
         }
     }
 
+    // diffutil per ottimizzare aggiornamenti recyclerview
     private class MovieDiffCallback : DiffUtil.ItemCallback<Movie>() {
         override fun areItemsTheSame(oldItem: Movie, newItem: Movie): Boolean {
             return oldItem.id == newItem.id

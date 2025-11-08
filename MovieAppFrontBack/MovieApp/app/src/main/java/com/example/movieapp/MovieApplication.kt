@@ -6,7 +6,7 @@ import com.example.movieapp.config.AppConfig
 import com.example.movieapp.data.network.NotificationHelper
 
 /**
- * application class per inizializzazione globale
+ * application class per inizializzazione globale app
  */
 class MovieApplication : Application() {
 
@@ -20,7 +20,7 @@ class MovieApplication : Application() {
         Log.d(TAG, "backend: ${AppConfig.BACKEND_HOST}:${AppConfig.BACKEND_PORT}")
         Log.d(TAG, "database: ${AppConfig.DATABASE_TYPE}")
 
-        //verifica configurazione valida
+        // verifica che la configurazione backend sia valida prima di avviare
         if (!AppConfig.isBackendConfigValid()) {
             Log.e(TAG, "configurazione backend non valida!")
             Log.e(TAG, "controlla AppConfig.kt e imposta:")
@@ -30,15 +30,16 @@ class MovieApplication : Application() {
             Log.d(TAG, "configurazione backend valida")
         }
 
-        //crea notification channel per import background
+        // crea notification channel per notifiche import csv in background
         NotificationHelper.createNotificationChannel(this)
         Log.d(TAG, "notification channel creato")
 
-        //log configurazione completa
+        // log dettagliato configurazione per debug
         AppConfig.getBackendInfo().forEach { (key, value) ->
             Log.d(TAG, "$key: $value")
         }
 
+        // stampa riepilogo configurazione con architettura app
         Log.d(TAG, AppConfig.getConfigSummary())
     }
 }

@@ -19,13 +19,16 @@ import com.example.movieapp.data.models.MovieList
 import com.example.movieapp.databinding.FragmentSocialBinding
 import com.google.android.material.tabs.TabLayout
 
+// fragment principale per gestione liste condivise: mie liste, pubbliche, seguite
 class SocialFragment : Fragment() {
 
     private var _binding: FragmentSocialBinding? = null
     private val binding get() = _binding!!
 
+    // viewmodel activity-scoped per condividere stato tra fragment
     private val viewModel: SocialViewModel by activityViewModels()
 
+    // tre adapter separati per le tre tab
     private lateinit var myListsAdapter: SocialListAdapter
     private lateinit var publicListsAdapter: SocialListAdapter
     private lateinit var followedListsAdapter: SocialListAdapter
@@ -49,30 +52,31 @@ class SocialFragment : Fragment() {
         setupNavigationListener()
     }
 
+    // listener per refresh quando si torna indietro dalla schermata dettaglio
     private fun setupNavigationListener() {
-        //ascolta quando torni indietro dalla schermata di dettaglio
         val navController = findNavController()
         val currentBackStackEntry = navController.currentBackStackEntry
 
+        // ascolta flag refresh_lists dal back stack
         currentBackStackEntry?.savedStateHandle?.getLiveData<Boolean>("refresh_lists")?.observe(
             viewLifecycleOwner
         ) { shouldRefresh ->
             if (shouldRefresh == true) {
-                //ricarica le liste
+                // ricarica le liste dopo modifiche
                 viewModel.refreshLists()
-                //resetta il flag
+                // resetta il flag
                 currentBackStackEntry.savedStateHandle.remove<Boolean>("refresh_lists")
             }
         }
     }
 
     private fun setupViews() {
-        //fab create list
+        // fab per creare nuova lista
         binding.fabCreateList.setOnClickListener {
             showCreateListDialog()
         }
 
-        //tabs: Le Mie Liste, Liste Pubbliche, Liste Seguite
+        // setup tre tab: mie liste, pubbliche, seguite
         binding.tabLayout.addTab(binding.tabLayout.newTab().setText("Le Mie Liste"))
         binding.tabLayout.addTab(binding.tabLayout.newTab().setText("Liste Pubbliche"))
         binding.tabLayout.addTab(binding.tabLayout.newTab().setText("Liste Seguite"))
@@ -90,7 +94,7 @@ class SocialFragment : Fragment() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        //setup adapters
+        // adapter per mie liste: click, edit, delete
         myListsAdapter = SocialListAdapter(
             onListClick = { list ->
                 openListDetail(list.id, list.name, true)
@@ -102,6 +106,7 @@ class SocialFragment : Fragment() {
             onCopyClick = null
         )
 
+        // adapter per liste pubbliche: click, follow, copy
         publicListsAdapter = SocialListAdapter(
             onListClick = { list ->
                 openListDetail(list.id, list.name, false)
@@ -113,6 +118,7 @@ class SocialFragment : Fragment() {
             onCopyClick = { list -> copyList(list) }
         )
 
+        // adapter per liste seguite: click, unfollow, copy
         followedListsAdapter = SocialListAdapter(
             onListClick = { list ->
                 openListDetail(list.id, list.name, false)
@@ -139,22 +145,22 @@ class SocialFragment : Fragment() {
             adapter = followedListsAdapter
         }
 
-        //swipe refresh
+        // swipe to refresh per ricaricare liste
         binding.swipeRefresh.setOnRefreshListener {
             viewModel.refreshLists()
         }
 
-        //bottone ordina
+        // bottone per menu ordinamento
         binding.btnSort.setOnClickListener {
             showSortMenu(it)
         }
 
-        //bottone filtra
+        // bottone per menu filtro visibilità
         binding.btnFilter.setOnClickListener {
             showFilterMenu(it)
         }
 
-        //barra di ricerca
+        // barra ricerca con filtro real-time
         binding.etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -165,35 +171,33 @@ class SocialFragment : Fragment() {
             }
         })
 
-        //show my lists by default
+        // mostra mie liste di default
         showMyLists()
     }
 
     private fun setupObservers() {
-        //loading
+        // loading state per swipe refresh
         viewModel.loading.observe(viewLifecycleOwner) { loading ->
             binding.swipeRefresh.isRefreshing = loading
         }
 
-        //filtered my lists
+        // liste filtrate per ogni tab
         viewModel.filteredMyLists.observe(viewLifecycleOwner) { lists ->
             myListsAdapter.submitList(lists)
             binding.tvEmptyMyLists.visibility = if (lists.isEmpty()) View.VISIBLE else View.GONE
         }
 
-        //filtered public lists
         viewModel.filteredPublicLists.observe(viewLifecycleOwner) { lists ->
             publicListsAdapter.submitList(lists)
             binding.tvEmptyPublicLists.visibility = if (lists.isEmpty()) View.VISIBLE else View.GONE
         }
 
-        //filtered followed lists
         viewModel.filteredFollowedLists.observe(viewLifecycleOwner) { lists ->
             followedListsAdapter.submitList(lists)
             binding.tvEmptyFollowedLists.visibility = if (lists.isEmpty()) View.VISIBLE else View.GONE
         }
 
-        //errors
+        // errori generici
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
                 Toast.makeText(context, it, Toast.LENGTH_LONG).show()
@@ -201,24 +205,28 @@ class SocialFragment : Fragment() {
         }
     }
 
+    // mostra/nasconde container per tab mie liste
     private fun showMyLists() {
         binding.containerMyLists.visibility = View.VISIBLE
         binding.containerPublicLists.visibility = View.GONE
         binding.containerFollowedLists.visibility = View.GONE
     }
 
+    // mostra/nasconde container per tab liste pubbliche
     private fun showPublicLists() {
         binding.containerMyLists.visibility = View.GONE
         binding.containerPublicLists.visibility = View.VISIBLE
         binding.containerFollowedLists.visibility = View.GONE
     }
 
+    // mostra/nasconde container per tab liste seguite
     private fun showFollowedLists() {
         binding.containerMyLists.visibility = View.GONE
         binding.containerPublicLists.visibility = View.GONE
         binding.containerFollowedLists.visibility = View.VISIBLE
     }
 
+    // dialog per creare nuova lista
     private fun showCreateListDialog() {
         val dialog = EditListDialogFragment.newInstance(
             listId = null,
@@ -229,6 +237,7 @@ class SocialFragment : Fragment() {
         dialog.show(childFragmentManager, "CreateListDialog")
     }
 
+    // dialog per modificare lista esistente
     private fun showEditListDialog(list: MovieList) {
         val dialog = EditListDialogFragment.newInstance(
             listId = list.id,
@@ -239,6 +248,7 @@ class SocialFragment : Fragment() {
         dialog.show(childFragmentManager, "EditListDialog")
     }
 
+    // naviga a schermata dettaglio lista
     private fun openListDetail(listId: String, listName: String, isOwner: Boolean) {
         val bundle = bundleOf(
             "listId" to listId,
@@ -248,6 +258,7 @@ class SocialFragment : Fragment() {
         findNavController().navigate(R.id.action_social_to_listDetail, bundle)
     }
 
+    // conferma eliminazione lista con dialog
     private fun confirmDeleteList(listId: String) {
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Elimina Lista")
@@ -266,6 +277,7 @@ class SocialFragment : Fragment() {
             .show()
     }
 
+    // segui lista pubblica
     private fun followList(list: MovieList) {
         viewModel.followList(list.id,
             onSuccess = {
@@ -277,6 +289,7 @@ class SocialFragment : Fragment() {
         )
     }
 
+    // smetti di seguire lista con conferma
     private fun unfollowList(list: MovieList) {
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Smetti di seguire")
@@ -295,6 +308,7 @@ class SocialFragment : Fragment() {
             .show()
     }
 
+    // copia lista con possibilità di rinominarla
     private fun copyList(list: MovieList) {
         val input = android.widget.EditText(requireContext())
         input.hint = list.name
@@ -311,12 +325,13 @@ class SocialFragment : Fragment() {
             .show()
     }
 
+    // esegue copia lista e passa a tab mie liste
     private fun executeCopyList(listId: String, newName: String?) {
         viewModel.copyList(listId, newName,
             onSuccess = { copiedList ->
                 Toast.makeText(requireContext(), "Lista copiata: ${copiedList.name}", Toast.LENGTH_SHORT).show()
                 viewModel.refreshLists()
-                //passa alla tab le mie liste
+                // passa alla tab mie liste per vedere lista copiata
                 binding.tabLayout.getTabAt(0)?.select()
             },
             onError = { error ->
@@ -325,6 +340,7 @@ class SocialFragment : Fragment() {
         )
     }
 
+    // menu popup per ordinamento liste
     private fun showSortMenu(anchor: View) {
         val popup = PopupMenu(requireContext(), anchor)
         popup.menu.add(0, 1, 0, "Nome (A-Z)")
@@ -343,6 +359,7 @@ class SocialFragment : Fragment() {
         popup.show()
     }
 
+    // menu popup per filtro visibilità liste
     private fun showFilterMenu(anchor: View) {
         val popup = PopupMenu(requireContext(), anchor)
         popup.menu.add(0, 1, 0, "Tutte")
@@ -363,6 +380,7 @@ class SocialFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // pulisce binding per evitare memory leak
         _binding = null
     }
 }

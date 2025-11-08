@@ -54,7 +54,7 @@ class MovieRepository private constructor(private val context: Context) {
     }
 
     /**
-     * forza refresh esplicito dal backend - fix per "errore refresh"
+     * forza refresh esplicito dal backend"
      */
     suspend fun refreshFromBackend(): Boolean {
         return withContext(Dispatchers.IO) {

@@ -13,7 +13,7 @@ import com.example.movieapp.databinding.ActivityLoginBinding
 import com.example.movieapp.data.network.ApiService
 import kotlinx.coroutines.launch
 
-//activity di login utilizza apiservice per autenticazione
+// activity di login, utilizza apiservice per autenticazione backend
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
     private val TAG = "LoginActivity"
@@ -21,9 +21,11 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // view binding per accedere alle view del layout
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // inizializza apiservice con context per shared preferences
         ApiService.initialize(this)
 
         setupUI()
@@ -32,6 +34,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun setupUI() {
+        // listener bottone login
         binding.buttonLogin.setOnClickListener {
             val email = binding.editEmail.text.toString().trim()
             val password = binding.editPassword.text.toString().trim()
@@ -41,12 +44,14 @@ class LoginActivity : AppCompatActivity() {
             }
         }
 
+        // vai alla schermata di registrazione
         binding.textRegister.setOnClickListener {
             Log.d(TAG, "Vai a RegisterActivity")
             startActivity(Intent(this, RegisterActivity::class.java))
         }
     }
 
+    // validazione input campi email e password
     private fun validateInput(email: String, password: String): Boolean {
         if (email.isEmpty()) {
             Toast.makeText(this, "Inserisci l'email", Toast.LENGTH_SHORT).show()
@@ -61,10 +66,12 @@ class LoginActivity : AppCompatActivity() {
         return true
     }
 
+    // esegue il login chiamando l'api backend
     private fun performLogin(email: String, password: String) {
         Log.d(TAG, "Tentativo login per: $email")
         showLoading(true)
 
+        // coroutine per chiamata asincrona
         lifecycleScope.launch {
             try {
                 val result = ApiService.login(email, password)
@@ -73,6 +80,7 @@ class LoginActivity : AppCompatActivity() {
                     Log.d(TAG, "Login riuscito!")
                     Toast.makeText(this@LoginActivity, "Accesso effettuato!", Toast.LENGTH_SHORT).show()
 
+                    // vai a mainactivity e chiudi tutte le activity precedenti
                     val intent = Intent(this@LoginActivity, MainActivity::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     startActivity(intent)
@@ -99,6 +107,7 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    // mostra/nasconde progress bar e disabilita/abilita input durante login
     private fun showLoading(show: Boolean) {
         binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
         binding.buttonLogin.isEnabled = !show

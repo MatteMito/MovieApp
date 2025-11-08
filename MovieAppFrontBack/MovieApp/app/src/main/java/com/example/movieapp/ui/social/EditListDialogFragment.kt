@@ -10,11 +10,13 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.ViewModelProvider
 import com.example.movieapp.databinding.DialogEditListBinding
 
+// dialog fragment per creare o modificare una lista condivisa
 class EditListDialogFragment : DialogFragment() {
 
     private var _binding: DialogEditListBinding? = null
     private val binding get() = _binding!!
 
+    // viewmodel activity-scoped per sincronizzazione liste
     private val socialViewModel: SocialViewModel by activityViewModels()
     private lateinit var detailViewModel: ListDetailViewModel
 
@@ -24,6 +26,7 @@ class EditListDialogFragment : DialogFragment() {
     private var isPublic: Boolean = false
 
     companion object {
+        // factory method per creazione (listId null) o modifica (listId valorizzato)
         fun newInstance(
             listId: String?,
             currentName: String,
@@ -44,6 +47,7 @@ class EditListDialogFragment : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // recupera parametri da arguments
         arguments?.let {
             listId = it.getString("listId")
             currentName = it.getString("currentName") ?: ""
@@ -60,11 +64,11 @@ class EditListDialogFragment : DialogFragment() {
     ): View {
         _binding = DialogEditListBinding.inflate(inflater, container, false)
 
-        //prova a prendere il detailviewmodel dal parent fragment
+        // prova a recuperare detailviewmodel dal parent fragment per modifica
         try {
             detailViewModel = ViewModelProvider(requireParentFragment())[ListDetailViewModel::class.java]
         } catch (e: Exception) {
-            //se non c'e' il parent (siamo in SocialFragment), crea una nuova istanza
+            // se chiamato da socialfragment per creazione, crea istanza locale
             detailViewModel = ViewModelProvider(this)[ListDetailViewModel::class.java]
         }
 
@@ -74,30 +78,32 @@ class EditListDialogFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        //imposta valori correnti
+        // popola campi con valori correnti
         binding.etListName.setText(currentName)
         binding.etListDescription.setText(currentDescription)
         binding.switchPublic.isChecked = isPublic
 
-        //cambia titolo se e' creazione o modifica
+        // titolo dinamico in base a creazione/modifica
         binding.tvTitle.text = if (listId == null) "Crea Lista" else "Modifica Lista"
 
-        //bottone salva
+        // bottone salva
         binding.btnSave.setOnClickListener {
             saveList()
         }
 
-        //bottone annulla
+        // bottone annulla
         binding.btnCancel.setOnClickListener {
             dismiss()
         }
     }
 
+    // salva lista nuova o aggiorna esistente
     private fun saveList() {
         val name = binding.etListName.text?.toString()?.trim()
         val description = binding.etListDescription.text?.toString()?.trim()
         val isPublic = binding.switchPublic.isChecked
 
+        // validazione nome obbligatorio
         if (name.isNullOrBlank()) {
             Toast.makeText(requireContext(), "inserisci un nome per la lista", Toast.LENGTH_SHORT).show()
             return
@@ -106,14 +112,14 @@ class EditListDialogFragment : DialogFragment() {
         val currentListId = listId
 
         if (currentListId == null) {
-            //crea nuova lista
+            // crea nuova lista tramite socialviewmodel
             socialViewModel.createList(
                 name = name,
                 description = description?.ifBlank { null },
                 isPublic = isPublic,
                 onSuccess = { newList ->
                     Toast.makeText(requireContext(), "lista creata!", Toast.LENGTH_SHORT).show()
-                    //ricarica le liste in SocialFragment
+                    // ricarica liste in socialfragment
                     socialViewModel.refreshLists()
                     dismiss()
                 },
@@ -122,7 +128,7 @@ class EditListDialogFragment : DialogFragment() {
                 }
             )
         } else {
-            //aggiorna lista esistente
+            // aggiorna lista esistente tramite detailviewmodel
             detailViewModel.updateList(
                 listId = currentListId,
                 name = name,
@@ -130,9 +136,9 @@ class EditListDialogFragment : DialogFragment() {
                 isPublic = isPublic,
                 onSuccess = {
                     Toast.makeText(requireContext(), "lista aggiornata!", Toast.LENGTH_SHORT).show()
-                    //ricarica le liste in SocialFragment
+                    // ricarica liste in socialfragment
                     socialViewModel.refreshLists()
-                    //il ListDetailFragment si aggiornerà automaticamente tramite il ViewModel
+                    // listdetailfragment si aggiorna automaticamente tramite viewmodel
                     dismiss()
                 },
                 onError = { error ->
@@ -144,6 +150,7 @@ class EditListDialogFragment : DialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // pulisce binding per evitare memory leak
         _binding = null
     }
 }

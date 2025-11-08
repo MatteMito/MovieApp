@@ -11,8 +11,10 @@ import com.example.movieapp.R
 import com.example.movieapp.data.models.MovieList
 import com.example.movieapp.databinding.ItemSocialListBinding
 
+// adapter versatile per liste condivise, mostra bottoni diversi in base al contesto (mie/pubbliche/seguite)
 class SocialListAdapter(
     private val onListClick: (MovieList) -> Unit,
+    // callback nullable per mostrare bottoni solo quando necessario
     private val onEditClick: ((MovieList) -> Unit)?,
     private val onDeleteClick: ((MovieList) -> Unit)?,
     private val onFollowClick: ((MovieList) -> Unit)?,
@@ -39,21 +41,21 @@ class SocialListAdapter(
 
         fun bind(list: MovieList) {
             binding.apply {
-                //nome lista
+                // nome lista
                 tvListName.text = list.name
 
-                //descrizione
+                // descrizione opzionale
                 tvListDescription.text = list.description ?: "nessuna descrizione"
                 tvListDescription.visibility = if (list.description.isNullOrBlank()) View.GONE else View.VISIBLE
 
-                //conteggio film
+                // numero film nella lista
                 tvMovieCount.text = "${list.movies.size} film"
 
-                //badge visibilita
+                // badge visibilità pubblica/privata
                 badgeVisibility.text = if (list.isPublic) "PUBBLICA" else "PRIVATA"
                 badgeVisibility.visibility = View.VISIBLE
 
-                //username creatore (per liste pubbliche)
+                // username creatore, mostrato solo per liste pubbliche
                 if (onFollowClick != null && list.username != null) {
                     tvUsername.text = "@${list.username}"
                     tvUsername.visibility = View.VISIBLE
@@ -61,7 +63,7 @@ class SocialListAdapter(
                     tvUsername.visibility = View.GONE
                 }
 
-                //followers - mostra solo se lista e' pubblica
+                // contatore followers, mostrato solo per liste pubbliche
                 if (list.isPublic) {
                     tvFollowers.text = "${list.followersCount} follower"
                     tvFollowers.visibility = View.VISIBLE
@@ -69,7 +71,7 @@ class SocialListAdapter(
                     tvFollowers.visibility = View.GONE
                 }
 
-                //bottone modifica (icona)
+                // bottone modifica, visibile solo per mie liste
                 if (onEditClick != null) {
                     btnEdit.visibility = View.VISIBLE
                     btnEdit.setOnClickListener { onEditClick.invoke(list) }
@@ -77,7 +79,7 @@ class SocialListAdapter(
                     btnEdit.visibility = View.GONE
                 }
 
-                //bottone elimina (icona)
+                // bottone elimina, visibile solo per mie liste
                 if (onDeleteClick != null) {
                     btnDelete.visibility = View.VISIBLE
                     btnDelete.setOnClickListener { onDeleteClick.invoke(list) }
@@ -85,12 +87,12 @@ class SocialListAdapter(
                     btnDelete.visibility = View.GONE
                 }
 
-                //bottone follow/following
+                // bottone follow/unfollow con stato dinamico
                 if (onFollowClick != null || onUnfollowClick != null) {
                     btnFollow.visibility = View.VISIBLE
 
                     if (list.isFollowing) {
-                        //stato: gia seguito
+                        // stato: già seguito, mostra bottone "seguito" per unfollow
                         btnFollow.text = "seguito"
                         btnFollow.isEnabled = true
                         btnFollow.setIconResource(R.drawable.ic_notifications)
@@ -98,7 +100,7 @@ class SocialListAdapter(
                         btnFollow.setTextColor(ContextCompat.getColor(root.context, R.color.primary_blue))
                         btnFollow.setOnClickListener { onUnfollowClick?.invoke(list) }
                     } else {
-                        //stato: non seguito
+                        // stato: non seguito, mostra bottone "segui" per follow
                         btnFollow.text = "segui"
                         btnFollow.isEnabled = true
                         btnFollow.setIconResource(R.drawable.ic_add)
@@ -110,7 +112,7 @@ class SocialListAdapter(
                     btnFollow.visibility = View.GONE
                 }
 
-                //bottone copia
+                // bottone copia, per duplicare lista pubblica/seguita
                 if (onCopyClick != null) {
                     btnCopy.visibility = View.VISIBLE
                     btnCopy.setOnClickListener { onCopyClick.invoke(list) }
@@ -118,7 +120,7 @@ class SocialListAdapter(
                     btnCopy.visibility = View.GONE
                 }
 
-                //click sulla card per aprire dettaglio
+                // click su card per aprire dettaglio lista
                 root.setOnClickListener {
                     onListClick(list)
                 }
@@ -126,6 +128,7 @@ class SocialListAdapter(
         }
     }
 
+    // diffutil per ottimizzare aggiornamenti recyclerview
     class ListDiffCallback : DiffUtil.ItemCallback<MovieList>() {
         override fun areItemsTheSame(oldItem: MovieList, newItem: MovieList): Boolean {
             return oldItem.id == newItem.id
