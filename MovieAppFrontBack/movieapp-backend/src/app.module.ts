@@ -1,5 +1,4 @@
-// modulo principale dell'applicazione che configura tutti i moduli e dipendenze
-// gestisce database postgresql, autenticazione jwt, websocket e api rest
+// module principale applicazione con configurazione database e moduli
 
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -16,18 +15,13 @@ import { AppController } from './app.controller';
 
 @Module({
   imports: [
-    // configura caricamento variabili ambiente da file .env
-    // isGlobal: true rende le variabili accessibili in tutti i moduli
+    // configura variabili ambiente da .env
     ConfigModule.forRoot({
-      isGlobal: true,
+      isGlobal: true, // rende config disponibile in tutti i moduli
       envFilePath: '.env',
     }),
     
-    // configura connessione al database postgresql
-    // usa typeorm per orm (object-relational mapping)
-    // entities: auto-carica tutte le entita' dalla cartella
-    // synchronize: false per usare migrations manuali (production-safe)
-    // logging: false per non loggare tutte le query sql (performance)
+    // configura connessione postgresql con typeorm
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -35,37 +29,24 @@ import { AppController } from './app.controller';
       username: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_NAME || 'movieapp',
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: false,
-      logging: false,
+      entities: [__dirname + '/**/*.entity{.ts,.js}'], // carica tutte le entity
+      synchronize: false, // disattivato per usare migration manuali
+      logging: false, // disattiva log query sql (abilita per debug)
     }),
     
-    // abilita modulo scheduler per task periodici (cron jobs)
+    // abilita cron jobs schedulati (sync tmdb, cleanup)
     ScheduleModule.forRoot(),
     
-    // database module: gestione diretta del database postgresql
-    DatabaseModule,
-    
-    // movies module: crud film, enrichment tmdb, batch operations
-    MoviesModule,
-    
-    // tmdb module: integrazione api the movie database per dati film
-    TmdbModule,
-    
-    // auth module: registrazione, login, jwt tokens
-    AuthModule,
-    
-    // lists module: liste condivise tra utenti
-    ListsModule,
-    
-    // websocket module: notifiche real-time per enrichment progress
-    WebsocketModule,
-    
-    // analytics module: statistiche e grafici avanzati
-    AnalyticsModule,
+    // moduli applicazione
+    DatabaseModule, // service database custom
+    MoviesModule, // gestione film e enrichment
+    TmdbModule, // integrazione tmdb api
+    AuthModule, // autenticazione jwt
+    ListsModule, // liste personalizzate
+    WebsocketModule, // notifiche real-time
+    AnalyticsModule, // statistiche utente
   ],
-  
-  controllers: [AppController],
+  controllers: [AppController], // controller root con info api
   providers: [],
 })
 export class AppModule {}

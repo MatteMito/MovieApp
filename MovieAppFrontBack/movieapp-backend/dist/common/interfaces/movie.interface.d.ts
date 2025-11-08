@@ -131,12 +131,8 @@ export interface TmdbMovieDetails {
     releases?: {
         countries: Array<{
             iso_3166_1: string;
-            release_dates: Array<{
-                certification: string;
-                iso_639_1: string;
-                release_date: string;
-                type: number;
-            }>;
+            certification: string;
+            release_date: string;
         }>;
     };
 }

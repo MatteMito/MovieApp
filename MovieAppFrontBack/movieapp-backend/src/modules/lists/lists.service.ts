@@ -1,5 +1,4 @@
-// service gestione liste condivise con accesso pubblico/privato
-// gestisce crud, follower, copia liste, aggiunta/rimozione film
+// service con gestione completa liste personalizzate
 
 import {
   Injectable,
@@ -17,7 +16,6 @@ import { CreateListDto, UpdateListDto } from '../../common/dto/list.dto';
 @Injectable()
 export class ListsService {
   constructor(
-    // repository per accesso database
     @InjectRepository(MovieListEntity)
     private readonly listRepository: Repository<MovieListEntity>,
 
@@ -28,33 +26,26 @@ export class ListsService {
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-  // ===== metodi helper privati =====
-
-  /**
-   * popola lista con oggetti film completi
-   * converte array di id in array di oggetti movie
-   */
+  // helper per popolare film da array di id
+  // mantiene ordine originale degli id
   private async getMoviesForList(movieIds: string[]): Promise<any[]> {
     if (!movieIds || movieIds.length === 0) {
       return [];
     }
 
-    // recupera film dal database
+    // recupera tutti i film in una query
     const movies = await this.movieRepository.find({
       where: { id: In(movieIds) },
     });
 
-    // mantieni ordine originale movieIds
+    // mantieni ordine originale degli id nella lista
     const movieMap = new Map(movies.map(m => [m.id, m]));
     return movieIds
       .map(id => movieMap.get(id))
-      .filter(m => m !== undefined);
+      .filter(m => m !== undefined); // rimuovi film non trovati
   }
 
-  /**
-   * recupera username da userid
-   * usato per mostrare proprietario nelle liste pubbliche
-   */
+  // helper per ottenere username da userId
   private async getUsernameById(userId: string): Promise<string | null> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -63,45 +54,45 @@ export class ListsService {
     return user?.username || null;
   }
 
-  // ===== crud liste =====
-
-  /**
-   * ottieni liste pubbliche con filtri opzionali
-   */
+  // ottieni liste pubbliche con filtri e username del creatore
   async getPublicLists(options: {
     search?: string;
     sortBy?: string;
   }): Promise<any[]> {
-    // query builder per liste pubbliche
-    const queryBuilder = this.listRepository
+    let query = this.listRepository
       .createQueryBuilder('list')
       .where('list.is_public = :isPublic', { isPublic: true });
 
-    // filtro ricerca per nome/descrizione
+    // ricerca testuale in nome e descrizione
     if (options.search) {
-      queryBuilder.andWhere(
-        '(LOWER(list.name) LIKE LOWER(:search) OR LOWER(list.description) LIKE LOWER(:search))',
+      query = query.andWhere(
+        '(list.name ILIKE :search OR list.description ILIKE :search)',
         { search: `%${options.search}%` },
       );
     }
 
-    // ordinamento (default: piu seguiti prima)
-    if (options.sortBy === 'name') {
-      queryBuilder.orderBy('list.name', 'ASC');
-    } else if (options.sortBy === 'recent') {
-      queryBuilder.orderBy('list.created_at', 'DESC');
-    } else {
-      // default: ordina per followers
-      queryBuilder.orderBy('list.followers_count', 'DESC');
+    // ordinamento risultati
+    switch (options.sortBy) {
+      case 'name':
+        query = query.orderBy('list.name', 'ASC');
+        break;
+      case 'popularity':
+        query = query.orderBy('list.followers_count', 'DESC'); // più seguite prima
+        break;
+      case 'created':
+      default:
+        query = query.orderBy('list.created_at', 'DESC'); // più recenti prima
+        break;
     }
 
-    const lists = await queryBuilder.getMany();
+    const lists = await query.getMany();
 
-    // popola film per ogni lista
-    const listsWithMovies = await Promise.all(
-      lists.map(async (list) => {
+    // popola film e username per ogni lista
+    const result = await Promise.all(
+      lists.map(async list => {
         const movies = await this.getMoviesForList(list.movie_ids);
         const username = await this.getUsernameById(list.user_id);
+
         return {
           ...list,
           movies,
@@ -110,21 +101,19 @@ export class ListsService {
       }),
     );
 
-    return listsWithMovies;
+    return result;
   }
 
-  /**
-   * ottieni tutte le liste di un utente (pubbliche e private)
-   */
+  // ottieni tutte le liste di un utente (pubbliche e private)
   async getUserLists(userId: string): Promise<any[]> {
     const lists = await this.listRepository.find({
       where: { user_id: userId },
-      order: { created_at: 'DESC' },
+      order: { created_at: 'DESC' }, // più recenti prima
     });
 
     // popola film per ogni lista
-    const listsWithMovies = await Promise.all(
-      lists.map(async (list) => {
+    const result = await Promise.all(
+      lists.map(async list => {
         const movies = await this.getMoviesForList(list.movie_ids);
         return {
           ...list,
@@ -133,13 +122,11 @@ export class ListsService {
       }),
     );
 
-    return listsWithMovies;
+    return result;
   }
 
-  /**
-   * ottieni dettagli lista specifica
-   * verifica permessi accesso per liste private
-   */
+  // ottieni lista per id con controllo accesso
+  // permette accesso se: lista pubblica, sei proprietario
   async getListById(listId: string, userId?: string): Promise<any> {
     const list = await this.listRepository.findOne({ where: { id: listId } });
 
@@ -148,7 +135,7 @@ export class ListsService {
     }
 
     // verifica accesso per liste private
-    // permetti se: 1) lista pubblica 2) sei proprietario 3) segui la lista
+    // blocca se lista privata e non sei il proprietario
     if (!list.is_public) {
       if (!userId || list.user_id !== userId) {
         throw new ForbiddenException('non hai accesso a questa lista privata');
@@ -164,22 +151,19 @@ export class ListsService {
     };
   }
 
-  /**
-   * crea nuova lista
-   */
+  // crea nuova lista per utente
   async createList(userId: string, createListDto: CreateListDto): Promise<any> {
-    // crea entity lista
     const list = this.listRepository.create({
       user_id: userId,
       name: createListDto.name,
       description: createListDto.description || null,
-      is_public: createListDto.is_public || false,
-      movie_ids: createListDto.movie_ids || [],
+      is_public: createListDto.is_public || false, // default privata
+      movie_ids: createListDto.movie_ids || [], // inizia vuota o con film
     });
 
     const saved = await this.listRepository.save(list);
 
-    // popola film
+    // popola film se presenti
     const movies = await this.getMoviesForList(saved.movie_ids);
 
     return {
@@ -188,9 +172,7 @@ export class ListsService {
     };
   }
 
-  /**
-   * aggiorna lista esistente (solo proprietario)
-   */
+  // aggiorna lista esistente (solo owner)
   async updateList(
     listId: string,
     userId: string,
@@ -207,7 +189,7 @@ export class ListsService {
       throw new ForbiddenException('non puoi modificare questa lista');
     }
 
-    // aggiorna campi forniti
+    // aggiorna solo campi forniti
     if (updateListDto.name !== undefined) {
       list.name = updateListDto.name;
     }
@@ -229,9 +211,7 @@ export class ListsService {
     };
   }
 
-  /**
-   * elimina lista (solo proprietario)
-   */
+  // elimina lista (solo owner)
   async deleteList(listId: string, userId: string): Promise<any> {
     const list = await this.listRepository.findOne({ where: { id: listId } });
 
@@ -249,11 +229,7 @@ export class ListsService {
     return { message: 'lista eliminata con successo' };
   }
 
-  // ===== gestione film nelle liste =====
-
-  /**
-   * aggiungi film a lista
-   */
+  // aggiungi film a lista (solo owner)
   async addMovieToList(
     listId: string,
     userId: string,
@@ -270,7 +246,7 @@ export class ListsService {
       throw new ForbiddenException('non puoi modificare questa lista');
     }
 
-    // verifica che film esista nel database
+    // verifica se film esiste nel database
     const movie = await this.movieRepository.findOne({
       where: { id: movieId },
     });
@@ -279,7 +255,7 @@ export class ListsService {
       throw new NotFoundException('film non trovato');
     }
 
-    // verifica se gia presente
+    // verifica se film gia presente nella lista
     if (list.movie_ids.includes(movieId)) {
       throw new BadRequestException('film gia presente nella lista');
     }
@@ -297,9 +273,7 @@ export class ListsService {
     };
   }
 
-  /**
-   * rimuovi film da lista
-   */
+  // rimuovi film da lista (solo owner)
   async removeMovieFromList(
     listId: string,
     userId: string,
@@ -316,7 +290,7 @@ export class ListsService {
       throw new ForbiddenException('non puoi modificare questa lista');
     }
 
-    // verifica se film presente
+    // verifica se film presente nella lista
     if (!list.movie_ids.includes(movieId)) {
       throw new BadRequestException('film non presente nella lista');
     }
@@ -334,11 +308,7 @@ export class ListsService {
     };
   }
 
-  // ===== social features =====
-
-  /**
-   * segui lista pubblica
-   */
+  // segui una lista pubblica
   async followList(listId: string, userId: string): Promise<any> {
     const list = await this.listRepository.findOne({ where: { id: listId } });
 
@@ -346,16 +316,17 @@ export class ListsService {
       throw new NotFoundException('lista non trovata');
     }
 
+    // solo liste pubbliche possono essere seguite
     if (!list.is_public) {
       throw new ForbiddenException('puoi seguire solo liste pubbliche');
     }
 
-    // verifica se gia segui
+    // verifica se gia segui la lista
     if (list.follower_ids && list.follower_ids.includes(userId)) {
       throw new BadRequestException('stai gia seguendo questa lista');
     }
 
-    // aggiungi follower
+    // aggiungi utente a follower e incrementa contatore
     list.follower_ids = [...(list.follower_ids || []), userId];
     list.followers_count = list.follower_ids.length;
 
@@ -364,9 +335,7 @@ export class ListsService {
     return { message: 'ora segui questa lista' };
   }
 
-  /**
-   * smetti di seguire lista
-   */
+  // smetti di seguire lista
   async unfollowList(listId: string, userId: string): Promise<any> {
     const list = await this.listRepository.findOne({ where: { id: listId } });
 
@@ -379,7 +348,7 @@ export class ListsService {
       throw new BadRequestException('non stai seguendo questa lista');
     }
 
-    // rimuovi follower
+    // rimuovi utente da follower e decrementa contatore
     list.follower_ids = list.follower_ids.filter(id => id !== userId);
     list.followers_count = list.follower_ids.length;
 
@@ -388,9 +357,7 @@ export class ListsService {
     return { message: 'hai smesso di seguire questa lista' };
   }
 
-  /**
-   * ottieni follower di una lista
-   */
+  // ottieni lista di follower di una lista
   async getListFollowers(listId: string): Promise<any[]> {
     const list = await this.listRepository.findOne({ where: { id: listId } });
 
@@ -402,7 +369,7 @@ export class ListsService {
       return [];
     }
 
-    // recupera info follower
+    // recupera dati base dei follower
     const followers = await this.userRepository.find({
       where: { id: In(list.follower_ids) },
       select: ['id', 'username', 'email'],
@@ -411,16 +378,12 @@ export class ListsService {
     return followers;
   }
 
-  /**
-   * copia lista pubblica e rendila privata
-   * utile per usare liste altrui come template
-   */
+  // copia lista pubblica nella propria collezione
   async copyList(
     listId: string,
     userId: string,
     newName?: string,
   ): Promise<any> {
-    // recupera lista originale
     const originalList = await this.listRepository.findOne({
       where: { id: listId },
     });
@@ -429,17 +392,18 @@ export class ListsService {
       throw new NotFoundException('lista non trovata');
     }
 
+    // solo liste pubbliche possono essere copiate
     if (!originalList.is_public) {
       throw new ForbiddenException('puoi copiare solo liste pubbliche');
     }
 
     // crea nuova lista privata con film copiati
     const copiedList = this.listRepository.create({
-      user_id: userId,
+      user_id: userId, // nuovo proprietario
       name: newName || `${originalList.name} (copia)`,
       description: originalList.description,
-      is_public: false, // sempre privata quando copiata
-      movie_ids: [...originalList.movie_ids], // copia array film
+      is_public: false, // copia sempre privata
+      movie_ids: [...originalList.movie_ids], // duplica array film
     });
 
     const saved = await this.listRepository.save(copiedList);

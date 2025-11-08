@@ -1,5 +1,4 @@
-// gateway websocket per notifiche real-time con socket.io
-// gestisce connessioni client, notifiche enrichment progress, broadcast eventi
+// websocket gateway per notifiche real-time (progress enrichment)
 
 import {
   WebSocketGateway,
@@ -11,70 +10,48 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 
-// decoratore websocket gateway
-// namespace: /ws per separare da altri websocket
-// cors: permette connessioni da qualsiasi origine (android app)
 @WebSocketGateway({
-  namespace: '/ws',
+  namespace: '/ws', // endpoint websocket
   cors: {
-    origin: '*',
+    origin: '*', // permetti tutti i domini (dev)
     credentials: true,
   },
 })
 export class WebsocketGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
-  // server socket.io iniettato automaticamente
   @WebSocketServer()
-  server: Server;
+  server: Server; // server socket.io
 
   private readonly logger = new Logger(WebsocketGateway.name);
-  
-  // mappa client connessi per invio messaggi mirati
-  private connectedClients = new Map<string, Socket>();
+  private connectedClients = new Map<string, Socket>(); // traccia client connessi
 
-  /**
-   * chiamato dopo inizializzazione gateway
-   * setup completato, pronto per connessioni
-   */
+  // chiamato dopo inizializzazione gateway
   afterInit(server: Server) {
-    this.logger.log('websocket gateway inizializzato');
-    this.logger.log('namespace: /ws');
+    this.logger.log('🔌 WebSocket Gateway inizializzato');
+    this.logger.log('   Namespace: /ws');
   }
 
-  /**
-   * chiamato quando nuovo client si connette
-   * invia messaggio benvenuto e registra client
-   */
+  // chiamato quando client si connette
   handleConnection(client: Socket) {
-    // registra client nella mappa
     this.connectedClients.set(client.id, client);
-    
-    this.logger.log(`client connesso: ${client.id} (totale: ${this.connectedClients.size})`);
+    this.logger.log(`✅ Client connesso: ${client.id} (Total: ${this.connectedClients.size})`);
 
     // invia messaggio di benvenuto al client
     client.emit('connection', {
-      message: 'connesso al server websocket',
+      message: 'Connesso al server WebSocket',
       clientId: client.id,
       timestamp: new Date().toISOString(),
     });
   }
 
-  /**
-   * chiamato quando client si disconnette
-   * rimuove client dalla mappa
-   */
+  // chiamato quando client si disconnette
   handleDisconnect(client: Socket) {
     this.connectedClients.delete(client.id);
-    this.logger.log(`client disconnesso: ${client.id} (rimanenti: ${this.connectedClients.size})`);
+    this.logger.log(`❌ Client disconnesso: ${client.id} (Remaining: ${this.connectedClients.size})`);
   }
 
-  // ===== metodi pubblici per notifiche enrichment =====
-
-  /**
-   * notifica inizio enrichment batch
-   * usato da movies service quando inizia enrichment
-   */
+  // notifica inizio enrichment batch
   async notifyEnrichmentStarted(sessionId: string, totalMovies: number) {
     const payload = {
       sessionId,
@@ -82,27 +59,22 @@ export class WebsocketGateway
       total: totalMovies,
       processed: 0,
       percentage: 0,
-      message: `enrichment avviato per ${totalMovies} film`,
+      message: `Enrichment avviato per ${totalMovies} film`,
       timestamp: new Date().toISOString(),
     };
 
     // broadcast a tutti i client connessi
     this.server.emit('enrichment:started', payload);
-    
-    this.logger.log(`enrichment started: ${totalMovies} film (session: ${sessionId})`);
+    this.logger.log(`🔢 Enrichment started: ${totalMovies} film (session: ${sessionId})`);
   }
 
-  /**
-   * notifica progresso enrichment
-   * chiamato per ogni film processato per aggiornare progress bar android
-   */
+  // notifica progress enrichment (chiamato per ogni film processato)
   async notifyEnrichmentProgress(
     sessionId: string,
     processed: number,
     total: number,
     currentMovie: string,
   ) {
-    // calcola percentuale completamento
     const percentage = Math.round((processed / total) * 100);
 
     const payload = {
@@ -112,21 +84,18 @@ export class WebsocketGateway
       processed,
       percentage,
       currentMovie,
-      message: `processing: ${currentMovie}`,
+      message: `Processing: ${currentMovie}`,
       timestamp: new Date().toISOString(),
     };
 
-    // broadcast progresso a tutti i client
+    // broadcast progress a tutti i client
     this.server.emit('enrichment:progress', payload);
     
-    // log ogni film per debug
-    this.logger.log(`progress: ${processed}/${total} (${percentage}%) - ${currentMovie}`);
+    // log ogni film processato
+    this.logger.log(`📊 Progress: ${processed}/${total} (${percentage}%) - ${currentMovie}`);
   }
 
-  /**
-   * notifica completamento enrichment
-   * chiamato quando tutti i film sono stati processati
-   */
+  // notifica completamento enrichment
   async notifyEnrichmentCompleted(sessionId: string, totalMovies: number) {
     const payload = {
       sessionId,
@@ -134,19 +103,16 @@ export class WebsocketGateway
       total: totalMovies,
       processed: totalMovies,
       percentage: 100,
-      message: `enrichment completato: ${totalMovies} film`,
+      message: `Enrichment completato: ${totalMovies} film`,
       timestamp: new Date().toISOString(),
     };
 
     // broadcast completamento a tutti i client
     this.server.emit('enrichment:completed', payload);
-    
-    this.logger.log(`enrichment completed: ${totalMovies} film (session: ${sessionId})`);
+    this.logger.log(`✅ Enrichment completed: ${totalMovies} film (session: ${sessionId})`);
   }
 
-  /**
-   * notifica errore durante enrichment
-   */
+  // notifica errore durante enrichment
   async notifyEnrichmentError(sessionId: string, error: string) {
     const payload = {
       sessionId,
@@ -155,34 +121,27 @@ export class WebsocketGateway
       timestamp: new Date().toISOString(),
     };
 
+    // broadcast errore a tutti i client
     this.server.emit('enrichment:error', payload);
-    this.logger.error(`enrichment error (session: ${sessionId}): ${error}`);
+    this.logger.error(`❌ Enrichment error (session: ${sessionId}): ${error}`);
   }
 
-  // ===== metodi utility =====
-
-  /**
-   * invia messaggio custom a tutti i client (broadcast)
-   */
+  // invia messaggio custom a tutti i client connessi
   broadcast(event: string, data: any) {
     this.server.emit(event, data);
-    this.logger.log(`broadcast: ${event}`);
+    this.logger.log(`📢 Broadcast: ${event}`);
   }
 
-  /**
-   * invia messaggio a client specifico
-   */
+  // invia messaggio a client specifico per id
   sendToClient(clientId: string, event: string, data: any) {
     const client = this.connectedClients.get(clientId);
     if (client) {
       client.emit(event, data);
-      this.logger.log(`message to ${clientId}: ${event}`);
+      this.logger.log(`📤 Message to ${clientId}: ${event}`);
     }
   }
 
-  /**
-   * ottieni numero client connessi
-   */
+  // ottieni numero di client attualmente connessi
   getConnectedClientsCount(): number {
     return this.connectedClients.size;
   }

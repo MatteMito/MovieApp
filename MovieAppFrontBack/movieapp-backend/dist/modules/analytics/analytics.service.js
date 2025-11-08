@@ -45,7 +45,11 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
             this.generateWatchedStats(watchedMovies),
             this.generateRatingStats(ratedMovies),
         ]);
-        return { basicStats, watchedStats, ratingStats };
+        return {
+            basicStats,
+            watchedStats,
+            ratingStats,
+        };
     }
     async generateBasicStats(userId, watchedMovies) {
         const allUserMovies = await this.userMovieRepository.find({
@@ -53,42 +57,193 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
             relations: ['movie'],
         });
         const watchlistMovies = allUserMovies.filter(um => um.status === user_movie_entity_1.MovieStatus.WATCHLIST);
-        const enrichedMovies = allUserMovies.filter(um => um.movie?.tmdb_id);
+        const allMovies = allUserMovies.map(um => um.movie);
+        const enrichedMovies = allMovies.filter(m => m.tmdb_id && m.tmdb_id > 0);
         const watchedWithRating = watchedMovies.filter(um => um.userRating != null);
         const averageRating = watchedWithRating.length > 0
             ? watchedWithRating.reduce((sum, um) => sum + um.userRating, 0) / watchedWithRating.length
             : undefined;
-        const totalRuntime = watchedMovies.reduce((sum, um) => sum + (um.movie?.runtime || 0), 0);
-        const genresSet = new Set();
+        const totalRuntime = watchedMovies
+            .map(um => um.movie.runtime || 0)
+            .reduce((a, b) => a + b, 0);
+        const allGenres = new Set();
         watchedMovies.forEach(um => {
-            um.movie?.genres?.forEach((g) => genresSet.add(g));
+            um.movie.genres?.forEach(g => allGenres.add(g));
         });
-        const directorsSet = new Set();
+        const allDirectors = new Set();
         watchedMovies.forEach(um => {
-            if (um.movie?.director)
-                directorsSet.add(um.movie.director);
+            if (um.movie.director)
+                allDirectors.add(um.movie.director);
         });
         return {
             totalMovies: allUserMovies.length,
             watchedCount: watchedMovies.length,
             watchlistCount: watchlistMovies.length,
             enrichedMovies: enrichedMovies.length,
-            averageRating: averageRating ? Math.round(averageRating * 10) / 10 : undefined,
+            averageRating: averageRating ? parseFloat(averageRating.toFixed(2)) : undefined,
             totalRuntime,
-            uniqueGenres: genresSet.size,
-            uniqueDirectors: directorsSet.size,
+            uniqueGenres: allGenres.size,
+            uniqueDirectors: allDirectors.size,
         };
     }
     async generateWatchedStats(watchedMovies) {
-        const genresDistribution = this.calculateGenresDistribution(watchedMovies);
-        const genreCombinations = this.calculateGenreCombinations(watchedMovies);
-        const decadeDistribution = this.calculateDecadeDistribution(watchedMovies);
-        const topDirectors = this.calculateTopDirectors(watchedMovies);
-        const topActors = this.calculateTopActors(watchedMovies);
-        const directorActorPairs = this.calculateDirectorActorPairs(watchedMovies);
-        const productionStudios = this.calculateProductionStudios(watchedMovies);
-        const productionCountries = this.calculateProductionCountries(watchedMovies);
-        const continentDistribution = this.calculateContinentDistribution(watchedMovies);
+        const totalWatched = watchedMovies.length;
+        const genreMap = new Map();
+        watchedMovies.forEach(um => {
+            um.movie.genres?.forEach(genre => {
+                if (!genreMap.has(genre)) {
+                    genreMap.set(genre, { count: 0, ratings: [] });
+                }
+                const stats = genreMap.get(genre);
+                stats.count++;
+                if (um.userRating)
+                    stats.ratings.push(um.userRating);
+            });
+        });
+        const genresDistribution = Array.from(genreMap.entries())
+            .map(([genre, stats]) => ({
+            genre,
+            count: stats.count,
+            percentage: (stats.count / totalWatched) * 100,
+            averageRating: stats.ratings.length > 0
+                ? stats.ratings.reduce((a, b) => a + b) / stats.ratings.length
+                : undefined,
+        }))
+            .sort((a, b) => b.count - a.count);
+        const genreCombinations = {};
+        watchedMovies.forEach(um => {
+            const genres = um.movie.genres || [];
+            if (genres.length >= 2) {
+                for (let i = 0; i < genres.length; i++) {
+                    for (let j = i + 1; j < genres.length; j++) {
+                        const combo = [genres[i], genres[j]].sort().join(' + ');
+                        genreCombinations[combo] = (genreCombinations[combo] || 0) + 1;
+                    }
+                }
+            }
+        });
+        const decadeDistribution = {};
+        watchedMovies.forEach(um => {
+            if (um.movie.year) {
+                const decade = `${Math.floor(um.movie.year / 10) * 10}s`;
+                decadeDistribution[decade] = (decadeDistribution[decade] || 0) + 1;
+            }
+        });
+        const directorMap = new Map();
+        watchedMovies.forEach(um => {
+            if (um.movie.director) {
+                if (!directorMap.has(um.movie.director)) {
+                    directorMap.set(um.movie.director, { count: 0, ratings: [], runtime: 0 });
+                }
+                const stats = directorMap.get(um.movie.director);
+                stats.count++;
+                if (um.userRating)
+                    stats.ratings.push(um.userRating);
+                stats.runtime += um.movie.runtime || 0;
+            }
+        });
+        const topDirectors = Array.from(directorMap.entries())
+            .map(([director, stats]) => ({
+            director,
+            movieCount: stats.count,
+            averageRating: stats.ratings.length > 0
+                ? stats.ratings.reduce((a, b) => a + b) / stats.ratings.length
+                : undefined,
+            totalRuntime: stats.runtime,
+        }))
+            .sort((a, b) => b.movieCount - a.movieCount)
+            .slice(0, 10);
+        const actorMap = new Map();
+        watchedMovies.forEach(um => {
+            um.movie.actors?.forEach(actor => {
+                if (!actorMap.has(actor)) {
+                    actorMap.set(actor, { count: 0, ratings: [] });
+                }
+                const stats = actorMap.get(actor);
+                stats.count++;
+                if (um.userRating)
+                    stats.ratings.push(um.userRating);
+            });
+        });
+        const topActors = Array.from(actorMap.entries())
+            .map(([actor, stats]) => ({
+            actor,
+            movieCount: stats.count,
+            averageRating: stats.ratings.length > 0
+                ? stats.ratings.reduce((a, b) => a + b) / stats.ratings.length
+                : undefined,
+        }))
+            .sort((a, b) => b.movieCount - a.movieCount)
+            .slice(0, 10);
+        const pairMap = new Map();
+        watchedMovies.forEach(um => {
+            if (um.movie.director && um.movie.actors) {
+                um.movie.actors.forEach(actor => {
+                    const pair = `${um.movie.director}|${actor}`;
+                    pairMap.set(pair, (pairMap.get(pair) || 0) + 1);
+                });
+            }
+        });
+        const directorActorPairs = Array.from(pairMap.entries())
+            .map(([pair, count]) => {
+            const [director, actor] = pair.split('|');
+            return { director, actor, movieCount: count };
+        })
+            .sort((a, b) => b.movieCount - a.movieCount)
+            .slice(0, 10);
+        const studioMap = new Map();
+        watchedMovies.forEach(um => {
+            um.movie.production_companies?.forEach(studio => {
+                studioMap.set(studio, (studioMap.get(studio) || 0) + 1);
+            });
+        });
+        const productionStudios = Array.from(studioMap.entries())
+            .map(([studio, count]) => ({ studio, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+        const countryMap = new Map();
+        watchedMovies.forEach(um => {
+            um.movie.production_countries?.forEach(country => {
+                countryMap.set(country, (countryMap.get(country) || 0) + 1);
+            });
+        });
+        const productionCountries = Array.from(countryMap.entries())
+            .map(([country, count]) => ({
+            country,
+            count,
+            percentage: (count / totalWatched) * 100,
+        }))
+            .sort((a, b) => b.count - a.count);
+        const continentDistribution = {
+            'North America': 0,
+            'Europe': 0,
+            'Asia': 0,
+            'South America': 0,
+            'Africa': 0,
+            'Oceania': 0,
+        };
+        const continentMap = {
+            'United States': 'North America',
+            'Canada': 'North America',
+            'United Kingdom': 'Europe',
+            'France': 'Europe',
+            'Germany': 'Europe',
+            'Italy': 'Europe',
+            'Spain': 'Europe',
+            'Japan': 'Asia',
+            'South Korea': 'Asia',
+            'China': 'Asia',
+            'India': 'Asia',
+            'Australia': 'Oceania',
+        };
+        watchedMovies.forEach(um => {
+            um.movie.production_countries?.forEach(country => {
+                const continent = continentMap[country] || 'Other';
+                if (continentDistribution[continent] !== undefined) {
+                    continentDistribution[continent]++;
+                }
+            });
+        });
         return {
             genresDistribution,
             genreCombinations,
@@ -105,15 +260,140 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
         };
     }
     async generateRatingStats(ratedMovies) {
-        const userRatingsDistribution = this.calculateRatingsDistribution(ratedMovies.map(um => um.userRating));
-        const communityRatingsDistribution = this.calculateRatingsDistribution(ratedMovies.map(um => um.movie?.tmdb_rating).filter(r => r));
-        const divergentOpinions = this.calculateDivergentOpinions(ratedMovies);
-        const avgRatingByDirector = this.calculateAvgRatingByDirector(ratedMovies);
-        const avgRatingByActor = this.calculateAvgRatingByActor(ratedMovies);
-        const avgRatingByGenre = this.calculateAvgRatingByGenre(ratedMovies);
-        const avgRatingByDecade = this.calculateAvgRatingByDecade(ratedMovies);
-        const runtimeVsRating = this.calculateRuntimeVsRating(ratedMovies);
-        const revenueVsRating = this.calculateRevenueVsRating(ratedMovies);
+        if (ratedMovies.length === 0) {
+            return {
+                userRatingsDistribution: {},
+                communityRatingsDistribution: {},
+                divergentOpinions: [],
+                avgRatingByDirector: [],
+                avgRatingByActor: [],
+                avgRatingByGenre: [],
+                avgRatingByGenreCombination: [],
+                avgRatingByDecade: {},
+                runtimeVsRating: [],
+                revenueVsRating: [],
+            };
+        }
+        const userRatingsDistribution = {};
+        ratedMovies.forEach(um => {
+            const rating = Math.round(um.userRating);
+            userRatingsDistribution[rating] = (userRatingsDistribution[rating] || 0) + 1;
+        });
+        const communityRatingsDistribution = {};
+        ratedMovies.forEach(um => {
+            if (um.movie.tmdb_rating) {
+                const rating = Math.round(um.movie.tmdb_rating);
+                communityRatingsDistribution[rating] = (communityRatingsDistribution[rating] || 0) + 1;
+            }
+        });
+        const divergentOpinions = ratedMovies
+            .filter(um => um.movie.tmdb_rating && Math.abs(um.userRating - um.movie.tmdb_rating) >= 2)
+            .map(um => ({
+            movieTitle: um.movie.title,
+            userRating: um.userRating,
+            tmdbRating: um.movie.tmdb_rating,
+            difference: um.userRating - um.movie.tmdb_rating,
+        }))
+            .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))
+            .slice(0, 20);
+        const directorRatings = new Map();
+        ratedMovies.forEach(um => {
+            if (um.movie.director) {
+                if (!directorRatings.has(um.movie.director)) {
+                    directorRatings.set(um.movie.director, []);
+                }
+                directorRatings.get(um.movie.director).push(um.userRating);
+            }
+        });
+        const avgRatingByDirector = Array.from(directorRatings.entries())
+            .filter(([_, ratings]) => ratings.length >= 3)
+            .map(([director, ratings]) => ({
+            director,
+            avgRating: ratings.reduce((a, b) => a + b) / ratings.length,
+        }))
+            .sort((a, b) => b.avgRating - a.avgRating)
+            .slice(0, 10);
+        const actorRatings = new Map();
+        ratedMovies.forEach(um => {
+            um.movie.actors?.forEach(actor => {
+                if (!actorRatings.has(actor)) {
+                    actorRatings.set(actor, []);
+                }
+                actorRatings.get(actor).push(um.userRating);
+            });
+        });
+        const avgRatingByActor = Array.from(actorRatings.entries())
+            .filter(([_, ratings]) => ratings.length >= 3)
+            .map(([actor, ratings]) => ({
+            actor,
+            avgRating: ratings.reduce((a, b) => a + b) / ratings.length,
+        }))
+            .sort((a, b) => b.avgRating - a.avgRating)
+            .slice(0, 10);
+        const genreRatings = new Map();
+        ratedMovies.forEach(um => {
+            um.movie.genres?.forEach(genre => {
+                if (!genreRatings.has(genre)) {
+                    genreRatings.set(genre, []);
+                }
+                genreRatings.get(genre).push(um.userRating);
+            });
+        });
+        const avgRatingByGenre = Array.from(genreRatings.entries())
+            .map(([genre, ratings]) => ({
+            genre,
+            avgRating: ratings.reduce((a, b) => a + b) / ratings.length,
+        }))
+            .sort((a, b) => b.avgRating - a.avgRating);
+        const comboRatings = new Map();
+        ratedMovies.forEach(um => {
+            const genres = um.movie.genres || [];
+            if (genres.length >= 2) {
+                for (let i = 0; i < genres.length; i++) {
+                    for (let j = i + 1; j < genres.length; j++) {
+                        const combo = [genres[i], genres[j]].sort().join(' + ');
+                        if (!comboRatings.has(combo)) {
+                            comboRatings.set(combo, []);
+                        }
+                        comboRatings.get(combo).push(um.userRating);
+                    }
+                }
+            }
+        });
+        const avgRatingByGenreCombination = Array.from(comboRatings.entries())
+            .filter(([_, ratings]) => ratings.length >= 3)
+            .map(([combination, ratings]) => ({
+            combination,
+            avgRating: ratings.reduce((a, b) => a + b) / ratings.length,
+        }))
+            .sort((a, b) => b.avgRating - a.avgRating)
+            .slice(0, 10);
+        const decadeRatings = new Map();
+        ratedMovies.forEach(um => {
+            if (um.movie.year) {
+                const decade = `${Math.floor(um.movie.year / 10) * 10}s`;
+                if (!decadeRatings.has(decade)) {
+                    decadeRatings.set(decade, []);
+                }
+                decadeRatings.get(decade).push(um.userRating);
+            }
+        });
+        const avgRatingByDecade = {};
+        decadeRatings.forEach((ratings, decade) => {
+            avgRatingByDecade[decade] = ratings.reduce((a, b) => a + b) / ratings.length;
+        });
+        const runtimeVsRating = ratedMovies
+            .filter(um => um.movie.runtime)
+            .map(um => ({
+            runtime: um.movie.runtime,
+            rating: um.userRating,
+        }));
+        const revenueVsRating = ratedMovies
+            .filter(um => um.movie.revenue && um.movie.revenue > 0)
+            .map(um => ({
+            revenue: um.movie.revenue,
+            rating: um.userRating,
+        }));
         return {
             userRatingsDistribution,
             communityRatingsDistribution,
@@ -121,265 +401,11 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
             avgRatingByDirector,
             avgRatingByActor,
             avgRatingByGenre,
-            avgRatingByGenreCombination: [],
+            avgRatingByGenreCombination,
             avgRatingByDecade,
             runtimeVsRating,
             revenueVsRating,
         };
-    }
-    calculateGenresDistribution(movies) {
-        const genreMap = new Map();
-        const total = movies.length;
-        movies.forEach(um => {
-            um.movie?.genres?.forEach((genre) => {
-                genreMap.set(genre, (genreMap.get(genre) || 0) + 1);
-            });
-        });
-        return Array.from(genreMap.entries())
-            .map(([genre, count]) => ({
-            genre,
-            count,
-            percentage: Math.round((count / total) * 100 * 10) / 10,
-        }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 10);
-    }
-    calculateGenreCombinations(movies) {
-        const comboMap = new Map();
-        movies.forEach(um => {
-            const genres = um.movie?.genres;
-            if (genres && genres.length > 1) {
-                const combo = genres.slice().sort().join(', ');
-                comboMap.set(combo, (comboMap.get(combo) || 0) + 1);
-            }
-        });
-        return Object.fromEntries(Array.from(comboMap.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10));
-    }
-    calculateDecadeDistribution(movies) {
-        const decadeMap = new Map();
-        movies.forEach(um => {
-            const year = um.movie?.year;
-            if (year) {
-                const decade = `${Math.floor(year / 10) * 10}s`;
-                decadeMap.set(decade, (decadeMap.get(decade) || 0) + 1);
-            }
-        });
-        return Object.fromEntries(Array.from(decadeMap.entries()).sort((a, b) => a[0].localeCompare(b[0])));
-    }
-    calculateTopDirectors(movies) {
-        const directorMap = new Map();
-        movies.forEach(um => {
-            if (um.movie?.director) {
-                directorMap.set(um.movie.director, (directorMap.get(um.movie.director) || 0) + 1);
-            }
-        });
-        return Array.from(directorMap.entries())
-            .map(([director, movieCount]) => ({ director, movieCount }))
-            .sort((a, b) => b.movieCount - a.movieCount)
-            .slice(0, 10);
-    }
-    calculateTopActors(movies) {
-        const actorMap = new Map();
-        movies.forEach(um => {
-            um.movie?.actors?.forEach((actor) => {
-                actorMap.set(actor, (actorMap.get(actor) || 0) + 1);
-            });
-        });
-        return Array.from(actorMap.entries())
-            .map(([actor, movieCount]) => ({ actor, movieCount }))
-            .sort((a, b) => b.movieCount - a.movieCount)
-            .slice(0, 10);
-    }
-    calculateDirectorActorPairs(movies) {
-        const pairMap = new Map();
-        movies.forEach(um => {
-            if (um.movie?.director && um.movie?.actors) {
-                um.movie.actors.forEach((actor) => {
-                    const pair = `${um.movie.director}|${actor}`;
-                    pairMap.set(pair, (pairMap.get(pair) || 0) + 1);
-                });
-            }
-        });
-        return Array.from(pairMap.entries())
-            .map(([pair, count]) => {
-            const [director, actor] = pair.split('|');
-            return { director, actor, movieCount: count };
-        })
-            .sort((a, b) => b.movieCount - a.movieCount)
-            .slice(0, 10);
-    }
-    calculateProductionStudios(movies) {
-        const studioMap = new Map();
-        movies.forEach(um => {
-            um.movie?.production_companies?.forEach((studio) => {
-                studioMap.set(studio, (studioMap.get(studio) || 0) + 1);
-            });
-        });
-        return Array.from(studioMap.entries())
-            .map(([studio, count]) => ({ studio, count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 10);
-    }
-    calculateProductionCountries(movies) {
-        const countryMap = new Map();
-        const total = movies.length;
-        movies.forEach(um => {
-            um.movie?.production_countries?.forEach((country) => {
-                countryMap.set(country, (countryMap.get(country) || 0) + 1);
-            });
-        });
-        return Array.from(countryMap.entries())
-            .map(([country, count]) => ({
-            country,
-            count,
-            percentage: Math.round((count / total) * 100 * 10) / 10,
-        }))
-            .sort((a, b) => b.count - a.count);
-    }
-    calculateContinentDistribution(movies) {
-        const continentMap = {
-            'United States': 'North America',
-            'Canada': 'North America',
-            'United Kingdom': 'Europe',
-            'France': 'Europe',
-            'Germany': 'Europe',
-            'Italy': 'Europe',
-            'Spain': 'Europe',
-            'Japan': 'Asia',
-            'South Korea': 'Asia',
-            'China': 'Asia',
-            'India': 'Asia',
-            'Australia': 'Oceania',
-        };
-        const distribution = {
-            'North America': 0,
-            'Europe': 0,
-            'Asia': 0,
-            'South America': 0,
-            'Africa': 0,
-            'Oceania': 0,
-        };
-        movies.forEach(um => {
-            um.movie?.production_countries?.forEach((country) => {
-                const continent = continentMap[country] || 'Other';
-                if (distribution[continent] !== undefined) {
-                    distribution[continent]++;
-                }
-            });
-        });
-        return distribution;
-    }
-    calculateRatingsDistribution(ratings) {
-        const dist = {};
-        for (let i = 1; i <= 10; i++) {
-            dist[i.toString()] = 0;
-        }
-        ratings.forEach(rating => {
-            const rounded = Math.round(rating);
-            if (rounded >= 1 && rounded <= 10) {
-                dist[rounded.toString()]++;
-            }
-        });
-        return dist;
-    }
-    calculateDivergentOpinions(ratedMovies) {
-        return ratedMovies
-            .filter(um => um.movie?.tmdb_rating)
-            .map(um => ({
-            movieTitle: um.movie.title,
-            userRating: um.userRating,
-            tmdbRating: um.movie.tmdb_rating,
-            difference: Math.abs(um.userRating - um.movie.tmdb_rating),
-        }))
-            .sort((a, b) => b.difference - a.difference)
-            .slice(0, 10);
-    }
-    calculateAvgRatingByDirector(ratedMovies) {
-        const directorMap = new Map();
-        ratedMovies.forEach(um => {
-            if (um.movie?.director) {
-                const ratings = directorMap.get(um.movie.director) || [];
-                ratings.push(um.userRating);
-                directorMap.set(um.movie.director, ratings);
-            }
-        });
-        return Array.from(directorMap.entries())
-            .filter(([_, ratings]) => ratings.length >= 2)
-            .map(([director, ratings]) => ({
-            director,
-            avgRating: Math.round((ratings.reduce((a, b) => a + b) / ratings.length) * 10) / 10,
-        }))
-            .sort((a, b) => b.avgRating - a.avgRating)
-            .slice(0, 10);
-    }
-    calculateAvgRatingByActor(ratedMovies) {
-        const actorMap = new Map();
-        ratedMovies.forEach(um => {
-            um.movie?.actors?.forEach((actor) => {
-                const ratings = actorMap.get(actor) || [];
-                ratings.push(um.userRating);
-                actorMap.set(actor, ratings);
-            });
-        });
-        return Array.from(actorMap.entries())
-            .filter(([_, ratings]) => ratings.length >= 2)
-            .map(([actor, ratings]) => ({
-            actor,
-            avgRating: Math.round((ratings.reduce((a, b) => a + b) / ratings.length) * 10) / 10,
-        }))
-            .sort((a, b) => b.avgRating - a.avgRating)
-            .slice(0, 10);
-    }
-    calculateAvgRatingByGenre(ratedMovies) {
-        const genreMap = new Map();
-        ratedMovies.forEach(um => {
-            um.movie?.genres?.forEach((genre) => {
-                const ratings = genreMap.get(genre) || [];
-                ratings.push(um.userRating);
-                genreMap.set(genre, ratings);
-            });
-        });
-        return Array.from(genreMap.entries())
-            .map(([genre, ratings]) => ({
-            genre,
-            avgRating: Math.round((ratings.reduce((a, b) => a + b) / ratings.length) * 10) / 10,
-        }))
-            .sort((a, b) => b.avgRating - a.avgRating);
-    }
-    calculateAvgRatingByDecade(ratedMovies) {
-        const decadeMap = new Map();
-        ratedMovies.forEach(um => {
-            const year = um.movie?.year;
-            if (year) {
-                const decade = `${Math.floor(year / 10) * 10}s`;
-                const ratings = decadeMap.get(decade) || [];
-                ratings.push(um.userRating);
-                decadeMap.set(decade, ratings);
-            }
-        });
-        const result = {};
-        decadeMap.forEach((ratings, decade) => {
-            result[decade] = Math.round((ratings.reduce((a, b) => a + b) / ratings.length) * 10) / 10;
-        });
-        return result;
-    }
-    calculateRuntimeVsRating(ratedMovies) {
-        return ratedMovies
-            .filter(um => um.movie?.runtime)
-            .map(um => ({
-            runtime: um.movie.runtime,
-            rating: um.userRating,
-        }));
-    }
-    calculateRevenueVsRating(ratedMovies) {
-        return ratedMovies
-            .filter(um => um.movie?.revenue && um.movie.revenue > 0)
-            .map(um => ({
-            revenue: um.movie.revenue,
-            rating: um.userRating,
-        }));
     }
     async getBasicStats(userId) {
         const watchedMovies = await this.userMovieRepository.find({
@@ -393,14 +419,19 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
             where: { userId, status: user_movie_entity_1.MovieStatus.WATCHED },
             relations: ['movie'],
         });
-        return this.calculateGenresDistribution(watchedMovies);
+        const stats = await this.generateWatchedStats(watchedMovies);
+        return stats.genresDistribution;
+    }
+    async getYearStats(userId) {
+        return [];
     }
     async getDirectorStats(userId) {
         const watchedMovies = await this.userMovieRepository.find({
             where: { userId, status: user_movie_entity_1.MovieStatus.WATCHED },
             relations: ['movie'],
         });
-        return this.calculateTopDirectors(watchedMovies);
+        const stats = await this.generateWatchedStats(watchedMovies);
+        return stats.topDirectors;
     }
     async getAdvancedAnalytics(userId) {
         return this.getCompleteAnalytics(userId);

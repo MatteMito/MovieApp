@@ -1,5 +1,4 @@
-// controller per gestione liste condivise
-// endpoint per crud liste, gestione film, follow/unfollow, copia
+// controller con endpoint per gestione liste personalizzate
 
 import {
   Controller,
@@ -10,9 +9,12 @@ import {
   Body,
   Param,
   Query,
+  UseGuards,
+  Request,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ListsService } from './lists.service';
 import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dto/list.dto';
 
@@ -20,30 +22,25 @@ import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dt
 export class ListsController {
   constructor(private readonly listsService: ListsService) {}
 
-  // ===== endpoint pubblici (senza autenticazione) =====
+  // ===== ENDPOINT PUBBLICI (SENZA AUTH) =====
 
-  /**
-   * endpoint: GET /api/v1/lists/public
-   * ottieni tutte le liste pubbliche
-   * accessibile senza autenticazione
-   */
+  // GET /api/v1/lists/public
+  // ottieni tutte le liste pubbliche con filtri opzionali
   @Get('public')
   async getPublicLists(
-    @Query('search') search?: string,
-    @Query('sortBy') sortBy?: string,
-    @Query('limit') limit?: string,
-    @Query('userId') userId?: string,
+    @Query('search') search?: string, // ricerca testuale nel nome/descrizione
+    @Query('sortBy') sortBy?: string, // ordinamento (es: followers, created_at)
+    @Query('limit') limit?: string, // numero massimo risultati
+    @Query('userId') userId?: string, // filtra per utente specifico
   ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
     return this.listsService.getPublicLists({ search, sortBy });
   }
 
-  // ===== endpoint autenticati =====
+  // ===== ENDPOINT AUTENTICATI =====
 
-  /**
-   * endpoint: GET /api/v1/lists/my
-   * ottieni tutte le liste dell'utente autenticato
-   */
+  // GET /api/v1/lists/my
+  // ottieni tutte le liste dell'utente (pubbliche e private)
   @Get('my')
   async getMyLists(@Query('userId') userId: string) {
     if (!userId) {
@@ -52,20 +49,15 @@ export class ListsController {
     return this.listsService.getUserLists(userId);
   }
 
-  /**
-   * endpoint: GET /api/v1/lists/:id
-   * ottieni dettagli lista specifica con film popolati
-   */
+  // GET /api/v1/lists/:id
+  // ottieni dettagli lista specifica con array di film
   @Get(':id')
   async getListById(@Param('id') id: string, @Query('userId') userId?: string) {
     return this.listsService.getListById(id, userId);
   }
 
-  /**
-   * endpoint: POST /api/v1/lists
-   * crea nuova lista
-   * body: { user_id, name, description?, is_public?, movie_ids? }
-   */
+  // POST /api/v1/lists
+  // crea nuova lista per l'utente
   @Post()
   async createList(@Body() createListDto: CreateListDto) {
     const userId = createListDto.user_id;
@@ -75,11 +67,8 @@ export class ListsController {
     return this.listsService.createList(userId, createListDto);
   }
 
-  /**
-   * endpoint: PUT /api/v1/lists/:id
-   * aggiorna lista esistente (solo proprietario)
-   * body: { name?, description?, is_public? }
-   */
+  // PUT /api/v1/lists/:id
+  // aggiorna nome, descrizione, visibilità di una lista
   @Put(':id')
   async updateList(
     @Param('id') id: string,
@@ -92,10 +81,8 @@ export class ListsController {
     return this.listsService.updateList(id, userId, updateListDto);
   }
 
-  /**
-   * endpoint: DELETE /api/v1/lists/:id
-   * elimina lista (solo proprietario)
-   */
+  // DELETE /api/v1/lists/:id
+  // elimina lista (solo se proprietario)
   @Delete(':id')
   async deleteList(@Param('id') id: string, @Query('userId') userId?: string) {
     if (!userId) {
@@ -104,13 +91,10 @@ export class ListsController {
     return this.listsService.deleteList(id, userId);
   }
 
-  // ===== gestione film nelle liste =====
+  // ===== GESTIONE FILM NELLE LISTE =====
 
-  /**
-   * endpoint: POST /api/v1/lists/:id/movies
-   * aggiungi film a lista
-   * body: { movie_id }
-   */
+  // POST /api/v1/lists/:id/movies
+  // aggiungi film a lista esistente
   @Post(':id/movies')
   async addMovieToList(
     @Param('id') listId: string,
@@ -123,10 +107,8 @@ export class ListsController {
     return this.listsService.addMovieToList(listId, userId, addMovieDto.movie_id);
   }
 
-  /**
-   * endpoint: DELETE /api/v1/lists/:id/movies/:movieId
-   * rimuovi film da lista
-   */
+  // DELETE /api/v1/lists/:id/movies/:movieId
+  // rimuovi film da lista
   @Delete(':id/movies/:movieId')
   async removeMovieFromList(
     @Param('id') listId: string,
@@ -139,13 +121,10 @@ export class ListsController {
     return this.listsService.removeMovieFromList(listId, userId, movieId);
   }
 
-  // ===== social features =====
+  // ===== SOCIAL FEATURES =====
 
-  /**
-   * endpoint: POST /api/v1/lists/:id/follow
-   * segui una lista pubblica
-   * body: { userId }
-   */
+  // POST /api/v1/lists/:id/follow
+  // segui una lista pubblica di un altro utente
   @Post(':id/follow')
   async followList(
     @Param('id') listId: string,
@@ -158,10 +137,8 @@ export class ListsController {
     return this.listsService.followList(listId, userId);
   }
 
-  /**
-   * endpoint: DELETE /api/v1/lists/:id/follow
-   * smetti di seguire una lista
-   */
+  // DELETE /api/v1/lists/:id/follow
+  // smetti di seguire una lista
   @Delete(':id/follow')
   async unfollowList(
     @Param('id') listId: string,
@@ -173,21 +150,15 @@ export class ListsController {
     return this.listsService.unfollowList(listId, userId);
   }
 
-  /**
-   * endpoint: GET /api/v1/lists/:id/followers
-   * ottieni lista follower di una lista pubblica
-   */
+  // GET /api/v1/lists/:id/followers
+  // ottieni lista di utenti che seguono questa lista
   @Get(':id/followers')
   async getListFollowers(@Param('id') listId: string) {
     return this.listsService.getListFollowers(listId);
   }
 
-  /**
-   * endpoint: POST /api/v1/lists/:id/copy
-   * copia una lista pubblica e rendila privata
-   * utile per usare liste altrui come template
-   * body: { userId, newName? }
-   */
+  // POST /api/v1/lists/:id/copy
+  // duplica una lista pubblica nella propria collezione
   @Post(':id/copy')
   async copyList(
     @Param('id') listId: string,
@@ -199,6 +170,7 @@ export class ListsController {
       throw new HttpException('userId richiesto', HttpStatus.BAD_REQUEST);
     }
 
+    // crea copia privata della lista con nuovo nome opzionale
     return this.listsService.copyList(listId, userId, newName);
   }
 }

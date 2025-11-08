@@ -1,5 +1,4 @@
-// entita database per memorizzare gli utenti registrati
-// gestisce autenticazione, profilo e stato account
+// entity utente per autenticazione e profilo
 
 import {
   Entity,
@@ -10,47 +9,33 @@ import {
   Index,
 } from 'typeorm';
 
-// decoratore entity per typeorm
-// tabella users nel database postgresql
-// indice unico su email per prevenire duplicati
 @Entity('users')
-@Index(['email'], { unique: true }) // garantisce unicita email
+@Index(['email'], { unique: true }) // indice unico su email per login rapido
 export class UserEntity {
-  // id univoco utente generato automaticamente
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id: string; // id univoco utente
 
-  // email utente (obbligatoria e unica)
   @Column({ unique: true })
-  email: string;
+  email: string; // email per login (unique constraint)
 
-  // password hashata con bcrypt
   @Column()
-  password: string;
+  password: string; // password hashata (bcrypt)
 
-  // username pubblico (opzionale)
   @Column({ nullable: true })
-  username?: string;
+  username?: string; // username opzionale per display
 
-  // url immagine profilo (opzionale)
   @Column({ nullable: true })
-  avatar_url?: string;
+  avatar_url?: string; // url immagine profilo
 
-  // flag account attivo
-  // permette di disabilitare account senza eliminarli
   @Column({ default: true })
-  is_active: boolean;
+  is_active: boolean; // flag per account attivo/disattivato
 
-  // timestamp ultimo login
-  // utile per analisi attivita utente
   @Column({ type: 'timestamp', nullable: true })
-  last_login?: Date;
+  last_login?: Date; // timestamp ultimo accesso
 
-  // timestamp creazione account
   @CreateDateColumn()
-  created_at: Date;
+  created_at: Date; // data registrazione
 
-  // timestamp ultimo aggiornamento profilo
   @UpdateDateColumn()
-  updated_at: Date;
+  updated_at: Date; // data ultimo aggiornamento profilo
 }

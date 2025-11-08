@@ -1,6 +1,3 @@
-// entita database per liste di film condivisibili
-// supporta liste pubbliche/private, follower, target dates
-
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -9,61 +6,42 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-// decoratore entity per typeorm
-// tabella movie_lists nel database postgresql
+// entity per le liste personalizzate di film create dagli utenti
 @Entity('movie_lists')
 export class MovieListEntity {
-  // id univoco lista generato automaticamente
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // foreign key verso utente proprietario della lista
-  // ogni lista appartiene a un utente
   @Column({ name: 'user_id', type: 'uuid' })
-  user_id: string;
+  user_id: string; // id dell'utente proprietario della lista
 
-  // nome lista (es: "film da vedere a natale")
-  // obbligatorio, max 200 caratteri
   @Column({ type: 'varchar', length: 200 })
-  name: string;
+  name: string; // nome della lista
 
-  // descrizione opzionale della lista
-  // testo libero per spiegare tema/scopo lista
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description: string; // descrizione opzionale
 
-  // array di id film contenuti nella lista
   @Column({ name: 'movie_ids', type: 'text', array: true, default: '{}' })
-  movie_ids: string[];
+  movie_ids: string[]; // array di id film nella lista
 
-  // flag visibilita lista
-  // true = visibile a tutti gli utenti
-  // false = visibile solo al proprietario
   @Column({ name: 'is_public', type: 'boolean', default: false })
-  is_public: boolean;
+  is_public: boolean; // se la lista è visibile pubblicamente
 
-  // array di id utenti che seguono la lista
-  // solo per liste pubbliche
   @Column({ name: 'follower_ids', type: 'text', array: true, default: '{}' })
-  follower_ids: string[];
+  follower_ids: string[]; // array di id utenti che seguono la lista
 
-  // contatore numero follower
   @Column({ name: 'followers_count', type: 'int', default: 0 })
-  followers_count: number;
+  followers_count: number; // contatore follower
 
-  // data obiettivo opzionale
   @Column({ name: 'target_date', type: 'date', nullable: true })
-  target_date: Date;
+  target_date: Date; // data target per completare la lista
 
-  // frequenza visione opzionale
   @Column({ type: 'varchar', length: 50, nullable: true })
-  frequency: string;
+  frequency: string; // frequenza di aggiornamento (weekly, monthly, etc)
 
-  // timestamp creazione lista
   @CreateDateColumn({ name: 'created_at' })
-  created_at: Date;
+  created_at: Date; // data creazione
 
-  // timestamp ultimo aggiornamento lista
   @UpdateDateColumn({ name: 'updated_at' })
-  updated_at: Date;
+  updated_at: Date; // data ultimo aggiornamento (auto-aggiornato)
 }

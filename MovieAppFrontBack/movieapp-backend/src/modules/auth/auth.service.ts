@@ -1,5 +1,4 @@
-// service autenticazione con jwt e bcrypt
-// gestisce registrazione utenti, login, validazione token, hashing password
+// servizio autenticazione con jwt e bcrypt
 
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -8,20 +7,19 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserEntity } from '../../database/entities/user.entity';
 
-// dto per registrazione nuovo utente
+// dto per registrazione e login
 export interface RegisterDto {
   email: string;
   password: string;
-  username?: string; // opzionale
+  username?: string;
 }
 
-// dto per login utente esistente
 export interface LoginDto {
   email: string;
   password: string;
 }
 
-// response standardizzata autenticazione
+// response autenticazione con token e dati utente
 export interface AuthResponse {
   access_token: string;
   user: {
@@ -36,39 +34,29 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    // repository per accesso tabella users
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
-    
-    // service jwt per generare e validare token
-    private jwtService: JwtService,
+    private jwtService: JwtService, // service per generare e validare jwt
   ) {}
 
-  /**
-   * registrazione nuovo utente
-   * 1. verifica email non gia esistente
-   * 2. hash password con bcrypt (sicurezza)
-   * 3. salva utente nel database
-   * 4. genera jwt token per login automatico
-   */
+  // registrazione nuovo utente con hash password bcrypt
   async register(dto: RegisterDto): Promise<AuthResponse> {
     try {
-      this.logger.log(`tentativo registrazione: ${dto.email}`);
+      this.logger.log(`📝 tentativo registrazione: ${dto.email}`);
 
-      // verifica se email gia esistente nel database
+      // verifica se email già esistente
       const existingUser = await this.userRepository.findOne({
         where: { email: dto.email },
       });
 
       if (existingUser) {
-        throw new UnauthorizedException('email gia registrata');
+        throw new UnauthorizedException('email già registrata');
       }
 
-      // hash password con bcrypt (10 rounds = buon bilanciamento sicurezza/performance)
-      // mai salvare password in chiaro nel database per sicurezza
+      // hash password con bcrypt (10 rounds di salting)
       const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-      // crea nuovo utente
+      // crea nuovo utente con password hashata
       const user = this.userRepository.create({
         email: dto.email,
         password: hashedPassword,
@@ -76,12 +64,11 @@ export class AuthService {
         is_active: true,
       });
 
-      // salva nel database
       const savedUser = await this.userRepository.save(user);
 
-      this.logger.log(`utente registrato: ${savedUser.email}`);
+      this.logger.log(`✅ utente registrato: ${savedUser.email}`);
 
-      // genera jwt token per login automatico dopo registrazione
+      // genera jwt token per autenticazione immediata
       const token = this.generateToken(savedUser);
 
       return {
@@ -93,21 +80,15 @@ export class AuthService {
         },
       };
     } catch (error) {
-      this.logger.error(`errore registrazione: ${error.message}`);
+      this.logger.error(`❌ errore registrazione: ${error.message}`);
       throw error;
     }
   }
 
-  /**
-   * login utente esistente
-   * 1. cerca utente per email
-   * 2. verifica password con bcrypt.compare
-   * 3. aggiorna timestamp last_login
-   * 4. genera jwt token
-   */
+  // login utente esistente con verifica password bcrypt
   async login(dto: LoginDto): Promise<AuthResponse> {
     try {
-      this.logger.log(`tentativo login: ${dto.email}`);
+      this.logger.log(`🔐 tentativo login: ${dto.email}`);
 
       // cerca utente per email
       const user = await this.userRepository.findOne({
@@ -115,25 +96,23 @@ export class AuthService {
       });
 
       if (!user) {
-        // non rivelare se email esiste o no (sicurezza)
         throw new UnauthorizedException('credenziali non valide');
       }
 
-      // verifica password confrontando con hash salvato nel database
-      // bcrypt.compare gestisce automaticamente il confronto sicuro
+      // verifica password confrontando hash bcrypt
       const isPasswordValid = await bcrypt.compare(dto.password, user.password);
 
       if (!isPasswordValid) {
         throw new UnauthorizedException('credenziali non valide');
       }
 
-      // aggiorna timestamp ultimo login
+      // aggiorna timestamp ultimo accesso
       user.last_login = new Date();
       await this.userRepository.save(user);
 
-      this.logger.log(`login riuscito: ${user.email}`);
+      this.logger.log(`✅ login riuscito: ${user.email}`);
 
-      // genera jwt token per autenticare richieste successive
+      // genera jwt token per sessione
       const token = this.generateToken(user);
 
       return {
@@ -145,22 +124,18 @@ export class AuthService {
         },
       };
     } catch (error) {
-      this.logger.error(`errore login: ${error.message}`);
+      this.logger.error(`❌ errore login: ${error.message}`);
       throw error;
     }
   }
 
-  /**
-   * valida jwt token
-   * verifica firma e scadenza del token
-   * ritorna utente se valido, null se invalido
-   */
+  // valida jwt token e ritorna utente se valido
   async validateToken(token: string): Promise<UserEntity | null> {
     try {
-      // verify controlla firma e scadenza automaticamente
+      // verifica firma e scadenza token
       const payload = this.jwtService.verify(token);
       
-      // recupera utente dal database usando id nel payload
+      // recupera utente dal payload
       const user = await this.userRepository.findOne({
         where: { id: payload.sub },
       });
@@ -172,10 +147,7 @@ export class AuthService {
     }
   }
 
-  /**
-   * recupera utente per id
-   * usato da jwt strategy per validazione
-   */
+  // recupera utente per id (usato da jwt strategy)
   async getUserById(userId: string): Promise<UserEntity | null> {
     try {
       const user = await this.userRepository.findOne({
@@ -189,22 +161,15 @@ export class AuthService {
     }
   }
 
-  /**
-   * genera jwt token per utente
-   * payload contiene id, email, username
-   * token firmato con secret key e scade dopo expiration time
-   */
+  // genera jwt token con payload utente
   private generateToken(user: UserEntity): string {
-    // payload: dati non sensibili inclusi nel token
-    // sub (subject): standard jwt per id utente
     const payload = {
-      sub: user.id,
+      sub: user.id, // subject: id utente
       email: user.email,
       username: user.username,
     };
 
-    // firma token con secret key
-    // ritorna stringa jwt base64 encoded
+    // firma token con secret key configurato nel module
     return this.jwtService.sign(payload);
   }
 }

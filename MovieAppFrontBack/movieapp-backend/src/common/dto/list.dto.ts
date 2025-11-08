@@ -1,4 +1,4 @@
-//data transfer objects per gestione liste personalizzate
+// dto completi per gestione liste personalizzate
 
 import {
   IsString,
@@ -11,9 +11,7 @@ import {
   IsUUID,
 } from 'class-validator';
 
-/**
- * dto per creazione nuova lista
- */
+// dto per creazione nuova lista
 export class CreateListDto {
   @IsUUID()
   user_id: string;
@@ -30,25 +28,23 @@ export class CreateListDto {
 
   @IsOptional()
   @IsArray()
-  movie_ids?: string[];
+  movie_ids?: string[]; // array di id film da aggiungere alla lista
 
   @IsOptional()
   @IsDateString()
-  target_date?: string;
+  target_date?: string; // data target per completare la lista
 
   @IsOptional()
   @IsString()
   @MaxLength(50)
-  frequency?: string;
+  frequency?: string; // frequenza di aggiornamento (weekly, monthly, etc)
 
   @IsOptional()
   @IsBoolean()
-  is_public?: boolean;
+  is_public?: boolean; // se la lista è visibile pubblicamente
 }
 
-/**
- * dto per aggiornamento lista esistente
- */
+// dto per aggiornamento lista esistente
 export class UpdateListDto {
   @IsOptional()
   @IsString()
@@ -79,31 +75,27 @@ export class UpdateListDto {
   is_public?: boolean;
 }
 
-/**
- * dto per aggiunta film a lista
- */
+// dto per aggiungere un film a una lista
 export class AddMovieToListDto {
   @IsString()
   movie_id: string;
 }
 
-/**
- * dto per ricerca film da aggiungere a liste
- */
+// dto per ricerca film con filtri multipli
 export class SearchMovieDto {
   @IsOptional()
   @IsString()
-  query?: string;
+  query?: string; // ricerca testuale su titolo
 
   @IsOptional()
   @IsString()
-  director?: string;
+  director?: string; // filtra per regista
 
   @IsOptional()
   @IsString()
-  genre?: string;
+  genre?: string; // filtra per genere
 
   @IsOptional()
   @IsString()
-  year?: string;
+  year?: string; // filtra per anno
 }

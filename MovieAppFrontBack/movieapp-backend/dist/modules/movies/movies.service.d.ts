@@ -86,6 +86,7 @@ export declare class MoviesService {
     batchUpload(watchlist: Movie[], watched: Movie[], userId: string): Promise<BatchResult>;
     batchUploadWithUserAssociation(userId: string, watchlist: Movie[], watched: Movie[]): Promise<BatchUploadResult>;
     getUserMovies(userId: string, status?: string): Promise<Movie[]>;
+    getAllMovies(userId: string, status?: string): Promise<Movie[]>;
     searchMovies(query: string): Promise<Movie[]>;
     getUserStats(userId: string): Promise<import("./user-movies.service").UserMovieStats>;
     getStats(): Promise<{

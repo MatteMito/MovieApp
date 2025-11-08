@@ -28,48 +28,38 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
     async associateMoviesToUser(userId, movies, status) {
         try {
             this.logger.log(`associazione ${movies.length} film (${status}) a user ${userId}`);
-            const movieStatus = status === 'watched'
-                ? user_movie_entity_1.MovieStatus.WATCHED
-                : user_movie_entity_1.MovieStatus.WATCHLIST;
+            const movieStatus = status === 'watched' ? user_movie_entity_1.MovieStatus.WATCHED : user_movie_entity_1.MovieStatus.WATCHLIST;
             let created = 0;
             let updated = 0;
             let skipped = 0;
             for (const movie of movies) {
                 try {
-                    const movieEntity = await this.movieRepository.findOne({
+                    const movieExists = await this.movieRepository.findOne({
                         where: { id: movie.id },
                     });
-                    if (!movieEntity) {
-                        this.logger.warn(`film ${movie.title} non trovato nel database, skip`);
+                    if (!movieExists) {
+                        this.logger.warn(`film ${movie.title} (${movie.id}) non trovato in tabella movies, skip`);
                         skipped++;
                         continue;
                     }
-                    const existingUserMovie = await this.userMovieRepository.findOne({
-                        where: {
-                            userId,
-                            movieId: movie.id,
-                        },
+                    const existing = await this.userMovieRepository.findOne({
+                        where: { userId, movieId: movie.id },
                     });
-                    if (existingUserMovie) {
-                        if (existingUserMovie.status === user_movie_entity_1.MovieStatus.WATCHED &&
-                            movieStatus === user_movie_entity_1.MovieStatus.WATCHLIST) {
-                            this.logger.debug(`film ${movie.title} gia watched, skip watchlist`);
+                    if (existing) {
+                        if (existing.status === user_movie_entity_1.MovieStatus.WATCHED && movieStatus === user_movie_entity_1.MovieStatus.WATCHLIST) {
+                            this.logger.debug(`film ${movie.title} già WATCHED, skip aggiornamento a WATCHLIST`);
                             skipped++;
                             continue;
                         }
-                        if (existingUserMovie.status !== movieStatus) {
-                            existingUserMovie.status = movieStatus;
-                            if (movie.user_rating) {
-                                existingUserMovie.userRating = movie.user_rating;
-                            }
-                            if (movie.watched_date) {
-                                existingUserMovie.watchedDate = new Date(movie.watched_date);
-                            }
-                            await this.userMovieRepository.save(existingUserMovie);
+                        if (existing.status !== movieStatus) {
+                            existing.status = movieStatus;
+                            existing.userRating = movie.user_rating || existing.userRating;
+                            existing.watchedDate = movie.watched_date
+                                ? new Date(movie.watched_date)
+                                : existing.watchedDate;
+                            await this.userMovieRepository.save(existing);
                             updated++;
-                            if (updated <= 5) {
-                                this.logger.debug(`aggiornato: ${movie.title} (${movieStatus})`);
-                            }
+                            this.logger.debug(`aggiornato ${movie.title} da ${existing.status} a ${movieStatus}`);
                         }
                         else {
                             skipped++;
@@ -80,10 +70,8 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
                             userId,
                             movieId: movie.id,
                             status: movieStatus,
-                            userRating: movie.user_rating || null,
-                            watchedDate: movie.watched_date
-                                ? new Date(movie.watched_date)
-                                : null,
+                            userRating: movie.user_rating,
+                            watchedDate: movie.watched_date ? new Date(movie.watched_date) : null,
                         });
                         await this.userMovieRepository.save(userMovie);
                         created++;
@@ -142,9 +130,7 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
                 .leftJoinAndSelect('userMovie.movie', 'movie')
                 .where('userMovie.userId = :userId', { userId });
             if (status) {
-                const movieStatus = status === 'watched'
-                    ? user_movie_entity_1.MovieStatus.WATCHED
-                    : user_movie_entity_1.MovieStatus.WATCHLIST;
+                const movieStatus = status === 'watched' ? user_movie_entity_1.MovieStatus.WATCHED : user_movie_entity_1.MovieStatus.WATCHLIST;
                 queryBuilder.andWhere('userMovie.status = :status', { status: movieStatus });
             }
             const userMovies = await queryBuilder.getMany();

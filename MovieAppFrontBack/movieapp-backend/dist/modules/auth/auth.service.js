@@ -61,12 +61,12 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async register(dto) {
         try {
-            this.logger.log(`tentativo registrazione: ${dto.email}`);
+            this.logger.log(`📝 tentativo registrazione: ${dto.email}`);
             const existingUser = await this.userRepository.findOne({
                 where: { email: dto.email },
             });
             if (existingUser) {
-                throw new common_1.UnauthorizedException('email gia registrata');
+                throw new common_1.UnauthorizedException('email già registrata');
             }
             const hashedPassword = await bcrypt.hash(dto.password, 10);
             const user = this.userRepository.create({
@@ -76,7 +76,7 @@ let AuthService = AuthService_1 = class AuthService {
                 is_active: true,
             });
             const savedUser = await this.userRepository.save(user);
-            this.logger.log(`utente registrato: ${savedUser.email}`);
+            this.logger.log(`✅ utente registrato: ${savedUser.email}`);
             const token = this.generateToken(savedUser);
             return {
                 access_token: token,
@@ -88,13 +88,13 @@ let AuthService = AuthService_1 = class AuthService {
             };
         }
         catch (error) {
-            this.logger.error(`errore registrazione: ${error.message}`);
+            this.logger.error(`❌ errore registrazione: ${error.message}`);
             throw error;
         }
     }
     async login(dto) {
         try {
-            this.logger.log(`tentativo login: ${dto.email}`);
+            this.logger.log(`🔐 tentativo login: ${dto.email}`);
             const user = await this.userRepository.findOne({
                 where: { email: dto.email },
             });
@@ -107,7 +107,7 @@ let AuthService = AuthService_1 = class AuthService {
             }
             user.last_login = new Date();
             await this.userRepository.save(user);
-            this.logger.log(`login riuscito: ${user.email}`);
+            this.logger.log(`✅ login riuscito: ${user.email}`);
             const token = this.generateToken(user);
             return {
                 access_token: token,
@@ -119,7 +119,7 @@ let AuthService = AuthService_1 = class AuthService {
             };
         }
         catch (error) {
-            this.logger.error(`errore login: ${error.message}`);
+            this.logger.error(`❌ errore login: ${error.message}`);
             throw error;
         }
     }

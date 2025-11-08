@@ -1,5 +1,4 @@
-// controller per endpoint analytics con statistiche complete
-// fornisce endpoint rest per recuperare grafici e statistiche
+// controller con endpoint completo per analytics utente
 
 import {
   Controller,
@@ -12,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 
-// response standardizzata
+// interfaccia per response api standardizzata
 interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -26,16 +25,11 @@ export class AnalyticsController {
 
   constructor(private readonly analyticsService: AnalyticsService) {}
 
-  /**
-   * endpoint: GET /api/v1/analytics/user/:userId
-   * endpoint principale: ritorna tutte le statistiche in una chiamata
-   * include: basic stats, watched stats, rating stats
-   * usato da android per popolare tutti i grafici in notificationsfragment
-   */
+  // GET /api/v1/analytics/user/:userId
+  // endpoint principale: ritorna tutte le statistiche in una singola chiamata
   @Get('user/:userId')
   async getCompleteAnalytics(@Param('userId') userId: string): Promise<ApiResponse> {
     try {
-      // validazione userid
       if (!userId) {
         throw new HttpException(
           { 
@@ -47,16 +41,14 @@ export class AnalyticsController {
         );
       }
 
-      this.logger.log(`analytics complete richieste per utente ${userId}`);
+      this.logger.log(`📊 analytics complete richieste per utente ${userId}`);
       
-      // misura tempo esecuzione
+      // misura performance
       const startTime = Date.now();
-      
-      // genera tutte le statistiche
       const analytics = await this.analyticsService.getCompleteAnalytics(userId);
-      
       const elapsed = Date.now() - startTime;
-      this.logger.log(`analytics generate in ${elapsed}ms`);
+
+      this.logger.log(`✅ analytics generate in ${elapsed}ms`);
 
       return {
         success: true,
@@ -65,7 +57,7 @@ export class AnalyticsController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`errore analytics complete: ${error.message}`);
+      this.logger.error(`❌ errore analytics complete: ${error.message}`);
       throw new HttpException(
         { 
           success: false, 
@@ -77,11 +69,8 @@ export class AnalyticsController {
     }
   }
 
-  /**
-   * endpoint: GET /api/v1/analytics/basic?userId=xxx
-   * statistiche base (retrocompatibilita)
-   * conteggi film, watched, watchlist, rating medio
-   */
+  // GET /api/v1/analytics/basic?userId=xxx
+  // statistiche base: totali, medie, conteggi (retrocompatibilità)
   @Get('basic')
   async getBasicStats(@Query('userId') userId: string): Promise<ApiResponse> {
     try {
@@ -92,7 +81,7 @@ export class AnalyticsController {
         );
       }
 
-      this.logger.log(`statistiche base richieste per utente ${userId}`);
+      this.logger.log(`📊 statistiche base richieste per utente ${userId}`);
       const stats = await this.analyticsService.getBasicStats(userId);
 
       return {
@@ -110,11 +99,8 @@ export class AnalyticsController {
     }
   }
 
-  /**
-   * endpoint: GET /api/v1/analytics/genres?userId=xxx&limit=10
-   * statistiche generi (retrocompatibilita)
-   * distribuzione generi con count e percentuali
-   */
+  // GET /api/v1/analytics/genres?userId=xxx&limit=10
+  // statistiche generi con conteggi e percentuali (retrocompatibilità)
   @Get('genres')
   async getGenreStats(
     @Query('userId') userId: string,
@@ -129,10 +115,10 @@ export class AnalyticsController {
       }
 
       const limitNum = limit ? parseInt(limit, 10) : 10;
-      this.logger.log(`statistiche generi per utente ${userId}`);
+      this.logger.log(`📊 statistiche generi per utente ${userId}`);
       
       const stats = await this.analyticsService.getGenreStats(userId);
-      const limitedStats = stats.slice(0, limitNum);
+      const limitedStats = stats.slice(0, limitNum); // limita risultati
 
       return {
         success: true,
@@ -149,11 +135,8 @@ export class AnalyticsController {
     }
   }
 
-  /**
-   * endpoint: GET /api/v1/analytics/directors?userId=xxx&limit=10
-   * statistiche registi (retrocompatibilita)
-   * top registi per numero film visti
-   */
+  // GET /api/v1/analytics/directors?userId=xxx&limit=10
+  // statistiche registi con conteggi e medie rating (retrocompatibilità)
   @Get('directors')
   async getDirectorStats(
     @Query('userId') userId: string,
@@ -168,10 +151,10 @@ export class AnalyticsController {
       }
 
       const limitNum = limit ? parseInt(limit, 10) : 10;
-      this.logger.log(`statistiche registi per utente ${userId}`);
+      this.logger.log(`📊 statistiche registi per utente ${userId}`);
       
       const stats = await this.analyticsService.getDirectorStats(userId);
-      const limitedStats = stats.slice(0, limitNum);
+      const limitedStats = stats.slice(0, limitNum); // limita risultati
 
       return {
         success: true,
@@ -188,11 +171,8 @@ export class AnalyticsController {
     }
   }
 
-  /**
-   * endpoint: GET /api/v1/analytics/advanced?userId=xxx
-   * analytics avanzate (retrocompatibilita)
-   * include tutte le statistiche disponibili
-   */
+  // GET /api/v1/analytics/advanced?userId=xxx
+  // analytics avanzate: timeline, distribuzioni, top rated (retrocompatibilità)
   @Get('advanced')
   async getAdvancedAnalytics(@Query('userId') userId: string): Promise<ApiResponse> {
     try {
@@ -203,7 +183,7 @@ export class AnalyticsController {
         );
       }
 
-      this.logger.log(`analytics avanzate per utente ${userId}`);
+      this.logger.log(`📊 analytics avanzate per utente ${userId}`);
       const analytics = await this.analyticsService.getAdvancedAnalytics(userId);
 
       return {

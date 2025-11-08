@@ -1,5 +1,3 @@
-//data transfer objects per gestione film
-
 import {
   IsString,
   IsNumber,
@@ -10,16 +8,14 @@ import {
   Max,
 } from 'class-validator';
 
-/**
- * dto per creazione film base
- */
+// dto per creazione film
 export class CreateMovieDto {
   @IsString()
   title: string;
 
   @IsOptional()
   @IsNumber()
-  @Min(1888)
+  @Min(1888) // primo film della storia
   @Max(2030)
   year?: number;
 
@@ -33,12 +29,13 @@ export class CreateMovieDto {
   genres?: string[];
 
   @IsString()
-  source: string;
+  source: string; // fonte dati (tmdb, imdb, letterboxd, etc)
+
+  // rimossi: user_rating, date_rated, is_watched
+  // ora gestiti in user_movies table
 }
 
-/**
- * dto per aggiornamento film
- */
+// dto per aggiornamento film
 export class UpdateMovieDto {
   @IsOptional()
   @IsString()
@@ -55,15 +52,15 @@ export class UpdateMovieDto {
   @IsOptional()
   @IsArray()
   genres?: string[];
+
+  // rimossi: user_rating, date_rated, is_watched
 }
 
-/**
- * dto per enrichment film
- * contiene solo dati necessari per identificare e arricchire film
- */
+// dto per enrichment film tramite tmdb
+// include solo i dati necessari per identificare e arricchire il film
 export class EnrichMovieDto {
   @IsString()
-  id: string;
+  id: string; // id del film nel sistema
 
   @IsString()
   title: string;
@@ -73,57 +70,54 @@ export class EnrichMovieDto {
   year?: number;
 
   @IsString()
-  source: string;
+  source: string; // fonte originale dei dati
+
+  // rimossi: user_rating, date_rated, is_watched
+  // per il batch upload questi vengono gestiti separatamente
 }
 
-/**
- * dto per batch upload
- * include solo film da arricchire
- */
+// dto per batch upload di film
+// include solo i film da arricchire, i dati utente vengono gestiti dopo
 export class BatchUploadDto {
   @IsArray()
-  watchlist: EnrichMovieDto[];
+  watchlist: EnrichMovieDto[]; // film nella watchlist
 
   @IsArray()
-  watched: EnrichMovieDto[];
+  watched: EnrichMovieDto[]; // film già visti
 }
 
-/**
- * dto per associare film a utente
- * contiene dati specifici utente
- */
+// dto per associare un film a un utente
+// contiene i dati specifici della relazione utente-film
 export class UserMovieDto {
   @IsString()
-  movieId: string;
+  movieId: string; // id del film
 
   @IsString()
-  status: 'watched' | 'watchlist';
+  status: 'watched' | 'watchlist'; // stato del film per l'utente
 
   @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(10)
-  userRating?: number;
+  userRating?: number; // voto personale 0-10
 
   @IsOptional()
   @IsString()
-  watchedDate?: string;
+  watchedDate?: string; // data in cui l'utente ha visto il film
 
   @IsOptional()
   @IsString()
-  userReview?: string;
+  userReview?: string; // recensione personale
 
   @IsString()
-  source: string;
+  source: string; // fonte originale dei dati
 }
 
-/**
- * dto per batch upload con dati utente
- * versione completa che include sia film che dati utente
- */
+// dto per batch upload completo con dati utente
+// versione completa che include sia i film che i dati utente associati
 export class BatchUploadWithUserDto {
   @IsString()
-  userId: string;
+  userId: string; // id dell'utente che fa l'upload
 
   @IsArray()
   watchlist: Array<{
@@ -131,7 +125,7 @@ export class BatchUploadWithUserDto {
     title: string;
     year?: number;
     source: string;
-    userRating?: number;
+    userRating?: number; // rating anche per film in watchlist (anticipato)
     userReview?: string;
   }>;
 
@@ -142,7 +136,7 @@ export class BatchUploadWithUserDto {
     year?: number;
     source: string;
     userRating?: number;
-    watchedDate?: string;
+    watchedDate?: string; // data visione
     userReview?: string;
   }>;
 }

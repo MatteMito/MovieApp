@@ -30,11 +30,11 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
                     timestamp: new Date().toISOString()
                 }, common_1.HttpStatus.BAD_REQUEST);
             }
-            this.logger.log(`analytics complete richieste per utente ${userId}`);
+            this.logger.log(`📊 analytics complete richieste per utente ${userId}`);
             const startTime = Date.now();
             const analytics = await this.analyticsService.getCompleteAnalytics(userId);
             const elapsed = Date.now() - startTime;
-            this.logger.log(`analytics generate in ${elapsed}ms`);
+            this.logger.log(`✅ analytics generate in ${elapsed}ms`);
             return {
                 success: true,
                 data: analytics,
@@ -43,7 +43,7 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
             };
         }
         catch (error) {
-            this.logger.error(`errore analytics complete: ${error.message}`);
+            this.logger.error(`❌ errore analytics complete: ${error.message}`);
             throw new common_1.HttpException({
                 success: false,
                 message: error.message,
@@ -56,7 +56,7 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
             if (!userId) {
                 throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
             }
-            this.logger.log(`statistiche base richieste per utente ${userId}`);
+            this.logger.log(`📊 statistiche base richieste per utente ${userId}`);
             const stats = await this.analyticsService.getBasicStats(userId);
             return {
                 success: true,
@@ -76,7 +76,7 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
                 throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
             }
             const limitNum = limit ? parseInt(limit, 10) : 10;
-            this.logger.log(`statistiche generi per utente ${userId}`);
+            this.logger.log(`📊 statistiche generi per utente ${userId}`);
             const stats = await this.analyticsService.getGenreStats(userId);
             const limitedStats = stats.slice(0, limitNum);
             return {
@@ -97,7 +97,7 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
                 throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
             }
             const limitNum = limit ? parseInt(limit, 10) : 10;
-            this.logger.log(`statistiche registi per utente ${userId}`);
+            this.logger.log(`📊 statistiche registi per utente ${userId}`);
             const stats = await this.analyticsService.getDirectorStats(userId);
             const limitedStats = stats.slice(0, limitNum);
             return {
@@ -117,7 +117,7 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
             if (!userId) {
                 throw new common_1.HttpException({ success: false, message: 'userId mancante', timestamp: new Date().toISOString() }, common_1.HttpStatus.BAD_REQUEST);
             }
-            this.logger.log(`analytics avanzate per utente ${userId}`);
+            this.logger.log(`📊 analytics avanzate per utente ${userId}`);
             const analytics = await this.analyticsService.getAdvancedAnalytics(userId);
             return {
                 success: true,

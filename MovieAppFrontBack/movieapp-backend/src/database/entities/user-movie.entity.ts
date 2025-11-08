@@ -1,6 +1,3 @@
-// entita database per relazione many-to-many tra utenti e film
-// gestisce stato (watched/watchlist), rating personale, recensioni
-
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -14,85 +11,62 @@ import {
 import { UserEntity } from './user.entity';
 import { MovieEntity } from './movie.entity';
 
-// enum per stato film per utente
-// watched: film visto
-// watchlist: film da vedere
+// enum per lo stato del film rispetto all'utente
 export enum MovieStatus {
-  WATCHED = 'watched',
-  WATCHLIST = 'watchlist',
+  WATCHED = 'watched', // film già visto
+  WATCHLIST = 'watchlist', // film da vedere
 }
 
-// decoratore entity per typeorm
-// tabella user_movies per relazione utente-film
-// unique constraint su (userId, movieId) per evitare duplicati
+// entity per la relazione molti-a-molti tra utenti e film
+// contiene tutti i dati specifici dell'utente per ogni film
 @Entity('user_movies')
-@Unique(['userId', 'movieId'])
+@Unique(['userId', 'movieId']) 
 export class UserMovieEntity {
-  // id univoco della relazione
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // ===== relazioni foreign keys =====
-  
-  // foreign key verso tabella users
-  // colonna user_id nel database
+  // ===== RELAZIONI =====
+
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
-  // relazione many-to-one con utente
-  // onDelete: CASCADE = elimina relazioni se utente viene eliminato
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: UserEntity;
+  user: UserEntity; // riferimento all'utente
 
-  // foreign key verso tabella movies
-  // colonna movie_id nel database
   @Column({ name: 'movie_id', type: 'varchar', length: 255 })
   movieId: string;
 
-  // relazione many-to-one con film
-  // onDelete: CASCADE = elimina relazioni se film viene eliminato
   @ManyToOne(() => MovieEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'movie_id' })
-  movie: MovieEntity;
+  movie: MovieEntity; // riferimento al film
 
-  // ===== dati utente specifici =====
-  
-  // stato del film per questo utente (watched o watchlist)
+  // ===== STATO E DATI UTENTE =====
+
   @Column({
     type: 'varchar',
     length: 20,
     enum: MovieStatus,
   })
-  status: MovieStatus;
+  status: MovieStatus; // watched o watchlist
 
-  // rating personale utente (0.0 - 10.0)
-  // opzionale, solo per film watched
   @Column({ name: 'user_rating', type: 'decimal', precision: 3, scale: 1, nullable: true })
-  userRating?: number;
+  userRating?: number; // voto personale 0-10
 
-  // data in cui l'utente ha visto il film
-  // opzionale, per tracking cronologico
   @Column({ name: 'watched_date', type: 'date', nullable: true })
-  watchedDate?: Date;
+  watchedDate?: Date; // data in cui l'utente ha visto il film
 
-  // recensione testuale personale
-  // opzionale, per note e commenti
   @Column({ name: 'user_review', type: 'text', nullable: true })
-  userReview?: string;
+  userReview?: string; // recensione personale dell'utente
 
-  // flag film preferito
-  // permette di marcare film speciali
   @Column({ name: 'is_favorite', type: 'boolean', default: false })
-  isFavorite?: boolean;
+  isFavorite?: boolean; // film preferito dell'utente
 
-  // ===== timestamp automatici =====
-  
-  // data aggiunta relazione (quando utente aggiunge film)
+  // ===== TIMESTAMP =====
+
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  createdAt: Date; // quando l'utente ha aggiunto il film
 
-  // data ultimo aggiornamento (cambio status, rating, etc)
   @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
+  updatedAt: Date; // ultimo aggiornamento (rating, review, etc)
 }

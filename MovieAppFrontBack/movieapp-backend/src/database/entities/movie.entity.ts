@@ -1,6 +1,3 @@
-// entita database per memorizzare i film
-// contiene solo dati del film (senza dati utente come rating personale)
-
 import {
   Entity,
   Column,
@@ -10,167 +7,130 @@ import {
   Index,
 } from 'typeorm';
 
-// decoratore entity per typeorm
-// tabella movies nel database postgresql
-// indici per ottimizzare ricerche frequenti
+// entity per i film nel catalogo
+// contiene solo i dati del film, senza dati utente
+// i dati utente (watched, rating, etc.) sono in user_movies table
 @Entity('movies')
 @Index(['title', 'year'])
 @Index(['tmdb_id'])
 @Index(['source'])
 @Index(['is_enriched'])
 export class MovieEntity {
-  // ===== identificatori =====
   
-  // chiave primaria: id unico del film
+  // ===== IDENTIFICATORI =====
+  
   @PrimaryColumn({ type: 'varchar', length: 255 })
-  id: string;
+  id: string; // id composito o da fonte esterna
 
-  // ===== dati base =====
+  // ===== DATI BASE =====
   
-  // titolo del film (obbligatorio)
   @Column({ length: 500 })
   title: string;
 
-  // anno di uscita (opzionale)
   @Column({ nullable: true })
   year?: number;
 
-  // sorgente dei dati: IMDB e LETTERBOXD
   @Column({ length: 50, default: 'UNKNOWN' })
-  source: string;
+  source: string; // fonte dati: IMDB, LETTERBOXD, TMDB, etc.
 
-  // ===== dati tmdb arricchiti =====
+  // ===== DATI TMDB ARRICCHITI =====
   
-  // id ufficiale the movie database
-  // usato per recuperare dati aggiuntivi e poster
   @Column({ nullable: true })
-  tmdb_id?: number;
+  tmdb_id?: number; // id del film su tmdb
 
-  // flag per indicare se il film e stato arricchito con dati tmdb
-  // evita di richiamare api tmdb per film gia processati (cache)
   @Column({ default: false })
-  is_enriched: boolean;
+  is_enriched: boolean; // flag per sapere se il film è stato arricchito con dati tmdb
 
-  // lista generi del film (azione, commedia, drammatico, etc)
-  // array postgresql per supportare film con piu generi
   @Column('text', { array: true, default: '{}' })
-  genres: string[];
+  genres: string[]; // array di generi
 
-  // regista principale del film
   @Column({ nullable: true, length: 255 })
   director?: string;
 
-  // cast principale (attori)
-  // array per supportare multipli attori
   @Column('text', { array: true, nullable: true })
-  actors?: string[];
+  actors?: string[]; // array dei principali attori
 
-  // trama del film (descrizione estesa)
   @Column('text', { nullable: true })
-  overview?: string;
+  overview?: string; // trama del film
 
-  // tagline/slogan del film
   @Column({ nullable: true, length: 500 })
-  tagline?: string;
+  tagline?: string; // slogan del film
 
-  // durata in minuti
   @Column({ nullable: true })
-  runtime?: number;
+  runtime?: number; // durata in minuti
 
-  // ===== poster e immagini =====
+  // ===== POSTER E IMMAGINI =====
   
-  // url poster principale
   @Column({ nullable: true, length: 500 })
-  poster_url?: string;
+  poster_url?: string; // url poster tmdb
 
-  // url backdrop/sfondo per dettagli
   @Column({ nullable: true, length: 500 })
-  backdrop_url?: string;
+  backdrop_url?: string; // url immagine sfondo tmdb
 
-  // ===== rating e popolarita tmdb =====
+  // ===== RATING E POPOLARITÀ TMDB =====
   
-  // rating medio tmdb (0.0 - 10.0)
   @Column('decimal', { precision: 3, scale: 1, nullable: true })
-  tmdb_rating?: number;
+  tmdb_rating?: number; // rating medio tmdb (0-10)
 
-  // numero totale voti su tmdb
   @Column({ nullable: true })
-  vote_count?: number;
+  vote_count?: number; // numero di voti su tmdb
 
-  // indice popolarita tmdb (algoritmo proprietario)
   @Column('decimal', { precision: 10, scale: 3, nullable: true })
-  popularity?: number;
+  popularity?: number; // punteggio popolarità tmdb
 
-  // ===== dati produzione =====
+  // ===== DATI PRODUZIONE =====
   
-  // budget produzione in dollari
-  // bigint per supportare budget molto grandi
   @Column('bigint', { nullable: true })
-  budget?: number;
+  budget?: number; // budget in dollari
 
-  // incassi totali in dollari
   @Column('bigint', { nullable: true })
-  revenue?: number;
+  revenue?: number; // incassi in dollari
 
-  // stato produzione: released, post production, etc
   @Column({ nullable: true, length: 100 })
-  status?: string;
+  status?: string; // stato: released, post-production, etc.
 
-  // studi produzione (warner bros, universal, etc)
   @Column('text', { array: true, default: '{}' })
-  production_companies: string[];
+  production_companies: string[]; // case di produzione
 
-  // paesi produzione (usa, uk, france, etc)
   @Column('text', { array: true, default: '{}' })
-  production_countries: string[];
+  production_countries: string[]; // paesi di produzione
 
-  // ===== lingue e titolo originale =====
+  // ===== LINGUE E TITOLO ORIGINALE =====
   
-  // lingua originale del film (codice iso: en, it, fr, etc)
   @Column({ nullable: true, length: 10 })
-  original_language?: string;
+  original_language?: string; // codice lingua originale
 
-  // titolo originale (se diverso dal titolo tradotto)
   @Column({ nullable: true, length: 500 })
-  original_title?: string;
+  original_title?: string; // titolo originale del film
 
-  // lingue parlate nel film
   @Column('text', { array: true, default: '{}' })
-  spoken_languages: string[];
+  spoken_languages: string[]; // lingue parlate nel film
 
-  // ===== metadata vari =====
+  // ===== METADATA VARI =====
   
-  // flag contenuto adulto
   @Column({ default: false })
-  adult: boolean;
+  adult: boolean; // film per adulti
 
-  // sito web ufficiale del film
   @Column({ nullable: true, length: 500 })
-  homepage?: string;
+  homepage?: string; // sito ufficiale del film
 
-  // id imdb (formato: tt1234567)
   @Column({ nullable: true, length: 20 })
-  imdb_id?: string;
+  imdb_id?: string; // id imdb (es: tt1234567)
 
-  // parole chiave associate al film
   @Column('text', { array: true, default: '{}' })
-  keywords: string[];
+  keywords: string[]; // keywords/tag del film
 
-  // classificazione eta (pg-13, r, etc)
   @Column({ nullable: true, length: 20 })
-  certification?: string;
+  certification?: string; // rating censura (PG-13, R, etc)
 
-  // url trailer youtube/vimeo
   @Column({ nullable: true, length: 500 })
-  trailer_url?: string;
+  trailer_url?: string; // url trailer (youtube, etc)
 
-  // ===== timestamp automatici =====
+  // ===== TIMESTAMP AUTOMATICI =====
   
-  // data creazione record nel database
   @CreateDateColumn()
-  created_at: Date;
+  created_at: Date; // data creazione record
 
-  // data ultimo aggiornamento record
   @UpdateDateColumn()
-  updated_at: Date;
+  updated_at: Date; // data ultimo aggiornamento (auto-aggiornato da trigger)
 }

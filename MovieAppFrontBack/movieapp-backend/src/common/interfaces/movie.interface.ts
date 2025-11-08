@@ -1,94 +1,91 @@
-//interfacce typescript per entita film e risposte tmdb api
+// interfaccia principale per i film nel database
 
-//interfaccia principale per film dell'applicazione
 export interface Movie {
-  //identificatori
   id: string;
   title: string;
   year?: number;
-  source: string;
+  source: string; // fonte dati (tmdb, imdb, letterboxd, etc)
 
-  //dati tmdb
+  // dati tmdb
   tmdb_id?: number;
-  is_enriched?: boolean;
+  is_enriched?: boolean; // flag per sapere se il film è stato arricchito con dati tmdb
 
-  //metadata base
+  // metadati base
   genres?: string[];
   director?: string;
   actors?: string[];
-  overview?: string;
-  tagline?: string;
-  runtime?: number;
+  overview?: string; // trama
+  tagline?: string; // slogan del film
+  runtime?: number; // durata in minuti
 
-  //immagini
+  // immagini
   poster_url?: string;
   backdrop_url?: string;
 
-  //rating e popolarita
+  // valutazioni pubbliche
   tmdb_rating?: number;
   vote_count?: number;
   popularity?: number;
 
-  //produzione
+  // dati produzione
   budget?: number;
   revenue?: number;
-  status?: string;
+  status?: string; // released, post-production, etc
   release_date?: string;
   production_companies?: string[];
   production_countries?: string[];
 
-  //lingue
+  // lingue
   original_language?: string;
   original_title?: string;
   spoken_languages?: string[];
 
-  //metadata extra
+  // metadati extra
   adult?: boolean;
   homepage?: string;
   imdb_id?: string;
   keywords?: string[];
-  certification?: string;
+  certification?: string; // rating censura (PG-13, R, etc)
   trailer_url?: string;
 
-  //dati utente
+  // dati specifici utente (da deprecare, ora in user_movies)
   user_rating?: number;
   watched_date?: Date | string;
   user_review?: string;
   is_favorite?: boolean;
   is_watched?: boolean;
 
-  //timestamp
+  // timestamp
   created_at?: Date;
   updated_at?: Date;
 }
 
-//risposta ricerca tmdb
+// response della ricerca tmdb con paginazione
 export interface TmdbSearchResponse {
   page: number;
-  results: TmdbMovie[];
+  results: TmdbMovie[]; // array di film trovati
   total_pages: number;
   total_results: number;
 }
 
-//film base da ricerca tmdb
+// dati base di un film dalla ricerca tmdb
 export interface TmdbMovie {
-  id: number;
+  id: number; // id tmdb
   title: string;
   original_title: string;
   overview: string;
   release_date: string;
   poster_path: string | null;
   backdrop_path: string | null;
-  vote_average: number;
+  vote_average: number; // rating medio tmdb
   vote_count: number;
   popularity: number;
   adult: boolean;
-  genre_ids: number[];
+  genre_ids: number[]; // array di id generi
 }
 
-//dettagli completi film da tmdb
+// dettagli completi di un film da tmdb
 export interface TmdbMovieDetails {
-  //dati base
   id: number;
   title: string;
   original_title: string;
@@ -99,29 +96,23 @@ export interface TmdbMovieDetails {
   budget: number;
   revenue: number;
   status: string;
-
-  //immagini
   poster_path: string | null;
   backdrop_path: string | null;
-
-  //rating e popolarita
   vote_average: number;
   vote_count: number;
   popularity: number;
-
-  //metadata
   adult: boolean;
   homepage: string;
   imdb_id: string;
   original_language: string;
 
-  //generi
+  // array di generi con dettagli
   genres: Array<{
     id: number;
     name: string;
   }>;
 
-  //compagnie produzione
+  // case di produzione
   production_companies: Array<{
     id: number;
     name: string;
@@ -129,36 +120,36 @@ export interface TmdbMovieDetails {
     origin_country: string;
   }>;
 
-  //paesi produzione
+  // paesi di produzione
   production_countries: Array<{
     iso_3166_1: string;
     name: string;
   }>;
 
-  //lingue parlate
+  // lingue parlate nel film
   spoken_languages: Array<{
     english_name: string;
     iso_639_1: string;
     name: string;
   }>;
 
-  //cast e crew
+  // cast e crew (opzionale, da append_to_response)
   credits?: {
     cast: Array<{
       id: number;
       name: string;
-      character: string;
-      order: number;
+      character: string; // personaggio interpretato
+      order: number; // ordine di importanza
     }>;
     crew: Array<{
       id: number;
       name: string;
-      job: string;
+      job: string; // ruolo (Director, Producer, etc)
       department: string;
     }>;
   };
 
-  //parole chiave
+  // keywords/tag del film (opzionale)
   keywords?: {
     keywords: Array<{
       id: number;
@@ -166,37 +157,33 @@ export interface TmdbMovieDetails {
     }>;
   };
 
-  //video e trailer
+  // trailer e video (opzionale)
   videos?: {
     results: Array<{
       id: string;
-      key: string;
+      key: string; // youtube video key
       name: string;
-      site: string;
-      type: string;
+      site: string; // YouTube, Vimeo, etc
+      type: string; // Trailer, Teaser, etc
       official: boolean;
     }>;
   };
 
-  //classificazioni per paese
+  // certificazioni per paese (rating censura)
   releases?: {
     countries: Array<{
-      iso_3166_1: string;
-      release_dates: Array<{
-        certification: string;
-        iso_639_1: string;
-        release_date: string;
-        type: number;
-      }>;
+      iso_3166_1: string; // codice paese
+      certification: string; // PG-13, R, etc
+      release_date: string;
     }>;
   };
 }
 
-//risposta find tmdb (cerca per id esterno)
+// response della ricerca tmdb per id esterni (imdb, etc)
 export interface TmdbFindResponse {
   movie_results: TmdbMovie[];
-  person_results: any[];
-  tv_results: any[];
+  person_results: any[]; // risultati persone (non usati)
+  tv_results: any[]; // risultati serie tv (non usati)
   tv_episode_results: any[];
   tv_season_results: any[];
 }

@@ -1,5 +1,4 @@
-// modulo gestione film con enrichment tmdb e associazioni utente
-// coordina movies service, user-movies service, database, tmdb, websocket
+// ottimizzato: rimosso tmdb cache entity (non necessaria)
 
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -14,28 +13,20 @@ import { WebsocketModule } from '../websocket/websocket.module';
 
 @Module({
   imports: [
-    // registra entita per accesso repository
+    // registra entity per accesso database
     TypeOrmModule.forFeature([
-      MovieEntity,
-      UserMovieEntity,
+      MovieEntity, // catalogo film con metadati tmdb
+      UserMovieEntity, // relazione utente-film con rating e status
     ]),
-    
-    // importa moduli dipendenti
-    DatabaseModule,
-    TmdbModule,
-    WebsocketModule,
+    DatabaseModule, // service database per operazioni custom
+    TmdbModule, // service per enrichment film via tmdb api
+    WebsocketModule, // websocket per notifiche real-time (progress enrichment)
   ],
-  
-  // controller per endpoint rest api
   controllers: [MoviesController],
-  
-  // service con logica business
   providers: [
     MoviesService,
     UserMoviesService,
   ],
-  
-  // esporta service per essere usati in altri moduli
   exports: [
     MoviesService,
     UserMoviesService,

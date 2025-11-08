@@ -24,7 +24,7 @@ exports.TmdbModule = TmdbModule = __decorate([
                 maxRedirects: 5,
                 headers: {
                     Accept: 'application/json',
-                    'User-Agent': 'MovieApp/2.1 con Database PostgreSQL',
+                    'User-Agent': 'MovieApp/1.0 con Database PostgreSQL',
                 },
             }),
             database_module_1.DatabaseModule,

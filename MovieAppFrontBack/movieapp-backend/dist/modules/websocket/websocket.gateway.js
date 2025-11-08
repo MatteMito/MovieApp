@@ -20,21 +20,21 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
         this.connectedClients = new Map();
     }
     afterInit(server) {
-        this.logger.log('websocket gateway inizializzato');
-        this.logger.log('namespace: /ws');
+        this.logger.log('🔌 WebSocket Gateway inizializzato');
+        this.logger.log('   Namespace: /ws');
     }
     handleConnection(client) {
         this.connectedClients.set(client.id, client);
-        this.logger.log(`client connesso: ${client.id} (totale: ${this.connectedClients.size})`);
+        this.logger.log(`✅ Client connesso: ${client.id} (Total: ${this.connectedClients.size})`);
         client.emit('connection', {
-            message: 'connesso al server websocket',
+            message: 'Connesso al server WebSocket',
             clientId: client.id,
             timestamp: new Date().toISOString(),
         });
     }
     handleDisconnect(client) {
         this.connectedClients.delete(client.id);
-        this.logger.log(`client disconnesso: ${client.id} (rimanenti: ${this.connectedClients.size})`);
+        this.logger.log(`❌ Client disconnesso: ${client.id} (Remaining: ${this.connectedClients.size})`);
     }
     async notifyEnrichmentStarted(sessionId, totalMovies) {
         const payload = {
@@ -43,11 +43,11 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
             total: totalMovies,
             processed: 0,
             percentage: 0,
-            message: `enrichment avviato per ${totalMovies} film`,
+            message: `Enrichment avviato per ${totalMovies} film`,
             timestamp: new Date().toISOString(),
         };
         this.server.emit('enrichment:started', payload);
-        this.logger.log(`enrichment started: ${totalMovies} film (session: ${sessionId})`);
+        this.logger.log(`🔢 Enrichment started: ${totalMovies} film (session: ${sessionId})`);
     }
     async notifyEnrichmentProgress(sessionId, processed, total, currentMovie) {
         const percentage = Math.round((processed / total) * 100);
@@ -58,11 +58,11 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
             processed,
             percentage,
             currentMovie,
-            message: `processing: ${currentMovie}`,
+            message: `Processing: ${currentMovie}`,
             timestamp: new Date().toISOString(),
         };
         this.server.emit('enrichment:progress', payload);
-        this.logger.log(`progress: ${processed}/${total} (${percentage}%) - ${currentMovie}`);
+        this.logger.log(`📊 Progress: ${processed}/${total} (${percentage}%) - ${currentMovie}`);
     }
     async notifyEnrichmentCompleted(sessionId, totalMovies) {
         const payload = {
@@ -71,11 +71,11 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
             total: totalMovies,
             processed: totalMovies,
             percentage: 100,
-            message: `enrichment completato: ${totalMovies} film`,
+            message: `Enrichment completato: ${totalMovies} film`,
             timestamp: new Date().toISOString(),
         };
         this.server.emit('enrichment:completed', payload);
-        this.logger.log(`enrichment completed: ${totalMovies} film (session: ${sessionId})`);
+        this.logger.log(`✅ Enrichment completed: ${totalMovies} film (session: ${sessionId})`);
     }
     async notifyEnrichmentError(sessionId, error) {
         const payload = {
@@ -85,17 +85,17 @@ let WebsocketGateway = WebsocketGateway_1 = class WebsocketGateway {
             timestamp: new Date().toISOString(),
         };
         this.server.emit('enrichment:error', payload);
-        this.logger.error(`enrichment error (session: ${sessionId}): ${error}`);
+        this.logger.error(`❌ Enrichment error (session: ${sessionId}): ${error}`);
     }
     broadcast(event, data) {
         this.server.emit(event, data);
-        this.logger.log(`broadcast: ${event}`);
+        this.logger.log(`📢 Broadcast: ${event}`);
     }
     sendToClient(clientId, event, data) {
         const client = this.connectedClients.get(clientId);
         if (client) {
             client.emit(event, data);
-            this.logger.log(`message to ${clientId}: ${event}`);
+            this.logger.log(`📤 Message to ${clientId}: ${event}`);
         }
     }
     getConnectedClientsCount() {

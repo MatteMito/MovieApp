@@ -1,5 +1,4 @@
-// guard per protezione endpoint che richiedono autenticazione
-// usa jwt strategy per validare token nel header authorization
+// guard per protezione endpoint con jwt
 
 import {
   Injectable,
@@ -11,28 +10,21 @@ import { Observable } from 'rxjs';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  /**
-   * determina se richiesta puo accedere all'endpoint
-   * chiama automaticamente jwt strategy per validare token
-   */
+  // verifica se la richiesta può essere processata
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
-    // delega validazione a passport jwt strategy
+    // delega la validazione alla strategia jwt configurata
     return super.canActivate(context);
   }
 
-  /**
-   * gestisce risultato validazione
-   * chiamato dopo validate() della strategy
-   */
+  // gestisce il risultato della validazione jwt
   handleRequest(err: any, user: any, info: any) {
-    // se errore o utente non valido, lancia unauthorized exception
+    // se c'è un errore o l'utente non è valido, blocca la richiesta
     if (err || !user) {
       throw err || new UnauthorizedException('autenticazione richiesta');
     }
-    
-    // ritorna user per iniettarlo in request.user
+    // ritorna l'utente validato che verrà iniettato nel request object
     return user;
   }
 }

@@ -24,6 +24,7 @@ const database_service_1 = require("../../database/database.service");
 const websocket_gateway_1 = require("../websocket/websocket.gateway");
 const uuid_1 = require("uuid");
 const user_movies_service_1 = require("./user-movies.service");
+const user_movie_entity_2 = require("../../database/entities/user-movie.entity");
 let MoviesService = MoviesService_1 = class MoviesService {
     constructor(movieRepository, userMovieRepository, tmdbService, databaseService, websocketGateway, userMoviesService) {
         this.movieRepository = movieRepository;
@@ -63,13 +64,13 @@ let MoviesService = MoviesService_1 = class MoviesService {
             });
             this.logger.log(`database: ${movieCount} film, ${enrichedCount} arricchiti`);
             if (movieCount === 0) {
-                this.logger.log('primo avvio: avvio sync 10.000 film popolari in background...');
+                this.logger.log('🎬 primo avvio! avvio sync 10.000 film popolari in background...');
                 this.tmdbService.syncPopularMovies(10000)
                     .then(result => {
-                    this.logger.log(`sync iniziale completato: ${result.synced} film`);
+                    this.logger.log(`✅ sync iniziale completato: ${result.synced} film`);
                 })
                     .catch(error => {
-                    this.logger.error(`errore sync iniziale: ${error.message}`);
+                    this.logger.error(`❌ errore sync iniziale: ${error.message}`);
                 });
                 return {
                     needsSync: true,
@@ -251,6 +252,25 @@ let MoviesService = MoviesService_1 = class MoviesService {
     async getUserMovies(userId, status) {
         try {
             this.logger.log(`recupero film per user ${userId} (status: ${status || 'all'})`);
+            let movieStatus;
+            if (status === 'watched') {
+                movieStatus = user_movie_entity_2.MovieStatus.WATCHED;
+            }
+            else if (status === 'watchlist') {
+                movieStatus = user_movie_entity_2.MovieStatus.WATCHLIST;
+            }
+            const userMovies = await this.userMoviesService.getUserMovies(userId, movieStatus);
+            this.logger.log(`trovati ${userMovies.length} film`);
+            return userMovies;
+        }
+        catch (error) {
+            this.logger.error(`errore recupero film user: ${error.message}`);
+            throw error;
+        }
+    }
+    async getAllMovies(userId, status) {
+        try {
+            this.logger.log(`recupero film per user ${userId} (status: ${status || 'all'})`);
             const queryBuilder = this.userMovieRepository
                 .createQueryBuilder('um')
                 .leftJoinAndSelect('um.movie', 'movie')
@@ -317,9 +337,7 @@ let MoviesService = MoviesService_1 = class MoviesService {
                 enrichedMovies,
                 notEnriched: totalMovies - enrichedMovies,
                 withTmdbId,
-                enrichmentRate: totalMovies > 0
-                    ? (enrichedMovies / totalMovies) * 100
-                    : 0,
+                enrichmentRate: totalMovies > 0 ? (enrichedMovies / totalMovies) * 100 : 0,
             };
         }
         catch (error) {

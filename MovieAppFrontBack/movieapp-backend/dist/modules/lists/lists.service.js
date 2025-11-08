@@ -45,23 +45,26 @@ let ListsService = class ListsService {
         return user?.username || null;
     }
     async getPublicLists(options) {
-        const queryBuilder = this.listRepository
+        let query = this.listRepository
             .createQueryBuilder('list')
             .where('list.is_public = :isPublic', { isPublic: true });
         if (options.search) {
-            queryBuilder.andWhere('(LOWER(list.name) LIKE LOWER(:search) OR LOWER(list.description) LIKE LOWER(:search))', { search: `%${options.search}%` });
+            query = query.andWhere('(list.name ILIKE :search OR list.description ILIKE :search)', { search: `%${options.search}%` });
         }
-        if (options.sortBy === 'name') {
-            queryBuilder.orderBy('list.name', 'ASC');
+        switch (options.sortBy) {
+            case 'name':
+                query = query.orderBy('list.name', 'ASC');
+                break;
+            case 'popularity':
+                query = query.orderBy('list.followers_count', 'DESC');
+                break;
+            case 'created':
+            default:
+                query = query.orderBy('list.created_at', 'DESC');
+                break;
         }
-        else if (options.sortBy === 'recent') {
-            queryBuilder.orderBy('list.created_at', 'DESC');
-        }
-        else {
-            queryBuilder.orderBy('list.followers_count', 'DESC');
-        }
-        const lists = await queryBuilder.getMany();
-        const listsWithMovies = await Promise.all(lists.map(async (list) => {
+        const lists = await query.getMany();
+        const result = await Promise.all(lists.map(async (list) => {
             const movies = await this.getMoviesForList(list.movie_ids);
             const username = await this.getUsernameById(list.user_id);
             return {
@@ -70,21 +73,21 @@ let ListsService = class ListsService {
                 username,
             };
         }));
-        return listsWithMovies;
+        return result;
     }
     async getUserLists(userId) {
         const lists = await this.listRepository.find({
             where: { user_id: userId },
             order: { created_at: 'DESC' },
         });
-        const listsWithMovies = await Promise.all(lists.map(async (list) => {
+        const result = await Promise.all(lists.map(async (list) => {
             const movies = await this.getMoviesForList(list.movie_ids);
             return {
                 ...list,
                 movies,
             };
         }));
-        return listsWithMovies;
+        return result;
     }
     async getListById(listId, userId) {
         const list = await this.listRepository.findOne({ where: { id: listId } });

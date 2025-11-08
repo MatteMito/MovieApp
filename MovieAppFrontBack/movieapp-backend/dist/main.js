@@ -53,12 +53,12 @@ async function bootstrap() {
     const port = process.env.PORT || 3001;
     const host = process.env.HOST || '0.0.0.0';
     await app.listen(port, host);
-    logger.log(`movieapp backend v1.0 attivo su http://${host}:${port}`);
-    logger.log(`database: postgresql`);
-    logger.log(`websocket: attivo`);
-    logger.log(`body parser limit: 50mb`);
-    logger.log(`cors: abilitato per tutti gli origin`);
-    logger.log(`\n=== backend pronto per ricevere richieste ===\n`);
+    logger.log(`🚀 MovieApp Backend v1.0 attivo su http://${host}:${port}`);
+    logger.log(`📚 Database: PostgreSQL`);
+    logger.log(`🔄 WebSocket: attivo`);
+    logger.log(`📦 Body Parser Limit: 50MB`);
+    logger.log(`✅ CORS: abilitato per tutti gli origin`);
+    logger.log(`\n=== Backend pronto per ricevere richieste ===\n`);
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

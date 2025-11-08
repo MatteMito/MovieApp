@@ -160,7 +160,7 @@ let MoviesController = MoviesController_1 = class MoviesController {
     async getUserMovies(userId, status) {
         try {
             this.logger.log(`richiesta film per user ${userId} (status: ${status || 'all'})`);
-            const movies = await this.moviesService.getUserMovies(userId, status);
+            const movies = await this.moviesService.getAllMovies(userId, status);
             return {
                 success: true,
                 data: { movies },
@@ -193,6 +193,34 @@ let MoviesController = MoviesController_1 = class MoviesController {
             throw new common_1.HttpException({
                 success: false,
                 message: 'errore recupero statistiche',
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getAllMovies(userId) {
+        this.logger.warn('endpoint /all deprecato. usare /user/:userId');
+        try {
+            if (!userId) {
+                throw new common_1.HttpException({
+                    success: false,
+                    message: 'userId richiesto negli headers (x-user-id)',
+                    timestamp: new Date().toISOString(),
+                }, common_1.HttpStatus.BAD_REQUEST);
+            }
+            this.logger.log('richiesta tutti i film (deprecato)');
+            const movies = await this.moviesService.getAllMovies(userId);
+            return {
+                success: true,
+                data: { movies },
+                message: `recuperati ${movies.length} film - attenzione: endpoint deprecato, usare /user/:userId`,
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            this.logger.error(`errore recupero film: ${error.message}`);
+            throw new common_1.HttpException({
+                success: false,
+                message: 'errore recupero film',
                 timestamp: new Date().toISOString(),
             }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -248,6 +276,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], MoviesController.prototype, "getUserStats", null);
+__decorate([
+    (0, common_1.Get)('all'),
+    __param(0, (0, common_1.Headers)('x-user-id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], MoviesController.prototype, "getAllMovies", null);
 exports.MoviesController = MoviesController = MoviesController_1 = __decorate([
     (0, common_1.Controller)('api/v1/movies'),
     __metadata("design:paramtypes", [movies_service_1.MoviesService])
