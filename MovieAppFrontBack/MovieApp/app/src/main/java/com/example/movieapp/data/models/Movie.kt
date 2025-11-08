@@ -124,24 +124,7 @@ data class Movie(
 
     @SerializedName("updated_at")
     val updatedAt: String? = null
-) {
-    //helper per display
-    fun getDisplayTitle(): String {
-        return if (year != null) "$title ($year)" else title
-    }
-
-    fun hasFullData(): Boolean {
-        return isEnriched && tmdbId != null
-    }
-
-    fun getGenresString(): String {
-        return genres.joinToString(", ")
-    }
-
-    fun getActorsString(): String {
-        return actors.take(3).joinToString(", ")
-    }
-}
+)
 
 //enum per source
 enum class DataSource {
@@ -149,15 +132,4 @@ enum class DataSource {
     LETTERBOXD,
     TMDB,
     UNKNOWN;
-
-    companion object {
-        fun fromString(value: String): DataSource {
-            return when (value.uppercase()) {
-                "IMDB" -> IMDB
-                "LETTERBOXD" -> LETTERBOXD
-                "TMDB" -> TMDB
-                else -> UNKNOWN
-            }
-        }
-    }
 }

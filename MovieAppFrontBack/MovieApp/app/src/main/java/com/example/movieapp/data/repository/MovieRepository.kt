@@ -30,9 +30,6 @@ class MovieRepository private constructor(private val context: Context) {
     )
     private val gson = Gson()
 
-    //coroutine scope per operazioni async
-    private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
     companion object {
         @Volatile
         private var INSTANCE: MovieRepository? = null

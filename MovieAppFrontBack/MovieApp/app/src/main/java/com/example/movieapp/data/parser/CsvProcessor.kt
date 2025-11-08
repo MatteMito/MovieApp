@@ -19,7 +19,7 @@ class CsvProcessor {
     private val TAG = "CsvProcessor"
 
     /**
-     * parse imdb ratings.csv (watched list)
+     * parse imdb watched.csv (watched list)
      */
     fun parseImdbWatchedCsv(inputStream: InputStream): CsvParseResult {
         Log.d(TAG, "=== parsing imdb ratings.csv ===")
@@ -241,7 +241,7 @@ class CsvProcessor {
     }
 
     /**
-     * parse letterboxd diary.csv (watched)
+     * parse letterboxd watched.csv (watched)
      */
     fun parseLetterboxdWatchedCsv(inputStream: InputStream): CsvParseResult {
         Log.d(TAG, "=== parsing letterboxd diary.csv ===")
@@ -497,11 +497,3 @@ data class CsvParseResult(
     val errors: List<String>,
     val totalRows: Int
 )
-
-enum class CsvType {
-    IMDB_WATCHED,
-    IMDB_WATCHLIST,
-    LETTERBOXD_WATCHED,
-    LETTERBOXD_WATCHLIST,
-    UNKNOWN
-}

@@ -16,10 +16,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 import java.util.concurrent.TimeUnit
 
-// ============================================
-// DATA CLASSES PER RISPOSTE BACKEND
-// ============================================
 
+// DATA CLASSES PER RISPOSTE BACKEND
 data class ApiResponse<T>(
     val success: Boolean,
     val data: T?,
@@ -180,13 +178,7 @@ data class UserStatsResponse(
     val watched_count: Int,
     val watchlist_count: Int,
     val average_rating: Double
-) {
-    //alias per compatibilita
-    val totalMovies: Int get() = total_movies
-    val watchedCount: Int get() = watched_count
-    val watchlistCount: Int get() = watchlist_count
-    val averageRating: Double get() = average_rating
-}
+)
 
 // TMDB
 data class AddMovieFromTmdbRequest(
@@ -198,22 +190,6 @@ data class AddMovieFromTmdbRequest(
 
     @SerializedName("status")
     val status: String = "watchlist"
-)
-
-data class SyncPopularRequest(
-    val limit: Int = 10000
-)
-
-data class SyncPopularResponse(
-    val synced: Int,
-    val errors: Int
-)
-
-data class TmdbStatsResponse(
-    val total: Int,
-    val enriched: Int,
-    val notEnriched: Int,
-    val withTmdbId: Int
 )
 
 // LISTS
@@ -241,9 +217,7 @@ data class CopyListRequest(
     val newName: String? = null
 )
 
-// ============================================
 // RETROFIT INTERFACE
-// ============================================
 
 interface ApiInterface {
 
@@ -277,21 +251,6 @@ interface ApiInterface {
 
     @GET("movies/initialize")
     suspend fun initializeApp(): Response<ApiResponse<Map<String, Any>>>
-
-    @DELETE("movies/user/{userId}/all")
-    suspend fun deleteAllUserMovies(@Path("userId") userId: String): Response<ApiResponse<Unit>>
-
-    // TMDB
-    @GET("tmdb/search")
-    suspend fun searchTmdb(
-        @Query("query") query: String,
-        @Query("year") year: Int? = null
-    ): Response<ApiResponse<Movie>>
-
-    @POST("tmdb/add-to-database")
-    suspend fun addMovieFromTmdb(
-        @Body request: AddMovieFromTmdbRequest
-    ): Response<ApiResponse<Movie>>
 
     @GET("tmdb/autocomplete")
     suspend fun autocompleteMovies(
@@ -368,10 +327,8 @@ interface ApiInterface {
     ): Response<MovieList>
 }
 
-// ============================================
-// API SERVICE SINGLETON
-// ============================================
 
+// API SERVICE SINGLETON
 object ApiService {
 
     private const val TAG = "ApiService"
@@ -411,10 +368,7 @@ object ApiService {
             .build()
     }
 
-    // ============================================
     // INIZIALIZZAZIONE
-    // ============================================
-
     fun initialize(context: Context) {
         prefs = context.getSharedPreferences(AppConfig.AUTH_PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -446,15 +400,10 @@ object ApiService {
     }
 
     fun getCurrentUserId(): String? = currentUser?.id
-    fun hasUserId(): Boolean = currentUser?.id != null
     fun isAuthenticated(): Boolean = currentToken != null && currentUser != null
     fun getCurrentUser(): UserInfo? = currentUser
-    fun getToken(): String? = currentToken
 
-    // ============================================
     // AUTH METHODS
-    // ============================================
-
     suspend fun register(email: String, password: String, username: String? = null): Result<AuthResponse> =
         withContext(Dispatchers.IO) {
             try {
@@ -534,10 +483,7 @@ object ApiService {
         Log.d(TAG, "logout completato")
     }
 
-    // ============================================
     // CONNECTIVITY
-    // ============================================
-
     suspend fun testConnection(): Boolean = withContext(Dispatchers.IO) {
         try {
             val response = apiInterface.healthCheck()
@@ -547,14 +493,7 @@ object ApiService {
         }
     }
 
-    // ============================================
-    // TMDB METHODS
-    // ============================================
-
-    // ============================================
     // MOVIES METHODS
-    // ============================================
-
     suspend fun batchUpload(
         watchlist: List<Movie>,
         watched: List<Movie>
@@ -629,8 +568,6 @@ object ApiService {
         }
     }
 
-
-
     suspend fun getUserStoredMovies(
         status: String? = null
     ): Result<List<Movie>> = withContext(Dispatchers.IO) {
@@ -662,23 +599,8 @@ object ApiService {
         }
     }
 
-
-
-
-
-    // ============================================
-    // LISTS METHODS
-    // ============================================
-
-
-
-
-
-    // ============================================
     // UTILITY
-    // ============================================
-
-    private fun dtoToMovie(dto: com.example.movieapp.data.network.EnrichedMovieDto): Movie {
+    private fun dtoToMovie(dto: EnrichedMovieDto): Movie {
         return Movie(
             id = dto.id,
             title = dto.title,
@@ -709,11 +631,7 @@ object ApiService {
         )
     }
 
-
-
-    //============================================
     //initialize app
-    //============================================
     suspend fun initializeApp(): Result<Map<String, Any>> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "chiamata initialize app...")

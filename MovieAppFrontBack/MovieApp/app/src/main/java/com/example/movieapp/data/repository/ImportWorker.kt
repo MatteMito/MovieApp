@@ -29,7 +29,6 @@ class ImportWorker(
 
     private val TAG = "ImportWorker"
     private val csvProcessor = CsvProcessor()
-    private val webSocketService = WebSocketService.getInstance()
 
     companion object {
         const val KEY_FILE_PATH = "file_path"

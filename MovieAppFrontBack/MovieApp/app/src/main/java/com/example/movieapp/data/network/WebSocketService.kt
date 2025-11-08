@@ -11,7 +11,7 @@ import org.json.JSONObject
 import java.net.URISyntaxException
 
 /**
- * Servizio WebSocket CORRETTO per notifiche real-time
+ * Servizio WebSocket per notifiche real-time
  * Progress bar funzionante in tempo reale
  */
 class WebSocketService private constructor() {
@@ -19,7 +19,6 @@ class WebSocketService private constructor() {
     private val TAG = "WebSocketService"
 
     private val _connectionStatus = MutableStateFlow(ConnectionStatus.DISCONNECTED)
-    val connectionStatus: StateFlow<ConnectionStatus> = _connectionStatus.asStateFlow()
 
     private val _enrichmentUpdates = MutableStateFlow<EnrichmentUpdate?>(null)
     val enrichmentUpdates: StateFlow<EnrichmentUpdate?> = _enrichmentUpdates.asStateFlow()
@@ -65,7 +64,7 @@ class WebSocketService private constructor() {
                 reconnectionAttempts = maxReconnectAttempts
                 reconnectionDelay = 2000
                 timeout = 10000
-                transports = arrayOf("websocket", "polling")  // ✅ Fallback a polling
+                transports = arrayOf("websocket", "polling")
             }
 
             socket = IO.socket(fullUrl, opts)
@@ -88,7 +87,7 @@ class WebSocketService private constructor() {
      */
     private fun setupSocketListeners() {
         socket?.apply {
-            // === EVENTI CONNESSIONE ===
+            //EVENTI CONNESSIONE
 
             on(Socket.EVENT_CONNECT) {
                 Log.d(TAG, "✅ WebSocket CONNESSO!")
@@ -109,7 +108,7 @@ class WebSocketService private constructor() {
                 reconnectAttempts++
             }
 
-            // === EVENTO BENVENUTO ===
+            //EVENTO BENVENUTO
 
             on("connection") { args ->
                 try {
@@ -123,7 +122,7 @@ class WebSocketService private constructor() {
                 }
             }
 
-            // === EVENTI ENRICHMENT (PROGRESS BAR!) ===
+            //EVENTI ENRICHMENT (PROGRESS BAR!)
 
             on("enrichment:progress") { args ->
                 try {
@@ -204,7 +203,7 @@ class WebSocketService private constructor() {
                 }
             }
 
-            // === EVENTI DEBUG ===
+            //EVENTI DEBUG
 
             on("error") { args ->
                 val error = args.firstOrNull()?.toString() ?: "unknown"
@@ -235,7 +234,7 @@ class WebSocketService private constructor() {
 
 }
 
-// === DATA CLASSES ===
+//DATA CLASSES
 
 enum class ConnectionStatus {
     DISCONNECTED,
