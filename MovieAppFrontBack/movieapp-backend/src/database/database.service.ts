@@ -1,32 +1,41 @@
-//file: src/database/database.service.ts
-//service database con metodi per sync tmdb e deduplicazione film
+//service principale per interazioni con database postgresql
+//gestisce crud film, conversioni entity-model, deduplicazione, cache analytics
 
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, Not, IsNull } from 'typeorm';
+import { Repository, FindOptionsWhere, Not, IsNull, ILike } from 'typeorm';
 import { MovieEntity } from './entities/movie.entity';
 import { Movie } from '../common/interfaces/movie.interface';
 
 @Injectable()
 export class DatabaseService {
   private readonly logger = new Logger(DatabaseService.name);
+  
+  //cache in-memory per analytics (evita ricalcoli frequenti)
   private readonly analyticsCache = new Map<string, { data: any; expiresAt: Date }>();
 
   constructor(
+    //inietta repository typeorm per accesso diretto al database
     @InjectRepository(MovieEntity)
     private movieRepository: Repository<MovieEntity>,
   ) {}
 
-  //===== conversioni entity <-> model =====
+  //===== metodi privati di conversione entity <-> model =====
 
+  /**
+   * converte oggetto movie (interfaccia) in movieentity (database)
+   * gestisce tutti i campi opzionali e array vuoti
+   */
   private movieToEntity(movie: Movie): MovieEntity {
     const entity = new MovieEntity();
 
+    //dati base obbligatori
     entity.id = movie.id;
     entity.title = movie.title;
     entity.year = movie.year;
     entity.source = movie.source as any;
 
+    //dati tmdb (opzionali)
     entity.tmdb_id = movie.tmdb_id;
     entity.genres = movie.genres?.length > 0 ? movie.genres : [];
     entity.director = movie.director;
@@ -38,27 +47,40 @@ export class DatabaseService {
     entity.tmdb_rating = movie.tmdb_rating;
     entity.vote_count = movie.vote_count;
     entity.runtime = movie.runtime;
+    
+    //dati finanziari
     entity.budget = movie.budget;
     entity.revenue = movie.revenue;
     entity.status = movie.status;
+    
+    //metadata
     entity.original_language = movie.original_language;
     entity.original_title = movie.original_title;
     entity.popularity = movie.popularity;
     entity.adult = movie.adult;
     entity.homepage = movie.homepage;
     entity.imdb_id = movie.imdb_id;
+    
+    //array (gestisci vuoti correttamente)
     entity.production_companies = movie.production_companies?.length > 0 ? movie.production_companies : [];
     entity.production_countries = movie.production_countries?.length > 0 ? movie.production_countries : [];
     entity.spoken_languages = movie.spoken_languages?.length > 0 ? movie.spoken_languages : [];
     entity.keywords = movie.keywords?.length > 0 ? movie.keywords : [];
+    
+    //altri campi
     entity.certification = movie.certification;
     entity.trailer_url = movie.trailer_url;
 
+    //flag enrichment
     entity.is_enriched = movie.is_enriched || false;
     
     return entity;
   }
 
+  /**
+   * converte movieentity (database) in oggetto movie (interfaccia)
+   * assicura array vuoti invece di null per consistenza
+   */
   private entityToMovie(entity: MovieEntity): Movie {
     return {
       id: entity.id,
@@ -97,101 +119,72 @@ export class DatabaseService {
     };
   }
 
+  //===== crud operations =====
+
+  /**
+   * salva o aggiorna film nel database con deduplicazione intelligente
+   * step 1: cerca per id originale
+   * step 2: se non trovato, cerca per titolo+anno+source (evita duplicati)
+   * step 3: aggiorna esistente o crea nuovo
+   */
   async saveMovie(movie: Movie): Promise<MovieEntity> {
     try {
-      //step 1: cerca per id originale
+      //step 1: cerca per id originale (es: letterboxd_inception_2010)
       let entity = await this.movieRepository.findOne({
         where: { id: movie.id },
       });
 
-      //step 2: se non trovato per id, cerca per titolo+anno+source (deduplicazione)
+      //step 2: se non trovato per id, cerca per titolo+anno+source
+      //previene duplicati quando stesso film importato da fonti diverse
       if (!entity && movie.title && movie.year) {
         entity = await this.movieRepository.findOne({
           where: {
             title: movie.title,
             year: movie.year,
-            source: movie.source,
+            source: movie.source as any,
           },
         });
-
-        if (entity) {
-          this.logger.log(`film duplicato trovato: ${movie.title} (${movie.year}) - uso id esistente: ${entity.id}`);
-          //aggiorna movie.id per usare l'id esistente
-          movie.id = entity.id;
-        }
       }
 
+      //step 3: aggiorna entity esistente o crea nuova
       if (entity) {
-        //aggiorna entity esistente
+        //aggiorna solo se il film ha piu dati (es: dopo enrichment)
+        //merge intelligente: mantieni dati migliori tra esistente e nuovo
         Object.assign(entity, {
-          title: movie.title,
-          year: movie.year,
-          source: movie.source,
-          tmdb_id: movie.tmdb_id,
-          is_enriched: movie.is_enriched,
-          genres: movie.genres,
-          director: movie.director,
-          actors: movie.actors,
-          overview: movie.overview,
-          tagline: movie.tagline,
-          runtime: movie.runtime,
-          poster_url: movie.poster_url,
-          backdrop_url: movie.backdrop_url,
-          tmdb_rating: movie.tmdb_rating,
-          vote_count: movie.vote_count,
-          popularity: movie.popularity,
-          budget: movie.budget,
-          revenue: movie.revenue,
-          status: movie.status,
-          production_companies: movie.production_companies,
-          production_countries: movie.production_countries,
-          original_language: movie.original_language,
-          original_title: movie.original_title,
-          spoken_languages: movie.spoken_languages,
-          adult: movie.adult,
-          homepage: movie.homepage,
-          imdb_id: movie.imdb_id,
-          keywords: movie.keywords,
-          certification: movie.certification,
-          trailer_url: movie.trailer_url,
+          tmdb_id: movie.tmdb_id || entity.tmdb_id,
+          genres: movie.genres?.length > 0 ? movie.genres : entity.genres || [],
+          director: movie.director || entity.director,
+          actors: movie.actors?.length > 0 ? movie.actors : entity.actors || [],
+          overview: movie.overview || entity.overview,
+          tagline: movie.tagline || entity.tagline,
+          runtime: movie.runtime || entity.runtime,
+          poster_url: movie.poster_url || entity.poster_url,
+          backdrop_url: movie.backdrop_url || entity.backdrop_url,
+          tmdb_rating: movie.tmdb_rating || entity.tmdb_rating,
+          vote_count: movie.vote_count || entity.vote_count,
+          popularity: movie.popularity || entity.popularity,
+          budget: movie.budget || entity.budget,
+          revenue: movie.revenue || entity.revenue,
+          status: movie.status || entity.status,
+          production_companies: movie.production_companies?.length > 0 ? movie.production_companies : entity.production_companies || [],
+          production_countries: movie.production_countries?.length > 0 ? movie.production_countries : entity.production_countries || [],
+          original_language: movie.original_language || entity.original_language,
+          original_title: movie.original_title || entity.original_title,
+          spoken_languages: movie.spoken_languages?.length > 0 ? movie.spoken_languages : entity.spoken_languages || [],
+          adult: movie.adult !== undefined ? movie.adult : entity.adult,
+          homepage: movie.homepage || entity.homepage,
+          imdb_id: movie.imdb_id || entity.imdb_id,
+          keywords: movie.keywords?.length > 0 ? movie.keywords : entity.keywords || [],
+          certification: movie.certification || entity.certification,
+          trailer_url: movie.trailer_url || entity.trailer_url,
+          is_enriched: movie.is_enriched || entity.is_enriched,
         });
       } else {
-        //crea nuovo
-        entity = this.movieRepository.create({
-          id: movie.id,
-          title: movie.title,
-          year: movie.year,
-          source: movie.source,
-          tmdb_id: movie.tmdb_id,
-          is_enriched: movie.is_enriched || false,
-          genres: movie.genres || [],
-          director: movie.director,
-          actors: movie.actors || [],
-          overview: movie.overview,
-          tagline: movie.tagline,
-          runtime: movie.runtime,
-          poster_url: movie.poster_url,
-          backdrop_url: movie.backdrop_url,
-          tmdb_rating: movie.tmdb_rating,
-          vote_count: movie.vote_count,
-          popularity: movie.popularity,
-          budget: movie.budget,
-          revenue: movie.revenue,
-          status: movie.status,
-          production_companies: movie.production_companies || [],
-          production_countries: movie.production_countries || [],
-          original_language: movie.original_language,
-          original_title: movie.original_title,
-          spoken_languages: movie.spoken_languages || [],
-          adult: movie.adult,
-          homepage: movie.homepage,
-          imdb_id: movie.imdb_id,
-          keywords: movie.keywords || [],
-          certification: movie.certification,
-          trailer_url: movie.trailer_url,
-        });
+        //nessun film esistente, crea nuovo
+        entity = this.movieToEntity(movie);
       }
 
+      //salva nel database (insert o update)
       return await this.movieRepository.save(entity);
     } catch (error) {
       this.logger.error(`errore save movie: ${error.message}`);
@@ -199,11 +192,15 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * salva batch di film gestendo deduplicazione per ognuno
+   */
   async saveMovies(movies: Movie[]): Promise<MovieEntity[]> {
     try {
       const savedEntities: MovieEntity[] = [];
 
-      //salva uno per uno per gestire deduplicazione
+      //salva uno per uno per gestire deduplicazione correttamente
+      //batch insert di typeorm non gestisce logica custom
       for (const movie of movies) {
         const entity = await this.saveMovie(movie);
         savedEntities.push(entity);
@@ -217,6 +214,9 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * cerca film per id univoco
+   */
   async findMovieById(id: string): Promise<Movie | null> {
     try {
       const entity = await this.movieRepository.findOne({ where: { id } });
@@ -227,6 +227,9 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * cerca film per titolo e anno (opzionale)
+   */
   async findMovieByTitleYear(title: string, year?: number): Promise<Movie | null> {
     try {
       const where: FindOptionsWhere<MovieEntity> = { title };
@@ -242,6 +245,9 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * cerca film per tmdb id
+   */
   async findMovieByTmdbId(tmdbId: number): Promise<Movie | null> {
     try {
       const entity = await this.movieRepository.findOne({
@@ -255,6 +261,9 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * recupera tutti i film ordinati per titolo
+   */
   async getAllMovies(): Promise<Movie[]> {
     try {
       const entities = await this.movieRepository.find({
@@ -268,6 +277,33 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * ricerca film per autocomplete (ricerca case-insensitive su titolo)
+   * usato per suggerimenti durante digitazione
+   */
+  async searchMoviesForAutocomplete(query: string, limit: number = 10): Promise<Movie[]> {
+    try {
+      const entities = await this.movieRepository.find({
+        where: {
+          title: ILike(`%${query}%`), //ricerca case-insensitive
+        },
+        order: {
+          popularity: 'DESC', //ordina per popolarita (film piu noti prima)
+        },
+        take: limit,
+      });
+
+      return entities.map((entity) => this.entityToMovie(entity));
+    } catch (error) {
+      this.logger.error(`errore ricerca autocomplete: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * ottieni statistiche database
+   * ritorna conteggi film totali, arricchiti, tasso enrichment
+   */
   async getStats() {
     try {
       const totalMovies = await this.movieRepository.count();
@@ -285,64 +321,57 @@ export class DatabaseService {
         withTmdbId,
         enrichmentRate:
           totalMovies > 0
-            ? Math.round((enrichedMovies / totalMovies) * 100)
-            : 0,
+            ? ((enrichedMovies / totalMovies) * 100).toFixed(2) + '%'
+            : '0%',
       };
     } catch (error) {
-      this.logger.error(`errore stats: ${error.message}`);
+      this.logger.error(`errore recupero stats: ${error.message}`);
       throw error;
     }
   }
 
+  /**
+   * ottieni statistiche per sync tmdb (alias di getStats)
+   */
   async getSyncStats() {
     return this.getStats();
   }
 
-  async searchMoviesForAutocomplete(query: string, limit: number = 10): Promise<Movie[]> {
-    try {
-      const entities = await this.movieRepository
-        .createQueryBuilder('movie')
-        .where('LOWER(movie.title) LIKE LOWER(:query)', {
-          query: `%${query}%`,
-        })
-        .orderBy('movie.popularity', 'DESC', 'NULLS LAST')
-        .addOrderBy('movie.title', 'ASC')
-        .limit(limit)
-        .getMany();
+  //===== cache analytics =====
 
-      return entities.map((entity) => this.entityToMovie(entity));
-    } catch (error) {
-      this.logger.error(`errore autocomplete search: ${error.message}`);
-      return [];
+  /**
+   * salva analytics in cache con scadenza
+   */
+  setCachedAnalytics(userId: string, data: any, expiresInMinutes: number = 30) {
+    const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
+    this.analyticsCache.set(userId, { data, expiresAt });
+  }
+
+  /**
+   * recupera analytics da cache se non scadute
+   */
+  getCachedAnalytics(userId: string): any | null {
+    const cached = this.analyticsCache.get(userId);
+    
+    if (!cached) return null;
+    
+    if (new Date() > cached.expiresAt) {
+      this.analyticsCache.delete(userId);
+      return null;
     }
+    
+    return cached.data;
   }
 
-  async deleteAllMovies(): Promise<void> {
-    try {
-      await this.movieRepository.clear();
-      this.logger.log('tutti i film eliminati dal database');
-    } catch (error) {
-      this.logger.error(`errore eliminazione film: ${error.message}`);
-      throw error;
+  /**
+   * pulisce cache analytics scadute
+   */
+  cleanExpiredCache() {
+    const now = new Date();
+    for (const [userId, cached] of this.analyticsCache.entries()) {
+      if (now > cached.expiresAt) {
+        this.analyticsCache.delete(userId);
+      }
     }
-  }
-
-  //analytics cache management
-  getCachedAnalytics(key: string): any {
-    const cached = this.analyticsCache.get(key);
-    if (cached && cached.expiresAt > new Date()) {
-      return cached.data;
-    }
-    return null;
-  }
-
-  setCachedAnalytics(key: string, data: any, ttlMinutes: number = 5): void {
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + ttlMinutes);
-    this.analyticsCache.set(key, { data, expiresAt });
-  }
-
-  clearAnalyticsCache(): void {
-    this.analyticsCache.clear();
   }
 }

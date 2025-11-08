@@ -1,5 +1,4 @@
-//file: src/modules/movies/movies.service.ts
-//service principale gestione film con enrichment e batch
+//service principale gestione film con enrichment batch e websocket notifications
 
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,13 +11,14 @@ import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { Movie } from '../../common/interfaces/movie.interface';
 import { v4 as uuidv4 } from 'uuid';
 import { UserMoviesService } from './user-movies.service';
-import { MovieStatus } from '../../database/entities/user-movie.entity';
 
+//interfaccia film fallito durante enrichment
 interface FailedMovie {
   movie: Movie;
   error: string;
 }
 
+//risultato operazione enrichment
 interface EnrichmentResult {
   sessionId: string;
   successfulMovies: Movie[];
@@ -28,6 +28,7 @@ interface EnrichmentResult {
   cacheHits: number;
 }
 
+//risultato batch upload
 interface BatchResult {
   sessionId: string;
   watchlistResult: EnrichmentResult;
@@ -54,6 +55,7 @@ interface BatchResult {
   };
 }
 
+//risultato batch upload con associazione utente
 export interface BatchUploadResult {
   sessionId: string;
   watchlistResult: EnrichmentResult;
@@ -89,6 +91,7 @@ export class MoviesService {
     private readonly userMoviesService: UserMoviesService,
   ) {}
 
+  //verifica stato sistema
   async healthCheck(): Promise<{
     status: string;
     timestamp: string;
@@ -115,6 +118,7 @@ export class MoviesService {
     }
   }
 
+  //inizializza app al primo avvio
   async initializeApp(): Promise<{
     needsSync: boolean;
     message: string;
@@ -132,15 +136,15 @@ export class MoviesService {
 
       //primo avvio: scarica 10k film popolari per autocomplete
       if (movieCount === 0) {
-        this.logger.log('🎬 primo avvio! avvio sync 10.000 film popolari in background...');
+        this.logger.log('primo avvio: avvio sync 10.000 film popolari in background...');
         
         //avvia sync in background senza bloccare
         this.tmdbService.syncPopularMovies(10000)
           .then(result => {
-            this.logger.log(`✅ sync iniziale completato: ${result.synced} film`);
+            this.logger.log(`sync iniziale completato: ${result.synced} film`);
           })
           .catch(error => {
-            this.logger.error(`❌ errore sync iniziale: ${error.message}`);
+            this.logger.error(`errore sync iniziale: ${error.message}`);
           });
         
         return {
@@ -176,6 +180,7 @@ export class MoviesService {
     }
   }
 
+  //arricchisce lista film con dati tmdb usando cache
   async enrichMovies(movies: Movie[]): Promise<EnrichmentResult> {
     const sessionId = uuidv4();
     const successfulMovies: Movie[] = [];
@@ -191,7 +196,7 @@ export class MoviesService {
       const movie = movies[i];
 
       try {
-        //cerca film esistente usando l'ID univoco del film, NON il tmdb_id
+        //cerca film esistente usando id univoco del film non tmdb_id
         const existingMovie = await this.databaseService.findMovieById(movie.id);
 
         if (existingMovie?.is_enriched) {
@@ -200,11 +205,11 @@ export class MoviesService {
           successfulMovies.push(existingMovie);
           cacheHits++;
         } else {
-          //arricchisci il film con tmdb
+          //arricchisci film con tmdb
           const enrichedMovie = await this.tmdbService.enrichMovie(movie);
 
           if (enrichedMovie) {
-            //salva il film arricchito nel database
+            //salva film arricchito nel database
             await this.databaseService.saveMovie(enrichedMovie);
             
             successfulMovies.push(enrichedMovie);
@@ -255,6 +260,7 @@ export class MoviesService {
     };
   }
 
+  //batch upload watchlist e watched
   async batchUpload(
     watchlist: Movie[],
     watched: Movie[],
@@ -322,6 +328,7 @@ export class MoviesService {
     };
   }
 
+  //batch upload con associazione utente completa
   async batchUploadWithUserAssociation(
     userId: string,
     watchlist: Movie[],
@@ -342,7 +349,7 @@ export class MoviesService {
     this.logger.log(`enrichment batch: ${watched.length} film watched`);
     const watchedResult = await this.enrichMovies(watched);
 
-    //step 2: associa TUTTI i film in batch (NON ciclare!)
+    //step 2: associa tutti film in batch
     this.logger.log(`=== ASSOCIAZIONE BATCH ===`);
     
     //associa watchlist come watchlist
@@ -399,32 +406,8 @@ export class MoviesService {
     };
   }
 
+  //recupera film utente con filtro status
   async getUserMovies(userId: string, status?: string): Promise<Movie[]> {
-    try {
-      this.logger.log(`recupero film per user ${userId} (status: ${status || 'all'})`);
-
-      let movieStatus: MovieStatus | undefined;
-      if (status === 'watched') {
-        movieStatus = MovieStatus.WATCHED;
-      } else if (status === 'watchlist') {
-        movieStatus = MovieStatus.WATCHLIST;
-      }
-
-      const userMovies = await this.userMoviesService.getUserMovies(
-        userId,
-        movieStatus,
-      );
-
-      this.logger.log(`trovati ${userMovies.length} film`);
-
-      return userMovies;
-    } catch (error) {
-      this.logger.error(`errore recupero film user: ${error.message}`);
-      throw error;
-    }
-  }
-
-  async getAllMovies(userId: string, status?: string): Promise<Movie[]> {
     try {
       this.logger.log(`recupero film per user ${userId} (status: ${status || 'all'})`);
 
@@ -458,6 +441,7 @@ export class MoviesService {
     }
   }
 
+  //cerca film per titolo
   async searchMovies(query: string): Promise<Movie[]> {
     try {
       const entities = await this.movieRepository
@@ -476,6 +460,7 @@ export class MoviesService {
     }
   }
 
+  //recupera statistiche utente
   async getUserStats(userId: string) {
     try {
       return await this.userMoviesService.getUserMovieStats(userId);
@@ -485,6 +470,7 @@ export class MoviesService {
     }
   }
 
+  //recupera statistiche generali database
   async getStats() {
     try {
       const totalMovies = await this.movieRepository.count();
@@ -501,7 +487,9 @@ export class MoviesService {
         notEnriched: totalMovies - enrichedMovies,
         withTmdbId,
         enrichmentRate:
-          totalMovies > 0 ? (enrichedMovies / totalMovies) * 100 : 0,
+          totalMovies > 0
+            ? (enrichedMovies / totalMovies) * 100
+            : 0,
       };
     } catch (error) {
       this.logger.error(`errore recupero stats: ${error.message}`);
@@ -509,6 +497,7 @@ export class MoviesService {
     }
   }
 
+  //converte entity database in model movie
   private entityToMovie(entity: MovieEntity): Movie {
     return {
       id: entity.id,

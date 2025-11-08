@@ -1,4 +1,4 @@
-// DTO completi per gestione liste personalizzate
+//data transfer objects per gestione liste personalizzate
 
 import {
   IsString,
@@ -12,7 +12,7 @@ import {
 } from 'class-validator';
 
 /**
- * DTO: Creazione nuova lista
+ * dto per creazione nuova lista
  */
 export class CreateListDto {
   @IsUUID()
@@ -47,7 +47,7 @@ export class CreateListDto {
 }
 
 /**
- * DTO: Aggiornamento lista esistente
+ * dto per aggiornamento lista esistente
  */
 export class UpdateListDto {
   @IsOptional()
@@ -80,7 +80,7 @@ export class UpdateListDto {
 }
 
 /**
- * DTO: Aggiunta film a lista
+ * dto per aggiunta film a lista
  */
 export class AddMovieToListDto {
   @IsString()
@@ -88,7 +88,7 @@ export class AddMovieToListDto {
 }
 
 /**
- * DTO: Ricerca film per liste
+ * dto per ricerca film da aggiungere a liste
  */
 export class SearchMovieDto {
   @IsOptional()

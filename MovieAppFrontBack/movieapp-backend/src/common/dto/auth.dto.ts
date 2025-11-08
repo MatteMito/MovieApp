@@ -1,9 +1,9 @@
-// DTO PER AUTENTICAZIONE
+//data transfer objects per autenticazione utente
 
 import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
 
 /**
- * DTO: Registrazione nuovo utente
+ * dto per registrazione nuovo utente
  */
 export class RegisterDto {
   @IsEmail({}, { message: 'email non valida' })
@@ -19,7 +19,7 @@ export class RegisterDto {
 }
 
 /**
- * DTO: Login utente
+ * dto per login utente esistente
  */
 export class LoginDto {
   @IsEmail({}, { message: 'email non valida' })
@@ -31,7 +31,7 @@ export class LoginDto {
 }
 
 /**
- * Response autenticazione con token JWT
+ * response autenticazione con token jwt
  */
 export class AuthResponse {
   access_token: string;

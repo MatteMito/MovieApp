@@ -1,5 +1,4 @@
-// File: src/common/dto/movie.dto.ts
-// AGGIORNATO: rimossi campi utente (ora gestiti da UserMovieEntity)
+//data transfer objects per gestione film
 
 import {
   IsString,
@@ -12,7 +11,7 @@ import {
 } from 'class-validator';
 
 /**
- * DTO per creazione film (SENZA dati utente)
+ * dto per creazione film base
  */
 export class CreateMovieDto {
   @IsString()
@@ -35,13 +34,10 @@ export class CreateMovieDto {
 
   @IsString()
   source: string;
-
-  // ⚠️ RIMOSSI: user_rating, date_rated, is_watched
-  // Ora gestiti in UserMovieDto
 }
 
 /**
- * DTO per aggiornamento film (SENZA dati utente)
+ * dto per aggiornamento film
  */
 export class UpdateMovieDto {
   @IsOptional()
@@ -59,13 +55,11 @@ export class UpdateMovieDto {
   @IsOptional()
   @IsArray()
   genres?: string[];
-
-  // ⚠️ RIMOSSI: user_rating, date_rated, is_watched
 }
 
 /**
- * DTO per enrichment film
- * Include SOLO i dati necessari per identificare e arricchire il film
+ * dto per enrichment film
+ * contiene solo dati necessari per identificare e arricchire film
  */
 export class EnrichMovieDto {
   @IsString()
@@ -80,15 +74,11 @@ export class EnrichMovieDto {
 
   @IsString()
   source: string;
-
-  // ⚠️ RIMOSSI: user_rating, date_rated, is_watched
-  // Per il batch upload, questi verranno gestiti separatamente
 }
 
 /**
- * DTO per batch upload
- * Ora include SOLO i film da arricchire
- * I dati utente vengono gestiti separatamente nel processo
+ * dto per batch upload
+ * include solo film da arricchire
  */
 export class BatchUploadDto {
   @IsArray()
@@ -99,8 +89,8 @@ export class BatchUploadDto {
 }
 
 /**
- * 🆕 DTO per associare film a utente
- * Contiene i dati specifici dell'utente
+ * dto per associare film a utente
+ * contiene dati specifici utente
  */
 export class UserMovieDto {
   @IsString()
@@ -128,8 +118,8 @@ export class UserMovieDto {
 }
 
 /**
- * 🆕 DTO per batch upload con dati utente
- * Versione completa che include sia i film che i dati utente
+ * dto per batch upload con dati utente
+ * versione completa che include sia film che dati utente
  */
 export class BatchUploadWithUserDto {
   @IsString()

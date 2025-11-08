@@ -109,79 +109,40 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
                         source: movie.source,
                     },
                 });
-                if (entity) {
-                    this.logger.log(`film duplicato trovato: ${movie.title} (${movie.year}) - uso id esistente: ${entity.id}`);
-                    movie.id = entity.id;
-                }
             }
             if (entity) {
                 Object.assign(entity, {
-                    title: movie.title,
-                    year: movie.year,
-                    source: movie.source,
-                    tmdb_id: movie.tmdb_id,
-                    is_enriched: movie.is_enriched,
-                    genres: movie.genres,
-                    director: movie.director,
-                    actors: movie.actors,
-                    overview: movie.overview,
-                    tagline: movie.tagline,
-                    runtime: movie.runtime,
-                    poster_url: movie.poster_url,
-                    backdrop_url: movie.backdrop_url,
-                    tmdb_rating: movie.tmdb_rating,
-                    vote_count: movie.vote_count,
-                    popularity: movie.popularity,
-                    budget: movie.budget,
-                    revenue: movie.revenue,
-                    status: movie.status,
-                    production_companies: movie.production_companies,
-                    production_countries: movie.production_countries,
-                    original_language: movie.original_language,
-                    original_title: movie.original_title,
-                    spoken_languages: movie.spoken_languages,
-                    adult: movie.adult,
-                    homepage: movie.homepage,
-                    imdb_id: movie.imdb_id,
-                    keywords: movie.keywords,
-                    certification: movie.certification,
-                    trailer_url: movie.trailer_url,
+                    tmdb_id: movie.tmdb_id || entity.tmdb_id,
+                    genres: movie.genres?.length > 0 ? movie.genres : entity.genres || [],
+                    director: movie.director || entity.director,
+                    actors: movie.actors?.length > 0 ? movie.actors : entity.actors || [],
+                    overview: movie.overview || entity.overview,
+                    tagline: movie.tagline || entity.tagline,
+                    runtime: movie.runtime || entity.runtime,
+                    poster_url: movie.poster_url || entity.poster_url,
+                    backdrop_url: movie.backdrop_url || entity.backdrop_url,
+                    tmdb_rating: movie.tmdb_rating || entity.tmdb_rating,
+                    vote_count: movie.vote_count || entity.vote_count,
+                    popularity: movie.popularity || entity.popularity,
+                    budget: movie.budget || entity.budget,
+                    revenue: movie.revenue || entity.revenue,
+                    status: movie.status || entity.status,
+                    production_companies: movie.production_companies?.length > 0 ? movie.production_companies : entity.production_companies || [],
+                    production_countries: movie.production_countries?.length > 0 ? movie.production_countries : entity.production_countries || [],
+                    original_language: movie.original_language || entity.original_language,
+                    original_title: movie.original_title || entity.original_title,
+                    spoken_languages: movie.spoken_languages?.length > 0 ? movie.spoken_languages : entity.spoken_languages || [],
+                    adult: movie.adult !== undefined ? movie.adult : entity.adult,
+                    homepage: movie.homepage || entity.homepage,
+                    imdb_id: movie.imdb_id || entity.imdb_id,
+                    keywords: movie.keywords?.length > 0 ? movie.keywords : entity.keywords || [],
+                    certification: movie.certification || entity.certification,
+                    trailer_url: movie.trailer_url || entity.trailer_url,
+                    is_enriched: movie.is_enriched || entity.is_enriched,
                 });
             }
             else {
-                entity = this.movieRepository.create({
-                    id: movie.id,
-                    title: movie.title,
-                    year: movie.year,
-                    source: movie.source,
-                    tmdb_id: movie.tmdb_id,
-                    is_enriched: movie.is_enriched || false,
-                    genres: movie.genres || [],
-                    director: movie.director,
-                    actors: movie.actors || [],
-                    overview: movie.overview,
-                    tagline: movie.tagline,
-                    runtime: movie.runtime,
-                    poster_url: movie.poster_url,
-                    backdrop_url: movie.backdrop_url,
-                    tmdb_rating: movie.tmdb_rating,
-                    vote_count: movie.vote_count,
-                    popularity: movie.popularity,
-                    budget: movie.budget,
-                    revenue: movie.revenue,
-                    status: movie.status,
-                    production_companies: movie.production_companies || [],
-                    production_countries: movie.production_countries || [],
-                    original_language: movie.original_language,
-                    original_title: movie.original_title,
-                    spoken_languages: movie.spoken_languages || [],
-                    adult: movie.adult,
-                    homepage: movie.homepage,
-                    imdb_id: movie.imdb_id,
-                    keywords: movie.keywords || [],
-                    certification: movie.certification,
-                    trailer_url: movie.trailer_url,
-                });
+                entity = this.movieToEntity(movie);
             }
             return await this.movieRepository.save(entity);
         }
@@ -253,6 +214,24 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
             throw error;
         }
     }
+    async searchMoviesForAutocomplete(query, limit = 10) {
+        try {
+            const entities = await this.movieRepository.find({
+                where: {
+                    title: (0, typeorm_2.ILike)(`%${query}%`),
+                },
+                order: {
+                    popularity: 'DESC',
+                },
+                take: limit,
+            });
+            return entities.map((entity) => this.entityToMovie(entity));
+        }
+        catch (error) {
+            this.logger.error(`errore ricerca autocomplete: ${error.message}`);
+            return [];
+        }
+    }
     async getStats() {
         try {
             const totalMovies = await this.movieRepository.count();
@@ -268,60 +247,39 @@ let DatabaseService = DatabaseService_1 = class DatabaseService {
                 notEnriched: totalMovies - enrichedMovies,
                 withTmdbId,
                 enrichmentRate: totalMovies > 0
-                    ? Math.round((enrichedMovies / totalMovies) * 100)
-                    : 0,
+                    ? ((enrichedMovies / totalMovies) * 100).toFixed(2) + '%'
+                    : '0%',
             };
         }
         catch (error) {
-            this.logger.error(`errore stats: ${error.message}`);
+            this.logger.error(`errore recupero stats: ${error.message}`);
             throw error;
         }
     }
     async getSyncStats() {
         return this.getStats();
     }
-    async searchMoviesForAutocomplete(query, limit = 10) {
-        try {
-            const entities = await this.movieRepository
-                .createQueryBuilder('movie')
-                .where('LOWER(movie.title) LIKE LOWER(:query)', {
-                query: `%${query}%`,
-            })
-                .orderBy('movie.popularity', 'DESC', 'NULLS LAST')
-                .addOrderBy('movie.title', 'ASC')
-                .limit(limit)
-                .getMany();
-            return entities.map((entity) => this.entityToMovie(entity));
-        }
-        catch (error) {
-            this.logger.error(`errore autocomplete search: ${error.message}`);
-            return [];
-        }
+    setCachedAnalytics(userId, data, expiresInMinutes = 30) {
+        const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
+        this.analyticsCache.set(userId, { data, expiresAt });
     }
-    async deleteAllMovies() {
-        try {
-            await this.movieRepository.clear();
-            this.logger.log('tutti i film eliminati dal database');
+    getCachedAnalytics(userId) {
+        const cached = this.analyticsCache.get(userId);
+        if (!cached)
+            return null;
+        if (new Date() > cached.expiresAt) {
+            this.analyticsCache.delete(userId);
+            return null;
         }
-        catch (error) {
-            this.logger.error(`errore eliminazione film: ${error.message}`);
-            throw error;
+        return cached.data;
+    }
+    cleanExpiredCache() {
+        const now = new Date();
+        for (const [userId, cached] of this.analyticsCache.entries()) {
+            if (now > cached.expiresAt) {
+                this.analyticsCache.delete(userId);
+            }
         }
-    }
-    getCachedAnalytics(key) {
-        const cached = this.analyticsCache.get(key);
-        if (cached && cached.expiresAt > new Date()) {
-            return cached.data;
-        }
-        return null;
-    }
-    setCachedAnalytics(key, data, ttlMinutes = 5) {
-        const expiresAt = new Date();
-        expiresAt.setMinutes(expiresAt.getMinutes() + ttlMinutes);
-        this.analyticsCache.set(key, { data, expiresAt });
-    }
-    clearAnalyticsCache() {
-        this.analyticsCache.clear();
     }
 };
 exports.DatabaseService = DatabaseService;

@@ -56,7 +56,7 @@ let TmdbController = TmdbController_1 = class TmdbController {
     async syncPopularMovies(body) {
         try {
             const limit = body.limit || 10000;
-            this.logger.log(`avvio sync ${limit} film popolari...`);
+            this.logger.log(`avvio sync ${limit} film popolari da tmdb...`);
             const result = await this.tmdbService.syncPopularMovies(limit);
             return {
                 success: true,
@@ -67,7 +67,11 @@ let TmdbController = TmdbController_1 = class TmdbController {
         }
         catch (error) {
             this.logger.error(`errore sync: ${error.message}`);
-            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new common_1.HttpException({
+                success: false,
+                message: error.message,
+                timestamp: new Date().toISOString()
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
     async getStats() {
@@ -82,7 +86,11 @@ let TmdbController = TmdbController_1 = class TmdbController {
         }
         catch (error) {
             this.logger.error(`errore stats: ${error.message}`);
-            throw new common_1.HttpException({ success: false, message: error.message, timestamp: new Date().toISOString() }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new common_1.HttpException({
+                success: false,
+                message: error.message,
+                timestamp: new Date().toISOString()
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 };

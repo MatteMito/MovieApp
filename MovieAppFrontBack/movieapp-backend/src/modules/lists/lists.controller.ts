@@ -1,5 +1,5 @@
-// file: src/modules/lists/lists.controller.ts
-// controller con endpoint copia lista
+// controller per gestione liste condivise
+// endpoint per crud liste, gestione film, follow/unfollow, copia
 
 import {
   Controller,
@@ -10,12 +10,9 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
-  Request,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ListsService } from './lists.service';
 import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dto/list.dto';
 
@@ -23,11 +20,12 @@ import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dt
 export class ListsController {
   constructor(private readonly listsService: ListsService) {}
 
-  // ===== ENDPOINT PUBBLICI (SENZA AUTH) =====
+  // ===== endpoint pubblici (senza autenticazione) =====
 
   /**
-   * GET /api/v1/lists/public
-   * ottieni tutte le liste pubbliche (senza autenticazione)
+   * endpoint: GET /api/v1/lists/public
+   * ottieni tutte le liste pubbliche
+   * accessibile senza autenticazione
    */
   @Get('public')
   async getPublicLists(
@@ -40,10 +38,10 @@ export class ListsController {
     return this.listsService.getPublicLists({ search, sortBy });
   }
 
-  // ===== ENDPOINT AUTENTICATI =====
+  // ===== endpoint autenticati =====
 
   /**
-   * GET /api/v1/lists/my
+   * endpoint: GET /api/v1/lists/my
    * ottieni tutte le liste dell'utente autenticato
    */
   @Get('my')
@@ -55,8 +53,8 @@ export class ListsController {
   }
 
   /**
-   * GET /api/v1/lists/:id
-   * ottieni dettagli lista specifica (con film)
+   * endpoint: GET /api/v1/lists/:id
+   * ottieni dettagli lista specifica con film popolati
    */
   @Get(':id')
   async getListById(@Param('id') id: string, @Query('userId') userId?: string) {
@@ -64,8 +62,9 @@ export class ListsController {
   }
 
   /**
-   * POST /api/v1/lists
+   * endpoint: POST /api/v1/lists
    * crea nuova lista
+   * body: { user_id, name, description?, is_public?, movie_ids? }
    */
   @Post()
   async createList(@Body() createListDto: CreateListDto) {
@@ -77,8 +76,9 @@ export class ListsController {
   }
 
   /**
-   * PUT /api/v1/lists/:id
-   * aggiorna lista esistente
+   * endpoint: PUT /api/v1/lists/:id
+   * aggiorna lista esistente (solo proprietario)
+   * body: { name?, description?, is_public? }
    */
   @Put(':id')
   async updateList(
@@ -93,8 +93,8 @@ export class ListsController {
   }
 
   /**
-   * DELETE /api/v1/lists/:id
-   * elimina lista
+   * endpoint: DELETE /api/v1/lists/:id
+   * elimina lista (solo proprietario)
    */
   @Delete(':id')
   async deleteList(@Param('id') id: string, @Query('userId') userId?: string) {
@@ -104,11 +104,12 @@ export class ListsController {
     return this.listsService.deleteList(id, userId);
   }
 
-  // ===== GESTIONE FILM NELLE LISTE =====
+  // ===== gestione film nelle liste =====
 
   /**
-   * POST /api/v1/lists/:id/movies
+   * endpoint: POST /api/v1/lists/:id/movies
    * aggiungi film a lista
+   * body: { movie_id }
    */
   @Post(':id/movies')
   async addMovieToList(
@@ -123,7 +124,7 @@ export class ListsController {
   }
 
   /**
-   * DELETE /api/v1/lists/:id/movies/:movieId
+   * endpoint: DELETE /api/v1/lists/:id/movies/:movieId
    * rimuovi film da lista
    */
   @Delete(':id/movies/:movieId')
@@ -138,11 +139,12 @@ export class ListsController {
     return this.listsService.removeMovieFromList(listId, userId, movieId);
   }
 
-  // ===== SOCIAL FEATURES =====
+  // ===== social features =====
 
   /**
-   * POST /api/v1/lists/:id/follow
+   * endpoint: POST /api/v1/lists/:id/follow
    * segui una lista pubblica
+   * body: { userId }
    */
   @Post(':id/follow')
   async followList(
@@ -157,7 +159,7 @@ export class ListsController {
   }
 
   /**
-   * DELETE /api/v1/lists/:id/follow
+   * endpoint: DELETE /api/v1/lists/:id/follow
    * smetti di seguire una lista
    */
   @Delete(':id/follow')
@@ -172,8 +174,8 @@ export class ListsController {
   }
 
   /**
-   * GET /api/v1/lists/:id/followers
-   * ottieni followers di una lista
+   * endpoint: GET /api/v1/lists/:id/followers
+   * ottieni lista follower di una lista pubblica
    */
   @Get(':id/followers')
   async getListFollowers(@Param('id') listId: string) {
@@ -181,8 +183,10 @@ export class ListsController {
   }
 
   /**
-   * POST /api/v1/lists/:id/copy
+   * endpoint: POST /api/v1/lists/:id/copy
    * copia una lista pubblica e rendila privata
+   * utile per usare liste altrui come template
+   * body: { userId, newName? }
    */
   @Post(':id/copy')
   async copyList(

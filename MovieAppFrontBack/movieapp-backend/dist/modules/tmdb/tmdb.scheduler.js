@@ -23,60 +23,60 @@ let TmdbScheduler = TmdbScheduler_1 = class TmdbScheduler {
         this.enableAutoSync =
             this.configService.get('ENABLE_AUTO_SYNC') === 'true';
         if (this.enableAutoSync) {
-            this.logger.log('✅ auto sync tmdb abilitato');
+            this.logger.log('auto sync tmdb abilitato');
         }
         else {
-            this.logger.log('⚠️ auto sync tmdb disabilitato (abilita con ENABLE_AUTO_SYNC=true)');
+            this.logger.log('auto sync tmdb disabilitato (abilita con ENABLE_AUTO_SYNC=true)');
         }
     }
     async syncPopularMoviesFull() {
         if (!this.enableAutoSync) {
             return;
         }
-        this.logger.log('🔄 avvio sync completo mensile (10.000 film)');
+        this.logger.log('avvio sync completo mensile (10.000 film)');
         try {
             const result = await this.tmdbService.syncPopularMovies(10000);
-            this.logger.log('✅ sync completo completato:');
+            this.logger.log('sync completo completato:');
             this.logger.log(`   sincronizzati: ${result.synced}`);
             this.logger.log(`   errori: ${result.errors}`);
         }
         catch (error) {
-            this.logger.error(`❌ errore sync completo: ${error.message}`);
+            this.logger.error(`errore sync completo: ${error.message}`);
         }
     }
     async syncPopularMoviesIncremental() {
         if (!this.enableAutoSync) {
             return;
         }
-        this.logger.log('🔄 avvio sync incrementale settimanale (500 film)');
+        this.logger.log('avvio sync incrementale settimanale (500 film)');
         try {
             const result = await this.tmdbService.syncPopularMovies(500);
-            this.logger.log('✅ sync incrementale completato:');
+            this.logger.log('sync incrementale completato:');
             this.logger.log(`   sincronizzati: ${result.synced}`);
             this.logger.log(`   errori: ${result.errors}`);
         }
         catch (error) {
-            this.logger.error(`❌ errore sync incrementale: ${error.message}`);
+            this.logger.error(`errore sync incrementale: ${error.message}`);
         }
     }
     async cleanupUnusedMovies() {
         if (!this.enableAutoSync) {
             return;
         }
-        this.logger.log('🧹 avvio pulizia film non usati');
-        this.logger.log('⚠️ pulizia non ancora implementata');
+        this.logger.log('avvio pulizia film non usati');
+        this.logger.log('pulizia non ancora implementata');
     }
     async testSync() {
-        this.logger.log('🧪 test sync manuale (10 film)');
+        this.logger.log('test sync manuale (10 film)');
         try {
             const result = await this.tmdbService.syncPopularMovies(10);
-            this.logger.log('✅ test sync completato:');
+            this.logger.log('test sync completato:');
             this.logger.log(`   sincronizzati: ${result.synced}`);
             this.logger.log(`   errori: ${result.errors}`);
             return result;
         }
         catch (error) {
-            this.logger.error(`❌ errore test sync: ${error.message}`);
+            this.logger.error(`errore test sync: ${error.message}`);
             throw error;
         }
     }

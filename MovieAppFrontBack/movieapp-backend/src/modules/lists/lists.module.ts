@@ -1,3 +1,6 @@
+// modulo gestione liste condivise tra utenti
+// supporta liste pubbliche/private, follower, aggiunta/rimozione film
+
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ListsController } from './lists.controller';
@@ -8,14 +11,18 @@ import { UserEntity } from '../../database/entities/user.entity';
 
 @Module({
   imports: [
+    // registra entita per accesso database
     TypeOrmModule.forFeature([
       MovieListEntity,
       MovieEntity,
       UserEntity,
     ]),
   ],
+  
   controllers: [ListsController],
+  
   providers: [ListsService],
+  
   exports: [ListsService],
 })
 export class ListsModule {}

@@ -1,5 +1,5 @@
-//file: src/modules/movies/user-movies.service.ts
-//service gestione associazioni user-film con gestione duplicati e priorità watched
+// service gestione associazioni utente-film
+// gestisce watched/watchlist, rating personali, deduplicazione
 
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,6 +11,7 @@ import {
 import { MovieEntity } from '../../database/entities/movie.entity';
 import { Movie } from '../../common/interfaces/movie.interface';
 
+// interfaccia statistiche utente
 export interface UserMovieStats {
   userId: string;
   totalMovies: number;
@@ -22,6 +23,7 @@ export interface UserMovieStats {
   total: number;
 }
 
+// interfaccia contatori import
 export interface ImportCounters {
   watchedFromFile: number;
   watchlistFromFile: number;
@@ -34,12 +36,22 @@ export class UserMoviesService {
   private readonly logger = new Logger(UserMoviesService.name);
 
   constructor(
+    // repository per tabella user_movies (relazione many-to-many)
     @InjectRepository(UserMovieEntity)
     private readonly userMovieRepository: Repository<UserMovieEntity>,
+    
+    // repository per tabella movies (per verificare esistenza film)
     @InjectRepository(MovieEntity)
     private readonly movieRepository: Repository<MovieEntity>,
   ) {}
 
+  /**
+   * associa batch di film a utente con status specifico
+   * gestisce deduplicazione intelligente:
+   * - se film gia esiste come watched, non sovrascrive con watchlist
+   * - se film gia esiste come watchlist, aggiorna a watched se richiesto
+   * - evita duplicati nella stessa categoria
+   */
   async associateMoviesToUser(
     userId: string,
     movies: Movie[],
@@ -48,61 +60,82 @@ export class UserMoviesService {
     try {
       this.logger.log(`associazione ${movies.length} film (${status}) a user ${userId}`);
 
-      const movieStatus = status === 'watched' ? MovieStatus.WATCHED : MovieStatus.WATCHLIST;
+      // converti status stringa a enum moviestatus
+      const movieStatus = status === 'watched' 
+        ? MovieStatus.WATCHED 
+        : MovieStatus.WATCHLIST;
 
       let created = 0;
       let updated = 0;
       let skipped = 0;
 
-      //usa batch upsert per evitare duplicati
+      // processa ogni film uno per uno per gestire deduplicazione
       for (const movie of movies) {
         try {
-          //verifica che il film esista nella tabella movies
-          const movieExists = await this.movieRepository.findOne({
+          // verifica che film esista nel database
+          const movieEntity = await this.movieRepository.findOne({
             where: { id: movie.id },
           });
 
-          if (!movieExists) {
-            this.logger.warn(`film ${movie.title} (${movie.id}) non trovato in tabella movies, skip`);
+          if (!movieEntity) {
+            this.logger.warn(`film ${movie.title} non trovato nel database, skip`);
             skipped++;
             continue;
           }
 
-          //cerca se esiste gia l'associazione
-          const existing = await this.userMovieRepository.findOne({
-            where: { userId, movieId: movie.id },
+          // cerca associazione esistente per questo utente e film
+          const existingUserMovie = await this.userMovieRepository.findOne({
+            where: {
+              userId,
+              movieId: movie.id,
+            },
           });
 
-          if (existing) {
-            //priorità: watched ha sempre la precedenza su watchlist
-            //se il film è già watched, non cambiare lo stato anche se arriva come watchlist
-            if (existing.status === MovieStatus.WATCHED && movieStatus === MovieStatus.WATCHLIST) {
-              this.logger.debug(`film ${movie.title} già WATCHED, skip aggiornamento a WATCHLIST`);
+          if (existingUserMovie) {
+            // associazione esiste gia
+            
+            // priorita watched: se film gia watched, non cambiare a watchlist
+            if (
+              existingUserMovie.status === MovieStatus.WATCHED &&
+              movieStatus === MovieStatus.WATCHLIST
+            ) {
+              this.logger.debug(`film ${movie.title} gia watched, skip watchlist`);
               skipped++;
               continue;
             }
 
-            //altrimenti aggiorna se status diverso
-            if (existing.status !== movieStatus) {
-              existing.status = movieStatus;
-              existing.userRating = movie.user_rating || existing.userRating;
-              existing.watchedDate = movie.watched_date 
-                ? new Date(movie.watched_date) 
-                : existing.watchedDate;
-              await this.userMovieRepository.save(existing);
+            // aggiorna status se diverso (es: da watchlist a watched)
+            if (existingUserMovie.status !== movieStatus) {
+              existingUserMovie.status = movieStatus;
+              
+              // aggiorna rating e data se forniti
+              if (movie.user_rating) {
+                existingUserMovie.userRating = movie.user_rating;
+              }
+              if (movie.watched_date) {
+                existingUserMovie.watchedDate = new Date(movie.watched_date);
+              }
+
+              await this.userMovieRepository.save(existingUserMovie);
               updated++;
-              this.logger.debug(`aggiornato ${movie.title} da ${existing.status} a ${movieStatus}`);
+
+              if (updated <= 5) {
+                this.logger.debug(`aggiornato: ${movie.title} (${movieStatus})`);
+              }
             } else {
+              // stesso status, skip
               skipped++;
             }
           } else {
-            //crea nuova associazione
+            // crea nuova associazione
             const userMovie = this.userMovieRepository.create({
               userId,
               movieId: movie.id,
               status: movieStatus,
-              userRating: movie.user_rating,
-              watchedDate: movie.watched_date ? new Date(movie.watched_date) : null,
+              userRating: movie.user_rating || null,
+              watchedDate: movie.watched_date 
+                ? new Date(movie.watched_date) 
+                : null,
             });
 
             await this.userMovieRepository.save(userMovie);
@@ -118,6 +151,7 @@ export class UserMoviesService {
         }
       }
 
+      // log riepilogo operazioni
       this.logger.log(`associazione completata:`);
       this.logger.log(`  creati: ${created}`);
       this.logger.log(`  aggiornati: ${updated}`);
@@ -129,15 +163,22 @@ export class UserMoviesService {
     }
   }
 
+  /**
+   * ottieni statistiche film utente
+   * conteggi watched, watchlist, rating medio
+   */
   async getUserMovieStats(userId: string): Promise<UserMovieStats> {
     try {
+      // recupera tutte le associazioni utente
       const allMovies = await this.userMovieRepository.find({
         where: { userId },
       });
 
+      // conta per status
       const watched = allMovies.filter(m => m.status === MovieStatus.WATCHED).length;
       const watchlist = allMovies.filter(m => m.status === MovieStatus.WATCHLIST).length;
 
+      // calcola rating medio considerando solo film con rating
       const ratingsSum = allMovies
         .filter(m => m.userRating !== null && m.userRating !== undefined)
         .reduce((sum, m) => sum + (m.userRating || 0), 0);
@@ -150,7 +191,7 @@ export class UserMoviesService {
         totalMovies: allMovies.length,
         watchedCount: watched,
         watchlistCount: watchlist,
-        averageRating: Math.round(averageRating * 10) / 10,
+        averageRating: Math.round(averageRating * 10) / 10, // arrotonda a 1 decimale
         watched,
         watchlist,
         total: allMovies.length,
@@ -161,27 +202,36 @@ export class UserMoviesService {
     }
   }
 
+  /**
+   * recupera tutti i film di un utente
+   * opzionalmente filtra per status (watched o watchlist)
+   */
   async getUserMovies(
     userId: string,
     status?: 'watched' | 'watchlist',
   ): Promise<Movie[]> {
     try {
+      // costruisci query con join su tabella movies
       const queryBuilder = this.userMovieRepository
         .createQueryBuilder('userMovie')
         .leftJoinAndSelect('userMovie.movie', 'movie')
         .where('userMovie.userId = :userId', { userId });
 
+      // filtra per status se fornito
       if (status) {
-        const movieStatus = status === 'watched' ? MovieStatus.WATCHED : MovieStatus.WATCHLIST;
+        const movieStatus = status === 'watched' 
+          ? MovieStatus.WATCHED 
+          : MovieStatus.WATCHLIST;
         queryBuilder.andWhere('userMovie.status = :status', { status: movieStatus });
       }
 
       const userMovies = await queryBuilder.getMany();
 
+      // mappa a oggetti movie includendo dati utente
       return userMovies.map(um => ({
-        ...um.movie,
-        user_rating: um.userRating,
-        watched_date: um.watchedDate?.toISOString(),
+        ...um.movie, // dati film dal database
+        user_rating: um.userRating, // rating personale
+        watched_date: um.watchedDate?.toISOString(), // data visione
         status: um.status === MovieStatus.WATCHED ? 'watched' : 'watchlist',
       }));
     } catch (error) {

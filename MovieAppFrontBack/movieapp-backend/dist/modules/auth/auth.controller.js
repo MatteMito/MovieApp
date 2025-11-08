@@ -23,7 +23,7 @@ let AuthController = AuthController_1 = class AuthController {
     }
     async register(dto) {
         try {
-            this.logger.log(`📝 richiesta registrazione: ${dto.email}`);
+            this.logger.log(`richiesta registrazione: ${dto.email}`);
             if (!dto.email || !dto.password) {
                 throw new common_1.HttpException({
                     success: false,
@@ -39,7 +39,7 @@ let AuthController = AuthController_1 = class AuthController {
                 }, common_1.HttpStatus.BAD_REQUEST);
             }
             const result = await this.authService.register(dto);
-            this.logger.log(`✅ registrazione completata: ${dto.email}`);
+            this.logger.log(`registrazione completata: ${dto.email}`);
             return {
                 success: true,
                 data: result,
@@ -48,7 +48,7 @@ let AuthController = AuthController_1 = class AuthController {
             };
         }
         catch (error) {
-            this.logger.error(`❌ errore registrazione: ${error.message}`);
+            this.logger.error(`errore registrazione: ${error.message}`);
             if (error instanceof common_1.HttpException) {
                 throw error;
             }
@@ -61,7 +61,7 @@ let AuthController = AuthController_1 = class AuthController {
     }
     async login(dto) {
         try {
-            this.logger.log(`🔐 richiesta login: ${dto.email}`);
+            this.logger.log(`richiesta login: ${dto.email}`);
             if (!dto.email || !dto.password) {
                 throw new common_1.HttpException({
                     success: false,
@@ -70,7 +70,7 @@ let AuthController = AuthController_1 = class AuthController {
                 }, common_1.HttpStatus.BAD_REQUEST);
             }
             const result = await this.authService.login(dto);
-            this.logger.log(`✅ login completato: ${dto.email}`);
+            this.logger.log(`login completato: ${dto.email}`);
             return {
                 success: true,
                 data: result,
@@ -79,15 +79,15 @@ let AuthController = AuthController_1 = class AuthController {
             };
         }
         catch (error) {
-            this.logger.error(`❌ errore login: ${error.message}`);
+            this.logger.error(`errore login: ${error.message}`);
             if (error instanceof common_1.HttpException) {
                 throw error;
             }
             throw new common_1.HttpException({
                 success: false,
-                message: error.message || 'credenziali non valide',
+                message: error.message || 'errore login',
                 timestamp: new Date().toISOString(),
-            }, common_1.HttpStatus.UNAUTHORIZED);
+            }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 };

@@ -1,14 +1,18 @@
-//file: src/common/interfaces/movie.interface.ts
+//interfacce typescript per entita film e risposte tmdb api
 
+//interfaccia principale per film dell'applicazione
 export interface Movie {
+  //identificatori
   id: string;
   title: string;
   year?: number;
   source: string;
 
+  //dati tmdb
   tmdb_id?: number;
   is_enriched?: boolean;
 
+  //metadata base
   genres?: string[];
   director?: string;
   actors?: string[];
@@ -16,13 +20,16 @@ export interface Movie {
   tagline?: string;
   runtime?: number;
 
+  //immagini
   poster_url?: string;
   backdrop_url?: string;
 
+  //rating e popolarita
   tmdb_rating?: number;
   vote_count?: number;
   popularity?: number;
 
+  //produzione
   budget?: number;
   revenue?: number;
   status?: string;
@@ -30,10 +37,12 @@ export interface Movie {
   production_companies?: string[];
   production_countries?: string[];
 
+  //lingue
   original_language?: string;
   original_title?: string;
   spoken_languages?: string[];
 
+  //metadata extra
   adult?: boolean;
   homepage?: string;
   imdb_id?: string;
@@ -41,16 +50,19 @@ export interface Movie {
   certification?: string;
   trailer_url?: string;
 
+  //dati utente
   user_rating?: number;
   watched_date?: Date | string;
   user_review?: string;
   is_favorite?: boolean;
   is_watched?: boolean;
 
+  //timestamp
   created_at?: Date;
   updated_at?: Date;
 }
 
+//risposta ricerca tmdb
 export interface TmdbSearchResponse {
   page: number;
   results: TmdbMovie[];
@@ -58,6 +70,7 @@ export interface TmdbSearchResponse {
   total_results: number;
 }
 
+//film base da ricerca tmdb
 export interface TmdbMovie {
   id: number;
   title: string;
@@ -73,7 +86,9 @@ export interface TmdbMovie {
   genre_ids: number[];
 }
 
+//dettagli completi film da tmdb
 export interface TmdbMovieDetails {
+  //dati base
   id: number;
   title: string;
   original_title: string;
@@ -84,21 +99,29 @@ export interface TmdbMovieDetails {
   budget: number;
   revenue: number;
   status: string;
+
+  //immagini
   poster_path: string | null;
   backdrop_path: string | null;
+
+  //rating e popolarita
   vote_average: number;
   vote_count: number;
   popularity: number;
+
+  //metadata
   adult: boolean;
   homepage: string;
   imdb_id: string;
   original_language: string;
 
+  //generi
   genres: Array<{
     id: number;
     name: string;
   }>;
 
+  //compagnie produzione
   production_companies: Array<{
     id: number;
     name: string;
@@ -106,17 +129,20 @@ export interface TmdbMovieDetails {
     origin_country: string;
   }>;
 
+  //paesi produzione
   production_countries: Array<{
     iso_3166_1: string;
     name: string;
   }>;
 
+  //lingue parlate
   spoken_languages: Array<{
     english_name: string;
     iso_639_1: string;
     name: string;
   }>;
 
+  //cast e crew
   credits?: {
     cast: Array<{
       id: number;
@@ -132,6 +158,7 @@ export interface TmdbMovieDetails {
     }>;
   };
 
+  //parole chiave
   keywords?: {
     keywords: Array<{
       id: number;
@@ -139,6 +166,7 @@ export interface TmdbMovieDetails {
     }>;
   };
 
+  //video e trailer
   videos?: {
     results: Array<{
       id: string;
@@ -150,15 +178,21 @@ export interface TmdbMovieDetails {
     }>;
   };
 
+  //classificazioni per paese
   releases?: {
     countries: Array<{
       iso_3166_1: string;
-      certification: string;
-      release_date: string;
+      release_dates: Array<{
+        certification: string;
+        iso_639_1: string;
+        release_date: string;
+        type: number;
+      }>;
     }>;
   };
 }
 
+//risposta find tmdb (cerca per id esterno)
 export interface TmdbFindResponse {
   movie_results: TmdbMovie[];
   person_results: any[];

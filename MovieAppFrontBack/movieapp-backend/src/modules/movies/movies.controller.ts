@@ -1,11 +1,10 @@
-//file: src/modules/movies/movies.controller.ts
-//controller api rest per gestione film con endpoint initialize
+// controller rest api completo per gestione film
+// endpoint: health, initialize, enrich, batch, crud, stats
 
 import {
   Controller,
   Get,
   Post,
-  Delete,
   Body,
   Param,
   Query,
@@ -17,7 +16,7 @@ import {
 import { MoviesService } from './movies.service';
 import { Movie } from '../../common/interfaces/movie.interface';
 
-//response wrapper standardizzato
+// response wrapper standardizzato
 interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -32,17 +31,16 @@ export class MoviesController {
 
   constructor(private readonly moviesService: MoviesService) {}
 
-  //health & status
+  // ===== health & status =====
 
   /**
-   * get /api/v1/movies/health
-   * health check endpoint
+   * endpoint: GET /api/v1/movies/health
+   * verifica stato sistema (database connesso, conteggio film)
    */
   @Get('health')
   async healthCheck(): Promise<ApiResponse> {
     try {
       this.logger.log('health check richiesto');
-
       const health = await this.moviesService.healthCheck();
 
       return {
@@ -53,7 +51,6 @@ export class MoviesController {
       };
     } catch (error) {
       this.logger.error(`errore health check: ${error.message}`);
-
       return {
         success: false,
         message: 'sistema degradato',
@@ -64,14 +61,13 @@ export class MoviesController {
   }
 
   /**
-   * get /api/v1/movies/cache/stats
-   * statistiche cache e database
+   * endpoint: GET /api/v1/movies/cache/stats
+   * statistiche database: film totali, arricchiti, percentuale
    */
   @Get('cache/stats')
   async getCacheStats(): Promise<ApiResponse> {
     try {
       this.logger.log('statistiche cache richieste');
-
       const stats = await this.moviesService.getStats();
 
       return {
@@ -82,7 +78,6 @@ export class MoviesController {
       };
     } catch (error) {
       this.logger.error(`errore statistiche: ${error.message}`);
-
       throw new HttpException(
         {
           success: false,
@@ -95,14 +90,14 @@ export class MoviesController {
   }
 
   /**
-   * get /api/v1/movies/initialize
-   * inizializza app al primo avvio: controlla se database vuoto e carica film popolari
+   * endpoint: GET /api/v1/movies/initialize
+   * inizializza app al primo avvio
+   * se database vuoto, scarica 10k film popolari tmdb per autocomplete
    */
   @Get('initialize')
   async initializeApp(@Headers('x-user-id') userId?: string): Promise<ApiResponse> {
     try {
       this.logger.log('richiesta inizializzazione app');
-
       const result = await this.moviesService.initializeApp();
 
       return {
@@ -115,7 +110,6 @@ export class MoviesController {
       };
     } catch (error) {
       this.logger.error(`errore inizializzazione: ${error.message}`);
-
       throw new HttpException(
         {
           success: false,
@@ -127,12 +121,13 @@ export class MoviesController {
     }
   }
 
-  //enrichment endpoints
+  // ===== enrichment endpoints =====
 
   /**
-   * post /api/v1/movies/enrich
-   * arricchisce film con dati tmdb
-   * usa cache intelligente e flag is_enriched
+   * endpoint: POST /api/v1/movies/enrich
+   * arricchisce film con dati tmdb (poster, generi, cast, crew)
+   * usa cache intelligente: se film gia arricchito, skip api call
+   * invia notifiche websocket per progress bar real-time
    */
   @Post('enrich')
   async enrichMovies(@Body() body: { movies: Movie[] }): Promise<ApiResponse> {
@@ -151,12 +146,9 @@ export class MoviesController {
       }
 
       const result = await this.moviesService.enrichMovies(body.movies);
-
       const enrichedCount = result.successfulMovies.filter((m) => m.tmdb_id).length;
 
-      this.logger.log(
-        `enrichment completato: ${enrichedCount}/${body.movies.length} film`,
-      );
+      this.logger.log(`enrichment completato: ${enrichedCount}/${body.movies.length} film`);
 
       return {
         success: true,
@@ -166,7 +158,6 @@ export class MoviesController {
       };
     } catch (error) {
       this.logger.error(`errore enrichment: ${error.message}`);
-
       throw new HttpException(
         {
           success: false,
@@ -179,8 +170,12 @@ export class MoviesController {
   }
 
   /**
-   * post /api/v1/movies/batch
-   * batch upload watchlist + watched con auto-enrichment e associazione utente
+   * endpoint: POST /api/v1/movies/batch
+   * batch upload completo: watchlist + watched
+   * 1. arricchisce tutti i film con tmdb
+   * 2. associa film a utente con status corretto
+   * 3. gestisce deduplicazione (priorita watched > watchlist)
+   * body: { watchlist: Movie[], watched: Movie[], userId: string }
    */
   @Post('batch')
   async batchUpload(
@@ -188,7 +183,7 @@ export class MoviesController {
     @Headers('user-id') headerUserId?: string,
   ): Promise<ApiResponse> {
     try {
-      //prendi userid dal body o dall'header
+      // userid da body o header
       const userId = body.userId || headerUserId;
 
       if (!userId) {
@@ -212,10 +207,7 @@ export class MoviesController {
         body.watched,
       );
 
-      this.logger.log(
-        `batch upload completato: ${result.summary.totalEnriched} film arricchiti`,
-      );
-      
+      this.logger.log(`batch upload completato: ${result.summary.totalEnriched} film arricchiti`);
       this.logger.log(
         `contatori: ${result.importCounters.watchedFromFile} watched e ${result.importCounters.watchlistFromFile} watchlist nel file`,
       );
@@ -242,7 +234,6 @@ export class MoviesController {
       };
     } catch (error) {
       this.logger.error(`errore batch upload: ${error.message}`);
-
       throw new HttpException(
         {
           success: false,
@@ -254,11 +245,12 @@ export class MoviesController {
     }
   }
 
-  //gestione film
+  // ===== gestione film utente =====
 
   /**
-   * get /api/v1/movies/user/:userId
-   * recupera tutti i film di un utente specifico
+   * endpoint: GET /api/v1/movies/user/:userId
+   * recupera tutti i film di un utente
+   * query param status: filtra per 'watched' o 'watchlist'
    */
   @Get('user/:userId')
   async getUserMovies(
@@ -267,8 +259,7 @@ export class MoviesController {
   ): Promise<ApiResponse> {
     try {
       this.logger.log(`richiesta film per user ${userId} (status: ${status || 'all'})`);
-
-      const movies = await this.moviesService.getAllMovies(userId, status);
+      const movies = await this.moviesService.getUserMovies(userId, status);
 
       return {
         success: true,
@@ -278,7 +269,6 @@ export class MoviesController {
       };
     } catch (error) {
       this.logger.error(`errore recupero film: ${error.message}`);
-
       throw new HttpException(
         {
           success: false,
@@ -291,14 +281,13 @@ export class MoviesController {
   }
 
   /**
-   * get /api/v1/movies/user/:userId/stats
-   * statistiche film utente
+   * endpoint: GET /api/v1/movies/user/:userId/stats
+   * statistiche utente: watched count, watchlist count, rating medio
    */
   @Get('user/:userId/stats')
   async getUserStats(@Param('userId') userId: string): Promise<ApiResponse> {
     try {
       this.logger.log(`richiesta statistiche per user ${userId}`);
-
       const stats = await this.moviesService.getUserStats(userId);
 
       return {
@@ -309,55 +298,10 @@ export class MoviesController {
       };
     } catch (error) {
       this.logger.error(`errore statistiche utente: ${error.message}`);
-
       throw new HttpException(
         {
           success: false,
           message: 'errore recupero statistiche',
-          timestamp: new Date().toISOString(),
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  /**
-   * get /api/v1/movies/all
-   * deprecato - usare /user/:userId
-   */
-  @Get('all')
-  async getAllMovies(@Headers('x-user-id') userId?: string): Promise<ApiResponse> {
-    this.logger.warn('endpoint /all deprecato. usare /user/:userId');
-    
-    try {
-      if (!userId) {
-        throw new HttpException(
-          {
-            success: false,
-            message: 'userId richiesto negli headers (x-user-id)',
-            timestamp: new Date().toISOString(),
-          },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      this.logger.log('richiesta tutti i film (deprecato)');
-
-      const movies = await this.moviesService.getAllMovies(userId);
-
-      return {
-        success: true,
-        data: { movies },
-        message: `recuperati ${movies.length} film - attenzione: endpoint deprecato, usare /user/:userId`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error(`errore recupero film: ${error.message}`);
-
-      throw new HttpException(
-        {
-          success: false,
-          message: 'errore recupero film',
           timestamp: new Date().toISOString(),
         },
         HttpStatus.INTERNAL_SERVER_ERROR,

@@ -1,4 +1,6 @@
-// file: src/app.module.ts
+// modulo principale dell'applicazione che configura tutti i moduli e dipendenze
+// gestisce database postgresql, autenticazione jwt, websocket e api rest
+
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -14,10 +16,18 @@ import { AppController } from './app.controller';
 
 @Module({
   imports: [
+    // configura caricamento variabili ambiente da file .env
+    // isGlobal: true rende le variabili accessibili in tutti i moduli
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
+    
+    // configura connessione al database postgresql
+    // usa typeorm per orm (object-relational mapping)
+    // entities: auto-carica tutte le entita' dalla cartella
+    // synchronize: false per usare migrations manuali (production-safe)
+    // logging: false per non loggare tutte le query sql (performance)
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -29,15 +39,32 @@ import { AppController } from './app.controller';
       synchronize: false,
       logging: false,
     }),
+    
+    // abilita modulo scheduler per task periodici (cron jobs)
     ScheduleModule.forRoot(),
+    
+    // database module: gestione diretta del database postgresql
     DatabaseModule,
+    
+    // movies module: crud film, enrichment tmdb, batch operations
     MoviesModule,
+    
+    // tmdb module: integrazione api the movie database per dati film
     TmdbModule,
+    
+    // auth module: registrazione, login, jwt tokens
     AuthModule,
+    
+    // lists module: liste condivise tra utenti
     ListsModule,
+    
+    // websocket module: notifiche real-time per enrichment progress
     WebsocketModule,
+    
+    // analytics module: statistiche e grafici avanzati
     AnalyticsModule,
   ],
+  
   controllers: [AppController],
   providers: [],
 })

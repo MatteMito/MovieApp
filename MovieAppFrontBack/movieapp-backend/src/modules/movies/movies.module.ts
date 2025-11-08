@@ -1,5 +1,5 @@
-// File: src/modules/movies/movies.module.ts
-// ✅ OTTIMIZZATO: rimosso TmdbCacheEntity
+// modulo gestione film con enrichment tmdb e associazioni utente
+// coordina movies service, user-movies service, database, tmdb, websocket
 
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -14,19 +14,28 @@ import { WebsocketModule } from '../websocket/websocket.module';
 
 @Module({
   imports: [
+    // registra entita per accesso repository
     TypeOrmModule.forFeature([
       MovieEntity,
       UserMovieEntity,
     ]),
+    
+    // importa moduli dipendenti
     DatabaseModule,
     TmdbModule,
     WebsocketModule,
   ],
+  
+  // controller per endpoint rest api
   controllers: [MoviesController],
+  
+  // service con logica business
   providers: [
     MoviesService,
     UserMoviesService,
   ],
+  
+  // esporta service per essere usati in altri moduli
   exports: [
     MoviesService,
     UserMoviesService,

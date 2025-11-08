@@ -1,105 +1,12 @@
-// file: movieapp-backend/src/modules/analytics/analytics.service.ts
-// service completo con TUTTE le statistiche
+// service per generazione statistiche avanzate
+// calcola grafici per visualizzazione in android app
+// statistiche: generi, registi, attori, decenni, paesi, rating, scatter plots
 
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, IsNull } from 'typeorm';
 import { MovieEntity } from '../../database/entities/movie.entity';
 import { UserMovieEntity, MovieStatus } from '../../database/entities/user-movie.entity';
-
-// ===== INTERFACES =====
-
-export interface BasicStats {
-  totalMovies: number;
-  watchedCount: number;
-  watchlistCount: number;
-  enrichedMovies: number;
-  averageRating?: number;
-  totalRuntime: number;
-  uniqueGenres: number;
-  uniqueDirectors: number;
-}
-
-export interface GenreStats {
-  genre: string;
-  count: number;
-  percentage: number;
-  averageRating?: number;
-}
-
-export interface YearStats {
-  year: number;
-  count: number;
-  averageRating?: number;
-}
-
-export interface DirectorStats {
-  director: string;
-  movieCount: number;
-  averageRating?: number;
-  totalRuntime: number;
-}
-
-export interface ActorStats {
-  actor: string;
-  movieCount: number;
-  averageRating?: number;
-}
-
-export interface DirectorActorPair {
-  director: string;
-  actor: string;
-  movieCount: number;
-}
-
-export interface CountryStats {
-  country: string;
-  count: number;
-  percentage: number;
-}
-
-export interface StudioStats {
-  studio: string;
-  count: number;
-}
-
-export interface DivergentOpinion {
-  movieTitle: string;
-  userRating: number;
-  tmdbRating: number;
-  difference: number;
-}
-
-// risposta completa endpoint
-export interface CompleteAnalytics {
-  basicStats: BasicStats;
-  watchedStats: {
-    genresDistribution: GenreStats[];
-    genreCombinations: { [key: string]: number };
-    decadeDistribution: { [key: string]: number };
-    topDirectors: DirectorStats[];
-    topActors: ActorStats[];
-    directorActorPairs: DirectorActorPair[];
-    topWriters: any[];
-    topComposers: any[];
-    topCinematographers: any[];
-    productionStudios: StudioStats[];
-    productionCountries: CountryStats[];
-    continentDistribution: { [key: string]: number };
-  };
-  ratingStats: {
-    userRatingsDistribution: { [key: string]: number };
-    communityRatingsDistribution: { [key: string]: number };
-    divergentOpinions: DivergentOpinion[];
-    avgRatingByDirector: { director: string; avgRating: number }[];
-    avgRatingByActor: { actor: string; avgRating: number }[];
-    avgRatingByGenre: { genre: string; avgRating: number }[];
-    avgRatingByGenreCombination: { combination: string; avgRating: number }[];
-    avgRatingByDecade: { [key: string]: number };
-    runtimeVsRating: { runtime: number; rating: number }[];
-    revenueVsRating: { revenue: number; rating: number }[];
-  };
-}
 
 @Injectable()
 export class AnalyticsService {
@@ -114,17 +21,19 @@ export class AnalyticsService {
   ) {}
 
   /**
-   * endpoint principale: ritorna tutte le statistiche
+   * endpoint principale: genera tutte le statistiche in una chiamata
+   * ritorna: basic stats, watched stats, rating stats
    */
-  async getCompleteAnalytics(userId: string): Promise<CompleteAnalytics> {
+  async getCompleteAnalytics(userId: string): Promise<any> {
     this.logger.log(`generazione analytics complete per utente ${userId}`);
 
-    //recupera film watched e rated
+    // recupera film watched con relazioni
     const watchedMovies = await this.userMovieRepository.find({
       where: { userId, status: MovieStatus.WATCHED },
       relations: ['movie'],
     });
 
+    // recupera film rated (subset di watched con rating)
     const ratedMovies = await this.userMovieRepository.find({
       where: { 
         userId, 
@@ -136,53 +45,49 @@ export class AnalyticsService {
 
     this.logger.log(`watched: ${watchedMovies.length}, rated: ${ratedMovies.length}`);
 
-    //genera tutte le statistiche in parallelo
-    const [
-      basicStats,
-      watchedStats,
-      ratingStats
-    ] = await Promise.all([
+    // genera tutte le statistiche in parallelo per performance
+    const [basicStats, watchedStats, ratingStats] = await Promise.all([
       this.generateBasicStats(userId, watchedMovies),
       this.generateWatchedStats(watchedMovies),
       this.generateRatingStats(ratedMovies),
     ]);
 
-    return {
-      basicStats,
-      watchedStats,
-      ratingStats,
-    };
+    return { basicStats, watchedStats, ratingStats };
   }
 
-  // ===== STATISTICHE BASE =====
+  // ===== statistiche base =====
 
-  private async generateBasicStats(userId: string, watchedMovies: UserMovieEntity[]): Promise<BasicStats> {
+  private async generateBasicStats(userId: string, watchedMovies: any[]): Promise<any> {
+    // recupera tutti i film utente (watched + watchlist)
     const allUserMovies = await this.userMovieRepository.find({
       where: { userId },
       relations: ['movie'],
     });
 
     const watchlistMovies = allUserMovies.filter(um => um.status === MovieStatus.WATCHLIST);
-    const allMovies = allUserMovies.map(um => um.movie);
-    const enrichedMovies = allMovies.filter(m => m.tmdb_id && m.tmdb_id > 0);
+    const enrichedMovies = allUserMovies.filter(um => um.movie?.tmdb_id);
 
+    // calcola rating medio
     const watchedWithRating = watchedMovies.filter(um => um.userRating != null);
     const averageRating = watchedWithRating.length > 0
-      ? watchedWithRating.reduce((sum, um) => sum + um.userRating!, 0) / watchedWithRating.length
+      ? watchedWithRating.reduce((sum, um) => sum + um.userRating, 0) / watchedWithRating.length
       : undefined;
 
-    const totalRuntime = watchedMovies
-      .map(um => um.movie.runtime || 0)
-      .reduce((a, b) => a + b, 0);
+    // calcola runtime totale
+    const totalRuntime = watchedMovies.reduce((sum, um) => 
+      sum + (um.movie?.runtime || 0), 0
+    );
 
-    const allGenres = new Set<string>();
+    // conta generi unici
+    const genresSet = new Set<string>();
     watchedMovies.forEach(um => {
-      um.movie.genres?.forEach(g => allGenres.add(g));
+      um.movie?.genres?.forEach((g: string) => genresSet.add(g));
     });
 
-    const allDirectors = new Set<string>();
+    // conta registi unici
+    const directorsSet = new Set<string>();
     watchedMovies.forEach(um => {
-      if (um.movie.director) allDirectors.add(um.movie.director);
+      if (um.movie?.director) directorsSet.add(um.movie.director);
     });
 
     return {
@@ -190,174 +95,251 @@ export class AnalyticsService {
       watchedCount: watchedMovies.length,
       watchlistCount: watchlistMovies.length,
       enrichedMovies: enrichedMovies.length,
-      averageRating: averageRating ? parseFloat(averageRating.toFixed(2)) : undefined,
+      averageRating: averageRating ? Math.round(averageRating * 10) / 10 : undefined,
       totalRuntime,
-      uniqueGenres: allGenres.size,
-      uniqueDirectors: allDirectors.size,
+      uniqueGenres: genresSet.size,
+      uniqueDirectors: directorsSet.size,
     };
   }
 
-  // ===== STATISTICHE WATCHED (senza rating richiesto) =====
+  // ===== statistiche watched (grafici principali) =====
 
-  private async generateWatchedStats(watchedMovies: UserMovieEntity[]) {
-    const totalWatched = watchedMovies.length;
+  private async generateWatchedStats(watchedMovies: any[]): Promise<any> {
+    // 1. distribuzione generi (pie chart)
+    const genresDistribution = this.calculateGenresDistribution(watchedMovies);
 
-    //generi
-    const genreMap = new Map<string, { count: number; ratings: number[] }>();
-    watchedMovies.forEach(um => {
-      um.movie.genres?.forEach(genre => {
-        if (!genreMap.has(genre)) {
-          genreMap.set(genre, { count: 0, ratings: [] });
-        }
-        const stats = genreMap.get(genre)!;
-        stats.count++;
-        if (um.userRating) stats.ratings.push(um.userRating);
+    // 2. combinazioni generi (bar chart)
+    const genreCombinations = this.calculateGenreCombinations(watchedMovies);
+
+    // 3. distribuzione decenni (bar chart)
+    const decadeDistribution = this.calculateDecadeDistribution(watchedMovies);
+
+    // 4. top 10 registi (bar chart)
+    const topDirectors = this.calculateTopDirectors(watchedMovies);
+
+    // 5. top 10 attori (bar chart)
+    const topActors = this.calculateTopActors(watchedMovies);
+
+    // 6. coppie regista-attore (bar chart)
+    const directorActorPairs = this.calculateDirectorActorPairs(watchedMovies);
+
+    // 7. studi produzione (bar chart)
+    const productionStudios = this.calculateProductionStudios(watchedMovies);
+
+    // 8. paesi produzione (bar chart)
+    const productionCountries = this.calculateProductionCountries(watchedMovies);
+
+    // 9. distribuzione continenti (pie chart)
+    const continentDistribution = this.calculateContinentDistribution(watchedMovies);
+
+    return {
+      genresDistribution,
+      genreCombinations,
+      decadeDistribution,
+      topDirectors,
+      topActors,
+      directorActorPairs,
+      topWriters: [], // placeholder
+      topComposers: [], // placeholder
+      topCinematographers: [], // placeholder
+      productionStudios,
+      productionCountries,
+      continentDistribution,
+    };
+  }
+
+  // ===== statistiche rating (grafici avanzati) =====
+
+  private async generateRatingStats(ratedMovies: any[]): Promise<any> {
+    // 1. distribuzione rating utente (bar chart)
+    const userRatingsDistribution = this.calculateRatingsDistribution(
+      ratedMovies.map(um => um.userRating)
+    );
+
+    // 2. distribuzione rating tmdb (bar chart)
+    const communityRatingsDistribution = this.calculateRatingsDistribution(
+      ratedMovies.map(um => um.movie?.tmdb_rating).filter(r => r)
+    );
+
+    // 3. opinioni divergenti (scatter plot)
+    const divergentOpinions = this.calculateDivergentOpinions(ratedMovies);
+
+    // 4. rating medio per regista (bar chart)
+    const avgRatingByDirector = this.calculateAvgRatingByDirector(ratedMovies);
+
+    // 5. rating medio per attore (bar chart)
+    const avgRatingByActor = this.calculateAvgRatingByActor(ratedMovies);
+
+    // 6. rating medio per genere (bar chart)
+    const avgRatingByGenre = this.calculateAvgRatingByGenre(ratedMovies);
+
+    // 7. rating medio per decade (line chart)
+    const avgRatingByDecade = this.calculateAvgRatingByDecade(ratedMovies);
+
+    // 8. runtime vs rating (scatter plot)
+    const runtimeVsRating = this.calculateRuntimeVsRating(ratedMovies);
+
+    // 9. revenue vs rating (scatter plot)
+    const revenueVsRating = this.calculateRevenueVsRating(ratedMovies);
+
+    return {
+      userRatingsDistribution,
+      communityRatingsDistribution,
+      divergentOpinions,
+      avgRatingByDirector,
+      avgRatingByActor,
+      avgRatingByGenre,
+      avgRatingByGenreCombination: [], // placeholder
+      avgRatingByDecade,
+      runtimeVsRating,
+      revenueVsRating,
+    };
+  }
+
+  // ===== metodi calcolo specifici =====
+
+  private calculateGenresDistribution(movies: any[]): any[] {
+    const genreMap = new Map<string, number>();
+    const total = movies.length;
+
+    movies.forEach(um => {
+      um.movie?.genres?.forEach((genre: string) => {
+        genreMap.set(genre, (genreMap.get(genre) || 0) + 1);
       });
     });
 
-    const genresDistribution: GenreStats[] = Array.from(genreMap.entries())
-      .map(([genre, stats]) => ({
+    return Array.from(genreMap.entries())
+      .map(([genre, count]) => ({
         genre,
-        count: stats.count,
-        percentage: (stats.count / totalWatched) * 100,
-        averageRating: stats.ratings.length > 0
-          ? stats.ratings.reduce((a, b) => a + b) / stats.ratings.length
-          : undefined,
+        count,
+        percentage: Math.round((count / total) * 100 * 10) / 10,
       }))
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }
 
-    //combinazioni generi
-    const genreCombinations: { [key: string]: number } = {};
-    watchedMovies.forEach(um => {
-      const genres = um.movie.genres || [];
-      if (genres.length >= 2) {
-        for (let i = 0; i < genres.length; i++) {
-          for (let j = i + 1; j < genres.length; j++) {
-            const combo = [genres[i], genres[j]].sort().join(' + ');
-            genreCombinations[combo] = (genreCombinations[combo] || 0) + 1;
-          }
-        }
+  private calculateGenreCombinations(movies: any[]): any {
+    const comboMap = new Map<string, number>();
+
+    movies.forEach(um => {
+      const genres = um.movie?.genres;
+      if (genres && genres.length > 1) {
+        const combo = genres.slice().sort().join(', ');
+        comboMap.set(combo, (comboMap.get(combo) || 0) + 1);
       }
     });
 
-    //decenni
-    const decadeDistribution: { [key: string]: number } = {};
-    watchedMovies.forEach(um => {
-      if (um.movie.year) {
-        const decade = `${Math.floor(um.movie.year / 10) * 10}s`;
-        decadeDistribution[decade] = (decadeDistribution[decade] || 0) + 1;
+    return Object.fromEntries(
+      Array.from(comboMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+    );
+  }
+
+  private calculateDecadeDistribution(movies: any[]): any {
+    const decadeMap = new Map<string, number>();
+
+    movies.forEach(um => {
+      const year = um.movie?.year;
+      if (year) {
+        const decade = `${Math.floor(year / 10) * 10}s`;
+        decadeMap.set(decade, (decadeMap.get(decade) || 0) + 1);
       }
     });
 
-    //registi
-    const directorMap = new Map<string, { count: number; ratings: number[]; runtime: number }>();
-    watchedMovies.forEach(um => {
-      if (um.movie.director) {
-        if (!directorMap.has(um.movie.director)) {
-          directorMap.set(um.movie.director, { count: 0, ratings: [], runtime: 0 });
-        }
-        const stats = directorMap.get(um.movie.director)!;
-        stats.count++;
-        if (um.userRating) stats.ratings.push(um.userRating);
-        stats.runtime += um.movie.runtime || 0;
+    return Object.fromEntries(
+      Array.from(decadeMap.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+    );
+  }
+
+  private calculateTopDirectors(movies: any[]): any[] {
+    const directorMap = new Map<string, number>();
+
+    movies.forEach(um => {
+      if (um.movie?.director) {
+        directorMap.set(um.movie.director, (directorMap.get(um.movie.director) || 0) + 1);
       }
     });
 
-    const topDirectors: DirectorStats[] = Array.from(directorMap.entries())
-      .map(([director, stats]) => ({
-        director,
-        movieCount: stats.count,
-        averageRating: stats.ratings.length > 0
-          ? stats.ratings.reduce((a, b) => a + b) / stats.ratings.length
-          : undefined,
-        totalRuntime: stats.runtime,
-      }))
+    return Array.from(directorMap.entries())
+      .map(([director, movieCount]) => ({ director, movieCount }))
       .sort((a, b) => b.movieCount - a.movieCount)
       .slice(0, 10);
+  }
 
-    //attori
-    const actorMap = new Map<string, { count: number; ratings: number[] }>();
-    watchedMovies.forEach(um => {
-      um.movie.actors?.forEach(actor => {
-        if (!actorMap.has(actor)) {
-          actorMap.set(actor, { count: 0, ratings: [] });
-        }
-        const stats = actorMap.get(actor)!;
-        stats.count++;
-        if (um.userRating) stats.ratings.push(um.userRating);
+  private calculateTopActors(movies: any[]): any[] {
+    const actorMap = new Map<string, number>();
+
+    movies.forEach(um => {
+      um.movie?.actors?.forEach((actor: string) => {
+        actorMap.set(actor, (actorMap.get(actor) || 0) + 1);
       });
     });
 
-    const topActors: ActorStats[] = Array.from(actorMap.entries())
-      .map(([actor, stats]) => ({
-        actor,
-        movieCount: stats.count,
-        averageRating: stats.ratings.length > 0
-          ? stats.ratings.reduce((a, b) => a + b) / stats.ratings.length
-          : undefined,
-      }))
+    return Array.from(actorMap.entries())
+      .map(([actor, movieCount]) => ({ actor, movieCount }))
       .sort((a, b) => b.movieCount - a.movieCount)
       .slice(0, 10);
+  }
 
-    //coppie regista-attore
+  private calculateDirectorActorPairs(movies: any[]): any[] {
     const pairMap = new Map<string, number>();
-    watchedMovies.forEach(um => {
-      if (um.movie.director && um.movie.actors) {
-        um.movie.actors.forEach(actor => {
+
+    movies.forEach(um => {
+      if (um.movie?.director && um.movie?.actors) {
+        um.movie.actors.forEach((actor: string) => {
           const pair = `${um.movie.director}|${actor}`;
           pairMap.set(pair, (pairMap.get(pair) || 0) + 1);
         });
       }
     });
 
-    const directorActorPairs: DirectorActorPair[] = Array.from(pairMap.entries())
+    return Array.from(pairMap.entries())
       .map(([pair, count]) => {
         const [director, actor] = pair.split('|');
         return { director, actor, movieCount: count };
       })
       .sort((a, b) => b.movieCount - a.movieCount)
       .slice(0, 10);
+  }
 
-    //studi produzione
+  private calculateProductionStudios(movies: any[]): any[] {
     const studioMap = new Map<string, number>();
-    watchedMovies.forEach(um => {
-      um.movie.production_companies?.forEach(studio => {
+
+    movies.forEach(um => {
+      um.movie?.production_companies?.forEach((studio: string) => {
         studioMap.set(studio, (studioMap.get(studio) || 0) + 1);
       });
     });
 
-    const productionStudios: StudioStats[] = Array.from(studioMap.entries())
+    return Array.from(studioMap.entries())
       .map(([studio, count]) => ({ studio, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
+  }
 
-    //paesi
+  private calculateProductionCountries(movies: any[]): any[] {
     const countryMap = new Map<string, number>();
-    watchedMovies.forEach(um => {
-      um.movie.production_countries?.forEach(country => {
+    const total = movies.length;
+
+    movies.forEach(um => {
+      um.movie?.production_countries?.forEach((country: string) => {
         countryMap.set(country, (countryMap.get(country) || 0) + 1);
       });
     });
 
-    const productionCountries: CountryStats[] = Array.from(countryMap.entries())
+    return Array.from(countryMap.entries())
       .map(([country, count]) => ({
         country,
         count,
-        percentage: (count / totalWatched) * 100,
+        percentage: Math.round((count / total) * 100 * 10) / 10,
       }))
       .sort((a, b) => b.count - a.count);
+  }
 
-    //continenti (semplificato)
-    const continentDistribution: { [key: string]: number } = {
-      'North America': 0,
-      'Europe': 0,
-      'Asia': 0,
-      'South America': 0,
-      'Africa': 0,
-      'Oceania': 0,
-    };
-    //mappatura paesi a continenti (semplificata)
-    const continentMap: { [key: string]: string } = {
+  private calculateContinentDistribution(movies: any[]): any {
+    // mappatura paesi a continenti (semplificata)
+    const continentMap: any = {
       'United States': 'North America',
       'Canada': 'North America',
       'United Kingdom': 'Europe',
@@ -372,211 +354,160 @@ export class AnalyticsService {
       'Australia': 'Oceania',
     };
 
-    watchedMovies.forEach(um => {
-      um.movie.production_countries?.forEach(country => {
+    const distribution: any = {
+      'North America': 0,
+      'Europe': 0,
+      'Asia': 0,
+      'South America': 0,
+      'Africa': 0,
+      'Oceania': 0,
+    };
+
+    movies.forEach(um => {
+      um.movie?.production_countries?.forEach((country: string) => {
         const continent = continentMap[country] || 'Other';
-        if (continentDistribution[continent] !== undefined) {
-          continentDistribution[continent]++;
+        if (distribution[continent] !== undefined) {
+          distribution[continent]++;
         }
       });
     });
 
-    return {
-      genresDistribution,
-      genreCombinations,
-      decadeDistribution,
-      topDirectors,
-      topActors,
-      directorActorPairs,
-      topWriters: [], //todo se disponibile nei dati
-      topComposers: [], //todo se disponibile nei dati
-      topCinematographers: [], //todo se disponibile nei dati
-      productionStudios,
-      productionCountries,
-      continentDistribution,
-    };
+    return distribution;
   }
 
-  // ===== STATISTICHE RATING (solo film con voto) =====
-
-  private async generateRatingStats(ratedMovies: UserMovieEntity[]) {
-    if (ratedMovies.length === 0) {
-      return {
-        userRatingsDistribution: {},
-        communityRatingsDistribution: {},
-        divergentOpinions: [],
-        avgRatingByDirector: [],
-        avgRatingByActor: [],
-        avgRatingByGenre: [],
-        avgRatingByGenreCombination: [],
-        avgRatingByDecade: {},
-        runtimeVsRating: [],
-        revenueVsRating: [],
-      };
+  private calculateRatingsDistribution(ratings: number[]): any {
+    const dist: any = {};
+    
+    for (let i = 1; i <= 10; i++) {
+      dist[i.toString()] = 0;
     }
 
-    //distribuzione rating utente
-    const userRatingsDistribution: { [key: string]: number } = {};
-    ratedMovies.forEach(um => {
-      const rating = Math.round(um.userRating!);
-      userRatingsDistribution[rating] = (userRatingsDistribution[rating] || 0) + 1;
-    });
-
-    //distribuzione rating community
-    const communityRatingsDistribution: { [key: string]: number } = {};
-    ratedMovies.forEach(um => {
-      if (um.movie.tmdb_rating) {
-        const rating = Math.round(um.movie.tmdb_rating);
-        communityRatingsDistribution[rating] = (communityRatingsDistribution[rating] || 0) + 1;
+    ratings.forEach(rating => {
+      const rounded = Math.round(rating);
+      if (rounded >= 1 && rounded <= 10) {
+        dist[rounded.toString()]++;
       }
     });
 
-    //opinioni divergenti
-    const divergentOpinions: DivergentOpinion[] = ratedMovies
-      .filter(um => um.movie.tmdb_rating && Math.abs(um.userRating! - um.movie.tmdb_rating) >= 2)
-      .map(um => ({
-        movieTitle: um.movie.title,
-        userRating: um.userRating!,
-        tmdbRating: um.movie.tmdb_rating!,
-        difference: um.userRating! - um.movie.tmdb_rating!,
-      }))
-      .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))
-      .slice(0, 20);
-
-    //rating medio per regista (min 3 film)
-    const directorRatings = new Map<string, number[]>();
-    ratedMovies.forEach(um => {
-      if (um.movie.director) {
-        if (!directorRatings.has(um.movie.director)) {
-          directorRatings.set(um.movie.director, []);
-        }
-        directorRatings.get(um.movie.director)!.push(um.userRating!);
-      }
-    });
-
-    const avgRatingByDirector = Array.from(directorRatings.entries())
-      .filter(([_, ratings]) => ratings.length >= 3)
-      .map(([director, ratings]) => ({
-        director,
-        avgRating: ratings.reduce((a, b) => a + b) / ratings.length,
-      }))
-      .sort((a, b) => b.avgRating - a.avgRating)
-      .slice(0, 10);
-
-    //rating medio per attore (min 3 film)
-    const actorRatings = new Map<string, number[]>();
-    ratedMovies.forEach(um => {
-      um.movie.actors?.forEach(actor => {
-        if (!actorRatings.has(actor)) {
-          actorRatings.set(actor, []);
-        }
-        actorRatings.get(actor)!.push(um.userRating!);
-      });
-    });
-
-    const avgRatingByActor = Array.from(actorRatings.entries())
-      .filter(([_, ratings]) => ratings.length >= 3)
-      .map(([actor, ratings]) => ({
-        actor,
-        avgRating: ratings.reduce((a, b) => a + b) / ratings.length,
-      }))
-      .sort((a, b) => b.avgRating - a.avgRating)
-      .slice(0, 10);
-
-    //rating medio per genere
-    const genreRatings = new Map<string, number[]>();
-    ratedMovies.forEach(um => {
-      um.movie.genres?.forEach(genre => {
-        if (!genreRatings.has(genre)) {
-          genreRatings.set(genre, []);
-        }
-        genreRatings.get(genre)!.push(um.userRating!);
-      });
-    });
-
-    const avgRatingByGenre = Array.from(genreRatings.entries())
-      .map(([genre, ratings]) => ({
-        genre,
-        avgRating: ratings.reduce((a, b) => a + b) / ratings.length,
-      }))
-      .sort((a, b) => b.avgRating - a.avgRating);
-
-    //rating medio per combinazione generi
-    const comboRatings = new Map<string, number[]>();
-    ratedMovies.forEach(um => {
-      const genres = um.movie.genres || [];
-      if (genres.length >= 2) {
-        for (let i = 0; i < genres.length; i++) {
-          for (let j = i + 1; j < genres.length; j++) {
-            const combo = [genres[i], genres[j]].sort().join(' + ');
-            if (!comboRatings.has(combo)) {
-              comboRatings.set(combo, []);
-            }
-            comboRatings.get(combo)!.push(um.userRating!);
-          }
-        }
-      }
-    });
-
-    const avgRatingByGenreCombination = Array.from(comboRatings.entries())
-      .filter(([_, ratings]) => ratings.length >= 3)
-      .map(([combination, ratings]) => ({
-        combination,
-        avgRating: ratings.reduce((a, b) => a + b) / ratings.length,
-      }))
-      .sort((a, b) => b.avgRating - a.avgRating)
-      .slice(0, 10);
-
-    //rating medio per decennio
-    const decadeRatings = new Map<string, number[]>();
-    ratedMovies.forEach(um => {
-      if (um.movie.year) {
-        const decade = `${Math.floor(um.movie.year / 10) * 10}s`;
-        if (!decadeRatings.has(decade)) {
-          decadeRatings.set(decade, []);
-        }
-        decadeRatings.get(decade)!.push(um.userRating!);
-      }
-    });
-
-    const avgRatingByDecade: { [key: string]: number } = {};
-    decadeRatings.forEach((ratings, decade) => {
-      avgRatingByDecade[decade] = ratings.reduce((a, b) => a + b) / ratings.length;
-    });
-
-    //durata vs rating
-    const runtimeVsRating = ratedMovies
-      .filter(um => um.movie.runtime)
-      .map(um => ({
-        runtime: um.movie.runtime!,
-        rating: um.userRating!,
-      }));
-
-    //revenue vs rating
-    const revenueVsRating = ratedMovies
-      .filter(um => um.movie.revenue && um.movie.revenue > 0)
-      .map(um => ({
-        revenue: um.movie.revenue!,
-        rating: um.userRating!,
-      }));
-
-    return {
-      userRatingsDistribution,
-      communityRatingsDistribution,
-      divergentOpinions,
-      avgRatingByDirector,
-      avgRatingByActor,
-      avgRatingByGenre,
-      avgRatingByGenreCombination,
-      avgRatingByDecade,
-      runtimeVsRating,
-      revenueVsRating,
-    };
+    return dist;
   }
 
-  // ===== METODI SINGOLI (per retrocompatibilità) =====
+  private calculateDivergentOpinions(ratedMovies: any[]): any[] {
+    return ratedMovies
+      .filter(um => um.movie?.tmdb_rating)
+      .map(um => ({
+        movieTitle: um.movie.title,
+        userRating: um.userRating,
+        tmdbRating: um.movie.tmdb_rating,
+        difference: Math.abs(um.userRating - um.movie.tmdb_rating),
+      }))
+      .sort((a, b) => b.difference - a.difference)
+      .slice(0, 10);
+  }
 
-  async getBasicStats(userId: string): Promise<BasicStats> {
+  private calculateAvgRatingByDirector(ratedMovies: any[]): any[] {
+    const directorMap = new Map<string, number[]>();
+
+    ratedMovies.forEach(um => {
+      if (um.movie?.director) {
+        const ratings = directorMap.get(um.movie.director) || [];
+        ratings.push(um.userRating);
+        directorMap.set(um.movie.director, ratings);
+      }
+    });
+
+    return Array.from(directorMap.entries())
+      .filter(([_, ratings]) => ratings.length >= 2)
+      .map(([director, ratings]) => ({
+        director,
+        avgRating: Math.round((ratings.reduce((a, b) => a + b) / ratings.length) * 10) / 10,
+      }))
+      .sort((a, b) => b.avgRating - a.avgRating)
+      .slice(0, 10);
+  }
+
+  private calculateAvgRatingByActor(ratedMovies: any[]): any[] {
+    const actorMap = new Map<string, number[]>();
+
+    ratedMovies.forEach(um => {
+      um.movie?.actors?.forEach((actor: string) => {
+        const ratings = actorMap.get(actor) || [];
+        ratings.push(um.userRating);
+        actorMap.set(actor, ratings);
+      });
+    });
+
+    return Array.from(actorMap.entries())
+      .filter(([_, ratings]) => ratings.length >= 2)
+      .map(([actor, ratings]) => ({
+        actor,
+        avgRating: Math.round((ratings.reduce((a, b) => a + b) / ratings.length) * 10) / 10,
+      }))
+      .sort((a, b) => b.avgRating - a.avgRating)
+      .slice(0, 10);
+  }
+
+  private calculateAvgRatingByGenre(ratedMovies: any[]): any[] {
+    const genreMap = new Map<string, number[]>();
+
+    ratedMovies.forEach(um => {
+      um.movie?.genres?.forEach((genre: string) => {
+        const ratings = genreMap.get(genre) || [];
+        ratings.push(um.userRating);
+        genreMap.set(genre, ratings);
+      });
+    });
+
+    return Array.from(genreMap.entries())
+      .map(([genre, ratings]) => ({
+        genre,
+        avgRating: Math.round((ratings.reduce((a, b) => a + b) / ratings.length) * 10) / 10,
+      }))
+      .sort((a, b) => b.avgRating - a.avgRating);
+  }
+
+  private calculateAvgRatingByDecade(ratedMovies: any[]): any {
+    const decadeMap = new Map<string, number[]>();
+
+    ratedMovies.forEach(um => {
+      const year = um.movie?.year;
+      if (year) {
+        const decade = `${Math.floor(year / 10) * 10}s`;
+        const ratings = decadeMap.get(decade) || [];
+        ratings.push(um.userRating);
+        decadeMap.set(decade, ratings);
+      }
+    });
+
+    const result: any = {};
+    decadeMap.forEach((ratings, decade) => {
+      result[decade] = Math.round((ratings.reduce((a, b) => a + b) / ratings.length) * 10) / 10;
+    });
+
+    return result;
+  }
+
+  private calculateRuntimeVsRating(ratedMovies: any[]): any[] {
+    return ratedMovies
+      .filter(um => um.movie?.runtime)
+      .map(um => ({
+        runtime: um.movie.runtime,
+        rating: um.userRating,
+      }));
+  }
+
+  private calculateRevenueVsRating(ratedMovies: any[]): any[] {
+    return ratedMovies
+      .filter(um => um.movie?.revenue && um.movie.revenue > 0)
+      .map(um => ({
+        revenue: um.movie.revenue,
+        rating: um.userRating,
+      }));
+  }
+
+  // ===== metodi helper pubblici =====
+
+  async getBasicStats(userId: string): Promise<any> {
     const watchedMovies = await this.userMovieRepository.find({
       where: { userId, status: MovieStatus.WATCHED },
       relations: ['movie'],
@@ -584,27 +515,20 @@ export class AnalyticsService {
     return this.generateBasicStats(userId, watchedMovies);
   }
 
-  async getGenreStats(userId: string): Promise<GenreStats[]> {
+  async getGenreStats(userId: string): Promise<any> {
     const watchedMovies = await this.userMovieRepository.find({
       where: { userId, status: MovieStatus.WATCHED },
       relations: ['movie'],
     });
-    const stats = await this.generateWatchedStats(watchedMovies);
-    return stats.genresDistribution;
+    return this.calculateGenresDistribution(watchedMovies);
   }
 
-  async getYearStats(userId: string): Promise<YearStats[]> {
-    //todo: implementa se necessario
-    return [];
-  }
-
-  async getDirectorStats(userId: string): Promise<DirectorStats[]> {
+  async getDirectorStats(userId: string): Promise<any> {
     const watchedMovies = await this.userMovieRepository.find({
       where: { userId, status: MovieStatus.WATCHED },
       relations: ['movie'],
     });
-    const stats = await this.generateWatchedStats(watchedMovies);
-    return stats.topDirectors;
+    return this.calculateTopDirectors(watchedMovies);
   }
 
   async getAdvancedAnalytics(userId: string): Promise<any> {

@@ -1,4 +1,5 @@
-//controller autenticazione rest api
+// controller autenticazione rest api
+// endpoint per registrazione e login utenti
 
 import {
   Controller,
@@ -17,15 +18,17 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
-   * POST /api/v1/auth/register
+   * endpoint: POST /api/v1/auth/register
    * registrazione nuovo utente
+   * body: { email, password, username? }
+   * response: { success, data: { access_token, user }, message, timestamp }
    */
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     try {
-      this.logger.log(`📝 richiesta registrazione: ${dto.email}`);
+      this.logger.log(`richiesta registrazione: ${dto.email}`);
 
-      //validazione input
+      // validazione input lato server
       if (!dto.email || !dto.password) {
         throw new HttpException(
           {
@@ -37,6 +40,7 @@ export class AuthController {
         );
       }
 
+      // verifica lunghezza minima password
       if (dto.password.length < 6) {
         throw new HttpException(
           {
@@ -48,10 +52,12 @@ export class AuthController {
         );
       }
 
+      // chiama service per registrazione
       const result = await this.authService.register(dto);
 
-      this.logger.log(`✅ registrazione completata: ${dto.email}`);
+      this.logger.log(`registrazione completata: ${dto.email}`);
 
+      // response success standardizzata
       return {
         success: true,
         data: result,
@@ -59,12 +65,14 @@ export class AuthController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`❌ errore registrazione: ${error.message}`);
+      this.logger.error(`errore registrazione: ${error.message}`);
 
+      // rilancia httpexception se gia presente
       if (error instanceof HttpException) {
         throw error;
       }
 
+      // altrimenti crea nuova httpexception
       throw new HttpException(
         {
           success: false,
@@ -77,15 +85,17 @@ export class AuthController {
   }
 
   /**
-   * POST /api/v1/auth/login
+   * endpoint: POST /api/v1/auth/login
    * login utente esistente
+   * body: { email, password }
+   * response: { success, data: { access_token, user }, message, timestamp }
    */
   @Post('login')
   async login(@Body() dto: LoginDto) {
     try {
-      this.logger.log(`🔐 richiesta login: ${dto.email}`);
+      this.logger.log(`richiesta login: ${dto.email}`);
 
-      //validazione input
+      // validazione input
       if (!dto.email || !dto.password) {
         throw new HttpException(
           {
@@ -97,10 +107,12 @@ export class AuthController {
         );
       }
 
+      // chiama service per login
       const result = await this.authService.login(dto);
 
-      this.logger.log(`✅ login completato: ${dto.email}`);
+      this.logger.log(`login completato: ${dto.email}`);
 
+      // response success standardizzata
       return {
         success: true,
         data: result,
@@ -108,19 +120,21 @@ export class AuthController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`❌ errore login: ${error.message}`);
+      this.logger.error(`errore login: ${error.message}`);
 
+      // rilancia httpexception se gia presente
       if (error instanceof HttpException) {
         throw error;
       }
 
+      // altrimenti crea nuova httpexception
       throw new HttpException(
         {
           success: false,
-          message: error.message || 'credenziali non valide',
+          message: error.message || 'errore login',
           timestamp: new Date().toISOString(),
         },
-        HttpStatus.UNAUTHORIZED,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
