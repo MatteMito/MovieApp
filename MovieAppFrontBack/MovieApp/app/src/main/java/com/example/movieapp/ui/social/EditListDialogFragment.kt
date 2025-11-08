@@ -117,7 +117,7 @@ class EditListDialogFragment : DialogFragment() {
                 name = name,
                 description = description?.ifBlank { null },
                 isPublic = isPublic,
-                onSuccess = { newList ->
+                onSuccess = { _ ->
                     Toast.makeText(requireContext(), "lista creata!", Toast.LENGTH_SHORT).show()
                     // ricarica liste in socialfragment
                     socialViewModel.refreshLists()

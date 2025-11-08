@@ -343,7 +343,7 @@ class NotificationsViewModel : ViewModel() {
         actorLastNameToFullName.clear()
 
         movies.forEach { movie ->
-            movie.actors?.forEach { fullName ->
+            movie.actors.forEach { fullName ->
                 val lastName = extractLastName(fullName)
                 actorCount[lastName] = (actorCount[lastName] ?: 0) + 1
                 // salva mapping cognome -> nome completo per dialog
@@ -613,7 +613,7 @@ class NotificationsViewModel : ViewModel() {
 
     fun getMoviesByActor(actorLastName: String): List<Movie> {
         return allMoviesCache.filter { movie ->
-            movie.actors?.any { extractLastName(it) == actorLastName } ?: false
+            movie.actors.any { extractLastName(it) == actorLastName }
         }
     }
 

@@ -237,8 +237,8 @@ class HomeFragment : Fragment() {
                 return
             }
 
-            // copia file in cache temporanea per invio al backend
-            val tempFile = createTempFile("import_", ".csv", requireContext().cacheDir)
+            val tempFile = java.io.File.createTempFile("import_", ".csv", requireContext().cacheDir)
+
             tempFile.outputStream().use { output ->
                 inputStream.copyTo(output)
             }
