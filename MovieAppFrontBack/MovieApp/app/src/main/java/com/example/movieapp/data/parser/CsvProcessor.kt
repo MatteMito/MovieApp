@@ -92,7 +92,7 @@ class CsvProcessor {
                         director = director,
                         userRating = rating,
                         dateRated = dateRated,
-                        isWatched = true,  // ✅ CORRETTO! imdb ratings = film visti
+                        isWatched = true,
                         source = DataSource.IMDB
                     )
 
@@ -197,7 +197,7 @@ class CsvProcessor {
                         title = title.trim(),
                         year = year,
                         director = director,
-                        isWatched = false,  // ✅ CORRETTO! watchlist = da vedere
+                        isWatched = false,
                         source = DataSource.IMDB
                     )
 
@@ -299,7 +299,7 @@ class CsvProcessor {
                         year = year,
                         userRating = rating,
                         dateRated = watchedDate,
-                        isWatched = true,  // ✅ CORRETTO! letterboxd diary = film visti
+                        isWatched = true,
                         source = DataSource.LETTERBOXD
                     )
 
@@ -389,7 +389,7 @@ class CsvProcessor {
                         id = generateMovieId(name, year, DataSource.LETTERBOXD),
                         title = name.trim(),
                         year = year,
-                        isWatched = false,  // ✅ CORRETTO! watchlist = da vedere
+                        isWatched = false,
                         source = DataSource.LETTERBOXD
                     )
 
@@ -487,160 +487,6 @@ class CsvProcessor {
 
         return "${sourcePrefix}_${normalizedTitle}_${yearStr}_${UUID.randomUUID().toString().take(8)}"
     }
-
-    /**
-     * auto-detect tipo csv
-     */
-    fun detectCsvType(inputStream: InputStream): CsvType {
-        return try {
-            val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
-            val firstLine = reader.readLine()?.lowercase() ?: ""
-            reader.close()
-
-            when {
-                firstLine.contains("your rating") && firstLine.contains("date rated") -> {
-                    Log.d(TAG, "✓ rilevato: imdb ratings (watched)")
-                    CsvType.IMDB_WATCHED
-                }
-                firstLine.contains("const") && firstLine.contains("title") && !firstLine.contains("rating") -> {
-                    Log.d(TAG, "✓ rilevato: imdb watchlist")
-                    CsvType.IMDB_WATCHLIST
-                }
-                firstLine.contains("watched date") || (firstLine.contains("name") && firstLine.contains("rating")) -> {
-                    Log.d(TAG, "✓ rilevato: letterboxd diary (watched)")
-                    CsvType.LETTERBOXD_WATCHED
-                }
-                firstLine.contains("name") && firstLine.contains("year") && !firstLine.contains("watched") -> {
-                    Log.d(TAG, "✓ rilevato: letterboxd watchlist")
-                    CsvType.LETTERBOXD_WATCHLIST
-                }
-                else -> {
-                    Log.w(TAG, "⚠️ tipo csv sconosciuto")
-                    Log.d(TAG, "headers: $firstLine")
-                    CsvType.UNKNOWN
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "errore auto-detect", e)
-            CsvType.UNKNOWN
-        }
-    }
-
-    /**
-     * validazione csv prima del parsing
-     */
-    fun validateCsv(inputStream: InputStream): CsvValidationResult {
-        return try {
-            val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
-            val lines = mutableListOf<String>()
-
-            //leggi prime 10 righe per validazione
-            repeat(10) {
-                val line = reader.readLine() ?: return@repeat
-                lines.add(line)
-            }
-            reader.close()
-
-            if (lines.isEmpty()) {
-                return CsvValidationResult(
-                    isValid = false,
-                    error = "file vuoto",
-                    detectedType = CsvType.UNKNOWN
-                )
-            }
-
-            val headerLine = lines.firstOrNull() ?: ""
-            val dataLines = lines.drop(1)
-
-            //verifica delimitatori
-            val commaCount = headerLine.count { it == ',' }
-            val semicolonCount = headerLine.count { it == ';' }
-            val tabCount = headerLine.count { it == '\t' }
-
-            val delimiter = when {
-                commaCount > semicolonCount && commaCount > tabCount -> ','
-                semicolonCount > commaCount && semicolonCount > tabCount -> ';'
-                tabCount > commaCount && tabCount > semicolonCount -> '\t'
-                else -> ','
-            }
-
-            //verifica consistenza colonne
-            val headerColumns = headerLine.split(delimiter).size
-            val inconsistentRows = dataLines.count { line ->
-                line.split(delimiter).size != headerColumns
-            }
-
-            if (inconsistentRows > dataLines.size / 2) {
-                return CsvValidationResult(
-                    isValid = false,
-                    error = "struttura csv inconsistente",
-                    detectedType = CsvType.UNKNOWN
-                )
-            }
-
-            //rileva tipo
-            val csvType = when {
-                headerLine.contains("Your Rating", ignoreCase = true) -> CsvType.IMDB_WATCHED
-                headerLine.contains("Const", ignoreCase = true) -> CsvType.IMDB_WATCHLIST
-                headerLine.contains("Watched Date", ignoreCase = true) -> CsvType.LETTERBOXD_WATCHED
-                headerLine.contains("Name", ignoreCase = true) &&
-                        headerLine.contains("Year", ignoreCase = true) -> CsvType.LETTERBOXD_WATCHLIST
-                else -> CsvType.UNKNOWN
-            }
-
-            CsvValidationResult(
-                isValid = true,
-                error = null,
-                detectedType = csvType,
-                delimiter = delimiter,
-                columnCount = headerColumns,
-                estimatedRows = dataLines.size
-            )
-
-        } catch (e: Exception) {
-            Log.e(TAG, "errore validazione csv", e)
-            CsvValidationResult(
-                isValid = false,
-                error = "errore validazione: ${e.message}",
-                detectedType = CsvType.UNKNOWN
-            )
-        }
-    }
-
-    /**
-     * statistiche parsing
-     */
-    fun getParsingStats(result: CsvParseResult): String {
-        return buildString {
-            appendLine("=== statistiche parsing ===")
-            appendLine()
-            appendLine("film importati: ${result.movies.size}")
-            appendLine("righe processate: ${result.successfulRows}")
-            appendLine("righe totali: ${result.totalRows}")
-
-            if (result.errors.isNotEmpty()) {
-                appendLine("errori: ${result.errors.size}")
-                appendLine()
-                appendLine("primi errori:")
-                result.errors.take(5).forEach { error ->
-                    appendLine("• $error")
-                }
-            }
-
-            if (result.movies.isNotEmpty()) {
-                val withYear = result.movies.count { it.year != null }
-                val withRating = result.movies.count { it.userRating != null }
-                val watched = result.movies.count { it.isWatched }
-
-                appendLine()
-                appendLine("dettagli:")
-                appendLine("• con anno: $withYear")
-                appendLine("• con rating: $withRating")
-                appendLine("• visti: $watched")
-                appendLine("• da vedere: ${result.movies.size - watched}")
-            }
-        }
-    }
 }
 
 //data classes
@@ -650,18 +496,6 @@ data class CsvParseResult(
     val successfulRows: Int,
     val errors: List<String>,
     val totalRows: Int
-) {
-    val successRate: Double
-        get() = if (totalRows > 0) (successfulRows.toDouble() / totalRows) * 100 else 0.0
-}
-
-data class CsvValidationResult(
-    val isValid: Boolean,
-    val error: String?,
-    val detectedType: CsvType,
-    val delimiter: Char = ',',
-    val columnCount: Int = 0,
-    val estimatedRows: Int = 0
 )
 
 enum class CsvType {

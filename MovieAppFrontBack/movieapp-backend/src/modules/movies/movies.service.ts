@@ -509,22 +509,6 @@ export class MoviesService {
     }
   }
 
-  async deleteAllMovies(userId: string): Promise<{ deleted: number }> {
-    try {
-      this.logger.log(`eliminazione associazioni per user ${userId}`);
-
-      const result = await this.userMovieRepository.delete({ userId });
-      const deletedCount = result.affected || 0;
-
-      this.logger.log(`eliminate ${deletedCount} associazioni`);
-
-      return { deleted: deletedCount };
-    } catch (error) {
-      this.logger.error(`errore delete: ${error.message}`);
-      throw error;
-    }
-  }
-
   private entityToMovie(entity: MovieEntity): Movie {
     return {
       id: entity.id,

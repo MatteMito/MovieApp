@@ -57,62 +57,6 @@ class MovieRepository private constructor(private val context: Context) {
     }
 
     /**
-     * carica film da database locale con sync backend automatico
-     */
-    suspend fun loadMoviesFromDatabase(): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                Log.d(TAG, "=== caricamento database ===")
-
-                //step 1: carica da room locale
-                val localSuccess = loadMoviesFromLocalStorage()
-                val localMovies = moviesList.toList()
-
-                Log.d(TAG, "room: ${localMovies.size} film")
-
-                //step 2: sync con backend usando apiservice
-                if (AppConfig.ENABLE_AUTO_SYNC) {
-                    val backendMovies = syncWithBackendDatabase()
-
-                    if (backendMovies.isNotEmpty()) {
-                        Log.d(TAG, "=== sync backend ${AppConfig.BACKEND_HOST} ===")
-                        Log.d(TAG, "backend: ${backendMovies.size} film")
-                        Log.d(TAG, "room: ${localMovies.size} film")
-
-                        //usa dataset piu completo
-                        val useBackend = backendMovies.size > localMovies.size ||
-                                backendMovies.count { it.tmdbId != null } > localMovies.count { it.tmdbId != null }
-
-                        if (useBackend) {
-                            Log.d(TAG, "uso backend (piu completo)")
-                            moviesList.clear()
-                            moviesList.addAll(backendMovies)
-                            withContext(Dispatchers.Main) {
-                                _movies.value = moviesList.toList()
-                            }
-                            saveMoviesToRoomDatabase()
-                        } else {
-                            Log.d(TAG, "uso room (gia aggiornato)")
-                        }
-
-                        true
-                    } else {
-                        Log.d(TAG, "backend vuoto, uso room")
-                        localSuccess
-                    }
-                } else {
-                    Log.d(TAG, "auto-sync disabilitato")
-                    localSuccess
-                }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "errore caricamento: ${e.message}", e)
-                false
-            }
-        }
-    }
-
-    /**
      * forza refresh esplicito dal backend - fix per "errore refresh"
      */
     suspend fun refreshFromBackend(): Boolean {
@@ -224,42 +168,6 @@ class MovieRepository private constructor(private val context: Context) {
     }
 
     /**
-     * carica da room local storage
-     */
-    private fun loadMoviesFromLocalStorage(): Boolean {
-        return try {
-            val moviesJson = sharedPrefs.getString("movies_list", null)
-            val lastSaved = sharedPrefs.getLong("last_saved", 0)
-            val backendVersion = sharedPrefs.getString("backend_version", "unknown")
-
-            if (moviesJson != null && lastSaved > 0) {
-                val type = object : TypeToken<List<Movie>>() {}.type
-                val loadedMovies: List<Movie> = gson.fromJson(moviesJson, type)
-
-                moviesList.clear()
-                moviesList.addAll(loadedMovies)
-                _movies.value = moviesList.toList()
-
-                val daysSince = (System.currentTimeMillis() - lastSaved) / (1000 * 60 * 60 * 24)
-                val enrichedCount = loadedMovies.count { it.tmdbId != null }
-
-                Log.d(TAG, "caricati ${loadedMovies.size} film da room")
-                Log.d(TAG, "arricchiti: $enrichedCount (${(enrichedCount.toDouble() / loadedMovies.size * 100).toInt()}%)")
-                Log.d(TAG, "ultimo save: $daysSince giorni fa")
-                Log.d(TAG, "backend version: $backendVersion")
-
-                true
-            } else {
-                Log.d(TAG, "nessun film in room")
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "errore caricamento room: ${e.message}", e)
-            false
-        }
-    }
-
-    /**
      * salva in room con metadata
      */
     private fun saveMoviesToRoomDatabase() {
@@ -275,15 +183,5 @@ class MovieRepository private constructor(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "errore salvataggio room: ${e.message}", e)
         }
-    }
-
-    /**
-     * elimina tutti i film
-     */
-    fun clearAll() {
-        moviesList.clear()
-        _movies.value = emptyList()
-        sharedPrefs.edit().clear().apply()
-        Log.d(TAG, "repository pulito")
     }
 }

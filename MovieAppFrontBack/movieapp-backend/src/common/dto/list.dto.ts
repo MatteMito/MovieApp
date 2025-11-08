@@ -1,4 +1,3 @@
-// FILE: movieapp-backend/src/common/dto/list.dto.ts
 // DTO completi per gestione liste personalizzate
 
 import {

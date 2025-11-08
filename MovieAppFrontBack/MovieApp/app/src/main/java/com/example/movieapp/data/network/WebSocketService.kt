@@ -12,9 +12,7 @@ import java.net.URISyntaxException
 
 /**
  * Servizio WebSocket CORRETTO per notifiche real-time
- *
- * ✅ FIX: URL corretto con namespace /ws
- * ✅ Progress bar funzionante in tempo reale
+ * Progress bar funzionante in tempo reale
  */
 class WebSocketService private constructor() {
 
@@ -55,7 +53,7 @@ class WebSocketService private constructor() {
             return
         }
 
-        // ✅ COSTRUISCE URL COMPLETO: http://192.168.1.163:3001/ws
+        // COSTRUISCE URL COMPLETO: http://192.168.1.163:3001/ws
         val fullUrl = "${AppConfig.WEBSOCKET_URL}${AppConfig.WEBSOCKET_NAMESPACE}"
 
         Log.d(TAG, "🔌 Connessione a $fullUrl")
@@ -231,41 +229,10 @@ class WebSocketService private constructor() {
     }
 
     /**
-     * Disconnette dal WebSocket
-     */
-    fun disconnect() {
-        Log.d(TAG, "🔌 Disconnessione WebSocket...")
-        socket?.disconnect()
-        socket?.off()
-        socket = null
-        _connectionStatus.value = ConnectionStatus.DISCONNECTED
-        reconnectAttempts = 0
-    }
-
-    /**
      * Controlla se connesso
      */
     fun isConnected(): Boolean = socket?.connected() ?: false
 
-    /**
-     * Reset stato enrichment
-     */
-    fun reset() {
-        _enrichmentUpdates.value = null
-    }
-
-    /**
-     * Info debug
-     */
-    fun getDebugInfo(): Map<String, Any> {
-        return mapOf(
-            "connected" to isConnected(),
-            "status" to _connectionStatus.value.name,
-            "url" to "${AppConfig.WEBSOCKET_URL}${AppConfig.WEBSOCKET_NAMESPACE}",
-            "reconnect_attempts" to reconnectAttempts,
-            "max_attempts" to maxReconnectAttempts
-        )
-    }
 }
 
 // === DATA CLASSES ===

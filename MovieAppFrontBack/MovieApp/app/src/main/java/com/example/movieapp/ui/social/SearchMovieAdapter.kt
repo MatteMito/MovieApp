@@ -1,6 +1,3 @@
-//file: app/src/main/java/com/example/movieapp/ui/social/SearchMovieAdapter.kt
-//adapter per autocomplete ricerca film
-
 package com.example.movieapp.ui.social
 
 import android.view.LayoutInflater

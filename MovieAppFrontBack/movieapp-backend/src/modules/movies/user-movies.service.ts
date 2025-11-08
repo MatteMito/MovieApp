@@ -189,24 +189,4 @@ export class UserMoviesService {
       throw error;
     }
   }
-
-  async deleteUserMovie(userId: string, movieId: string): Promise<void> {
-    try {
-      await this.userMovieRepository.delete({ userId, movieId });
-      this.logger.log(`eliminato film ${movieId} per user ${userId}`);
-    } catch (error) {
-      this.logger.error(`errore eliminazione film ${movieId}:`, error);
-      throw error;
-    }
-  }
-
-  async deleteAllUserMovies(userId: string): Promise<void> {
-    try {
-      await this.userMovieRepository.delete({ userId });
-      this.logger.log(`eliminati tutti i film per user ${userId}`);
-    } catch (error) {
-      this.logger.error(`errore eliminazione film user ${userId}:`, error);
-      throw error;
-    }
-  }
 }

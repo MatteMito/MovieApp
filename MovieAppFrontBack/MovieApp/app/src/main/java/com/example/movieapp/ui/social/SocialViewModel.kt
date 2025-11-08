@@ -1,6 +1,3 @@
-//file: app/src/main/java/com/example/movieapp/ui/social/SocialViewModel.kt
-//viewmodel per socialfragment con filtri completi e liste seguite
-
 package com.example.movieapp.ui.social
 
 import android.content.Context
@@ -27,13 +24,10 @@ class SocialViewModel : ViewModel() {
 
     //livedata liste
     private val _myLists = MutableLiveData<List<MovieList>>()
-    val myLists: LiveData<List<MovieList>> = _myLists
 
     private val _publicLists = MutableLiveData<List<MovieList>>()
-    val publicLists: LiveData<List<MovieList>> = _publicLists
 
     private val _followedLists = MutableLiveData<List<MovieList>>()
-    val followedLists: LiveData<List<MovieList>> = _followedLists
 
     //livedata filtrate (per ricerca e ordinamento)
     private val _filteredMyLists = MutableLiveData<List<MovieList>>()

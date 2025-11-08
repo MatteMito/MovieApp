@@ -20,9 +20,6 @@ object NotificationHelper {
     private const val CHANNEL_NAME = "Import Film"
     private const val CHANNEL_DESCRIPTION = "Notifiche per import film in background"
 
-    const val NOTIFICATION_ID = 1001
-    const val NOTIFICATION_ID_IMPORT = 1001
-
     /**
      * crea notification channel (necessario per android 8+)
      */
@@ -75,93 +72,5 @@ object NotificationHelper {
         }
 
         return builder.build()
-    }
-
-    /**
-     * crea notifica progress per import in corso
-     */
-    fun createProgressNotification(
-        context: Context,
-        title: String,
-        message: String,
-        progress: Int,
-        maxProgress: Int = 100
-    ): android.app.Notification {
-
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_upload)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setProgress(maxProgress, progress, false)
-            .setOngoing(true)
-            .setAutoCancel(false)
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
-    }
-
-    /**
-     * crea notifica completamento import
-     */
-    fun createCompletionNotification(
-        context: Context,
-        title: String,
-        message: String,
-        success: Boolean = true
-    ): android.app.Notification {
-
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val icon = if (success) R.drawable.ic_home else R.drawable.ic_warning
-
-        return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(icon)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-    }
-
-    /**
-     * mostra notifica
-     */
-    fun showNotification(context: Context, notificationId: Int, notification: android.app.Notification) {
-        try {
-            val notificationManager = NotificationManagerCompat.from(context)
-            notificationManager.notify(notificationId, notification)
-        } catch (e: SecurityException) {
-            //permesso notifiche non concesso
-            android.util.Log.w("NotificationHelper", "permesso notifiche negato")
-        }
-    }
-
-    /**
-     * cancella notifica
-     */
-    fun cancelNotification(context: Context, notificationId: Int) {
-        val notificationManager = NotificationManagerCompat.from(context)
-        notificationManager.cancel(notificationId)
     }
 }

@@ -1,6 +1,3 @@
-//file: app/src/main/java/com/example/movieapp/ui/social/ListDetailViewModel.kt
-//viewmodel per listdetailfragment con arricchimento automatico film
-
 package com.example.movieapp.ui.social
 
 import android.util.Log
@@ -313,34 +310,6 @@ class ListDetailViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "eccezione updatelist", e)
-                onError("errore: ${e.message}")
-            }
-        }
-    }
-
-    //elimina lista
-    fun deleteList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
-        viewModelScope.launch {
-            try {
-                val userId = ApiService.getCurrentUserId()
-                if (userId == null) {
-                    onError("utente non autenticato")
-                    return@launch
-                }
-
-                Log.d(TAG, "eliminazione lista $listId")
-                val response = ApiService.apiInterface.deleteList(listId, userId)
-
-                if (response.isSuccessful) {
-                    Log.d(TAG, "lista eliminata")
-                    onSuccess()
-                } else {
-                    val errorMsg = "errore eliminazione: ${response.code()}"
-                    Log.e(TAG, errorMsg)
-                    onError(errorMsg)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "eccezione deletelist", e)
                 onError("errore: ${e.message}")
             }
         }

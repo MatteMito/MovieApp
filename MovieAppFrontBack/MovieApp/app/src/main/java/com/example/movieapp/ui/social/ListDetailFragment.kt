@@ -1,6 +1,3 @@
-//file: app/src/main/java/com/example/movieapp/ui/social/ListDetailFragment.kt
-//fragment per dettaglio lista con filtri per nome, anno, genere, regista
-
 package com.example.movieapp.ui.social
 
 import android.os.Bundle

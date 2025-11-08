@@ -96,9 +96,6 @@ export declare class MoviesService {
         withTmdbId: number;
         enrichmentRate: number;
     }>;
-    deleteAllMovies(userId: string): Promise<{
-        deleted: number;
-    }>;
     private entityToMovie;
 }
 export {};

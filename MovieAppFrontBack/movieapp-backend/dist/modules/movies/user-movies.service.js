@@ -146,26 +146,6 @@ let UserMoviesService = UserMoviesService_1 = class UserMoviesService {
             throw error;
         }
     }
-    async deleteUserMovie(userId, movieId) {
-        try {
-            await this.userMovieRepository.delete({ userId, movieId });
-            this.logger.log(`eliminato film ${movieId} per user ${userId}`);
-        }
-        catch (error) {
-            this.logger.error(`errore eliminazione film ${movieId}:`, error);
-            throw error;
-        }
-    }
-    async deleteAllUserMovies(userId) {
-        try {
-            await this.userMovieRepository.delete({ userId });
-            this.logger.log(`eliminati tutti i film per user ${userId}`);
-        }
-        catch (error) {
-            this.logger.error(`errore eliminazione film user ${userId}:`, error);
-            throw error;
-        }
-    }
 };
 exports.UserMoviesService = UserMoviesService;
 exports.UserMoviesService = UserMoviesService = UserMoviesService_1 = __decorate([

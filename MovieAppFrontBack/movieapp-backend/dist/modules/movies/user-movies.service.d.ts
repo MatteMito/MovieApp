@@ -26,6 +26,4 @@ export declare class UserMoviesService {
     associateMoviesToUser(userId: string, movies: Movie[], status: 'watched' | 'watchlist'): Promise<void>;
     getUserMovieStats(userId: string): Promise<UserMovieStats>;
     getUserMovies(userId: string, status?: 'watched' | 'watchlist'): Promise<Movie[]>;
-    deleteUserMovie(userId: string, movieId: string): Promise<void>;
-    deleteAllUserMovies(userId: string): Promise<void>;
 }

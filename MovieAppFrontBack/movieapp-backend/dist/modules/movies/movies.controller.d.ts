@@ -25,7 +25,5 @@ export declare class MoviesController {
     getUserMovies(userId: string, status?: string): Promise<ApiResponse>;
     getUserStats(userId: string): Promise<ApiResponse>;
     getAllMovies(userId?: string): Promise<ApiResponse>;
-    deleteAllUserMovies(userId: string): Promise<ApiResponse>;
-    deleteAllMovies(userId?: string): Promise<ApiResponse>;
 }
 export {};

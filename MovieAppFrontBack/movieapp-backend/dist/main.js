@@ -53,7 +53,7 @@ async function bootstrap() {
     const port = process.env.PORT || 3001;
     const host = process.env.HOST || '0.0.0.0';
     await app.listen(port, host);
-    logger.log(`🚀 MovieApp Backend v2.1 attivo su http://${host}:${port}`);
+    logger.log(`🚀 MovieApp Backend v1.0 attivo su http://${host}:${port}`);
     logger.log(`📚 Database: PostgreSQL`);
     logger.log(`🔄 WebSocket: attivo`);
     logger.log(`📦 Body Parser Limit: 50MB`);

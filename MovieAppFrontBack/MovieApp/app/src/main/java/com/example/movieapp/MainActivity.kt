@@ -1,6 +1,3 @@
-//file: app/src/main/java/com/example/movieapp/MainActivity.kt
-//mainactivity con chiamata initializeapp al primo avvio
-
 package com.example.movieapp
 
 import android.content.Intent

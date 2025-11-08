@@ -1,6 +1,3 @@
-//file: app/src/main/java/com/example/movieapp/data/models/MovieList.kt
-//data class per lista con username e isfollowing
-
 package com.example.movieapp.data.models
 
 import com.example.movieapp.data.network.ApiService

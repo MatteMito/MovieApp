@@ -1,6 +1,3 @@
-// file: app/src/main/java/com/example/movieapp/data/models/Movie.kt
-// model movie completo
-
 package com.example.movieapp.data.models
 
 import com.google.gson.annotations.SerializedName

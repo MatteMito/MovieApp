@@ -345,19 +345,6 @@ let MoviesService = MoviesService_1 = class MoviesService {
             throw error;
         }
     }
-    async deleteAllMovies(userId) {
-        try {
-            this.logger.log(`eliminazione associazioni per user ${userId}`);
-            const result = await this.userMovieRepository.delete({ userId });
-            const deletedCount = result.affected || 0;
-            this.logger.log(`eliminate ${deletedCount} associazioni`);
-            return { deleted: deletedCount };
-        }
-        catch (error) {
-            this.logger.error(`errore delete: ${error.message}`);
-            throw error;
-        }
-    }
     entityToMovie(entity) {
         return {
             id: entity.id,

@@ -1,6 +1,3 @@
-//file: app/src/main/java/com/example/movieapp/ui/social/ListMoviesAdapter.kt
-//adapter per film in una lista con poster, titolo, anno, regista, generi
-
 package com.example.movieapp.ui.social
 
 import android.view.LayoutInflater

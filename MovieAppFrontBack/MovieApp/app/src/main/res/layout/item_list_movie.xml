@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--file: app/src/main/res/layout/item_list_movie.xml-->
-<!--layout item film lista (compatto)-->
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"

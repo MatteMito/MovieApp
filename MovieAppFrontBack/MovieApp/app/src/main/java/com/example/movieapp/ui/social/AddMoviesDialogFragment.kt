@@ -1,6 +1,3 @@
-//file: app/src/main/java/com/example/movieapp/ui/social/AddMoviesDialogFragment.kt
-//dialog per aggiungere film alla lista con aggiunta diretta al click
-
 package com.example.movieapp.ui.social
 
 import android.os.Bundle

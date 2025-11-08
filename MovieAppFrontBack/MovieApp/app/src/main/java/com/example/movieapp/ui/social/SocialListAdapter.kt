@@ -1,6 +1,3 @@
-//file: app/src/main/java/com/example/movieapp/ui/social/SocialListAdapter.kt
-//adapter per liste sociali con stato seguito/segui
-
 package com.example.movieapp.ui.social
 
 import android.view.LayoutInflater
