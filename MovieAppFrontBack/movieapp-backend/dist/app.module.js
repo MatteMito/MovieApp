@@ -37,7 +37,7 @@ exports.AppModule = AppModule = __decorate([
                 password: process.env.DB_PASSWORD || 'postgres',
                 database: process.env.DB_NAME || 'movieapp',
                 entities: [__dirname + '/**/*.entity{.ts,.js}'],
-                synchronize: false,
+                synchronize: true,
                 logging: false,
             }),
             schedule_1.ScheduleModule.forRoot(),

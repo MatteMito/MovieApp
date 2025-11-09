@@ -30,7 +30,7 @@ import { AppController } from './app.controller';
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_NAME || 'movieapp',
       entities: [__dirname + '/**/*.entity{.ts,.js}'], // carica tutte le entity
-      synchronize: false, // disattivato per usare migration manuali
+      synchronize: true, //attivato in modalità sync in dev
       logging: false, // disattiva log query sql (abilita per debug)
     }),
     
