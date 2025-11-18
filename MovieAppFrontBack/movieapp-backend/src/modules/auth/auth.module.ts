@@ -18,9 +18,9 @@ import { JwtStrategy } from './jwt.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'movieapp-secret-key'), // chiave segreta per firmare token
+        secret: configService.get<string>('JWT_SECRET'), // chiave segreta per firmare token
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRATION', '7d'), // durata validità token (default 7 giorni)
+          expiresIn: configService.get<string>('JWT_EXPIRATION', '7d'), // durata validita token (default 7 giorni)
         },
       }),
       inject: [ConfigService],

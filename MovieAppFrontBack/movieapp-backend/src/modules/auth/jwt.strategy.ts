@@ -18,10 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // rifiuta token scaduti
       ignoreExpiration: false,
       // chiave segreta per verificare firma token (deve coincidere con quella usata per firmare)
-      secretOrKey: configService.get<string>(
-        'JWT_SECRET',
-        'movieapp-secret-key',
-      ),
+      secretOrKey: configService.get<string>('JWT_SECRET'),
     });
   }
 
@@ -35,7 +32,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('utente non valido');
     }
 
-    // ritorna oggetto utente che verrà iniettato in req.user
+    // ritorna oggetto utente che verra iniettato in req.user
     return {
       userId: payload.sub,
       email: payload.email,
