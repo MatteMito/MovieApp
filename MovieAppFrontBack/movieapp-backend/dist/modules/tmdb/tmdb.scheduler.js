@@ -59,13 +59,6 @@ let TmdbScheduler = TmdbScheduler_1 = class TmdbScheduler {
             this.logger.error(`❌ errore sync incrementale: ${error.message}`);
         }
     }
-    async cleanupUnusedMovies() {
-        if (!this.enableAutoSync) {
-            return;
-        }
-        this.logger.log('🧹 avvio pulizia film non usati');
-        this.logger.log('⚠️ pulizia non ancora implementata');
-    }
     async testSync() {
         this.logger.log('🧪 test sync manuale (10 film)');
         try {
@@ -100,15 +93,6 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], TmdbScheduler.prototype, "syncPopularMoviesIncremental", null);
-__decorate([
-    (0, schedule_1.Cron)('0 4 * * 0', {
-        name: 'cleanup-unused-movies',
-        timeZone: 'Europe/Rome',
-    }),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], TmdbScheduler.prototype, "cleanupUnusedMovies", null);
 exports.TmdbScheduler = TmdbScheduler = TmdbScheduler_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [tmdb_service_1.TmdbService,

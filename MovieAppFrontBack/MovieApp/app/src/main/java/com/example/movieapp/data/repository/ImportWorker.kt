@@ -19,8 +19,7 @@ import java.io.File
 import java.io.FileInputStream
 
 /**
- * worker per import - fa SOLO parsing e upload, NON aspetta enrichment
- * l'enrichment è monitorato dall'UI via websocket
+ * worker per import - fa SOLO parsing e upload e l'enrichment è monitorato dall'UI via websocket
  */
 class ImportWorker(
     private val context: Context,

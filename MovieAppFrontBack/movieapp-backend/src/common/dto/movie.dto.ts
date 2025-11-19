@@ -1,7 +1,6 @@
 import {
   IsString,
   IsNumber,
-  IsBoolean,
   IsOptional,
   IsArray,
   Min,
@@ -30,9 +29,6 @@ export class CreateMovieDto {
 
   @IsString()
   source: string; // fonte dati (tmdb, imdb, letterboxd, etc)
-
-  // rimossi: user_rating, date_rated, is_watched
-  // ora gestiti in user_movies table
 }
 
 // dto per aggiornamento film
@@ -52,12 +48,9 @@ export class UpdateMovieDto {
   @IsOptional()
   @IsArray()
   genres?: string[];
-
-  // rimossi: user_rating, date_rated, is_watched
 }
 
-// dto per enrichment film tramite tmdb
-// include solo i dati necessari per identificare e arricchire il film
+// dto per enrichment film tramite tmdb e include solo i dati necessari per identificare e arricchire il film
 export class EnrichMovieDto {
   @IsString()
   id: string; // id del film nel sistema
@@ -71,13 +64,9 @@ export class EnrichMovieDto {
 
   @IsString()
   source: string; // fonte originale dei dati
-
-  // rimossi: user_rating, date_rated, is_watched
-  // per il batch upload questi vengono gestiti separatamente
 }
 
-// dto per batch upload di film
-// include solo i film da arricchire, i dati utente vengono gestiti dopo
+// dto per batch upload di film e include solo i film da arricchire, i dati utente vengono gestiti dopo
 export class BatchUploadDto {
   @IsArray()
   watchlist: EnrichMovieDto[]; // film nella watchlist

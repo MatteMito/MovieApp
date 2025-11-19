@@ -6,8 +6,6 @@ import { Repository, Not, IsNull } from 'typeorm';
 import { MovieEntity } from '../../database/entities/movie.entity';
 import { UserMovieEntity, MovieStatus } from '../../database/entities/user-movie.entity';
 
-// ===== INTERFACES =====
-
 // statistiche base: totali, medie, conteggi
 export interface BasicStats {
   totalMovies: number;
@@ -160,8 +158,6 @@ export class AnalyticsService {
     };
   }
 
-  // ===== STATISTICHE BASE =====
-
   // genera statistiche base: totali, medie, conteggi
   private async generateBasicStats(userId: string, watchedMovies: UserMovieEntity[]): Promise<BasicStats> {
     // recupera tutti i film dell'utente (watched + watchlist)
@@ -208,8 +204,6 @@ export class AnalyticsService {
       uniqueDirectors: allDirectors.size,
     };
   }
-
-  // ===== STATISTICHE WATCHED (senza rating richiesto) =====
 
   // genera statistiche basate su film watched (anche senza rating)
   private async generateWatchedStats(watchedMovies: UserMovieEntity[]) {
@@ -412,8 +406,6 @@ export class AnalyticsService {
     };
   }
 
-  // ===== STATISTICHE RATING (solo film con voto) =====
-
   // genera statistiche basate sui rating utente
   private async generateRatingStats(ratedMovies: UserMovieEntity[]) {
     // se nessun film con rating, ritorna struttura vuota
@@ -590,8 +582,6 @@ export class AnalyticsService {
       revenueVsRating,
     };
   }
-
-  // ===== METODI SINGOLI (per retrocompatibilità) =====
 
   // ritorna solo statistiche base
   async getBasicStats(userId: string): Promise<BasicStats> {

@@ -9,20 +9,15 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
-  Request,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ListsService } from './lists.service';
 import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dto/list.dto';
 
 @Controller('api/v1/lists')
 export class ListsController {
   constructor(private readonly listsService: ListsService) {}
-
-  // ===== ENDPOINT PUBBLICI (SENZA AUTH) =====
 
   // GET /api/v1/lists/public
   // ottieni tutte le liste pubbliche con filtri opzionali
@@ -36,8 +31,6 @@ export class ListsController {
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
     return this.listsService.getPublicLists({ search, sortBy });
   }
-
-  // ===== ENDPOINT AUTENTICATI =====
 
   // GET /api/v1/lists/my
   // ottieni tutte le liste dell'utente (pubbliche e private)
@@ -91,8 +84,6 @@ export class ListsController {
     return this.listsService.deleteList(id, userId);
   }
 
-  // ===== GESTIONE FILM NELLE LISTE =====
-
   // POST /api/v1/lists/:id/movies
   // aggiungi film a lista esistente
   @Post(':id/movies')
@@ -120,8 +111,6 @@ export class ListsController {
     }
     return this.listsService.removeMovieFromList(listId, userId, movieId);
   }
-
-  // ===== SOCIAL FEATURES =====
 
   // POST /api/v1/lists/:id/follow
   // segui una lista pubblica di un altro utente

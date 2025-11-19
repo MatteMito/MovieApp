@@ -31,7 +31,7 @@ import { AppController } from './app.controller';
       database: process.env.DB_NAME || 'movieapp',
       entities: [__dirname + '/**/*.entity{.ts,.js}'], // carica tutte le entity
       synchronize: true, //attivato in modalità sync in dev
-      logging: false, // disattiva log query sql (abilita per debug)
+      logging: false, // disattiva log query sql
     }),
     
     // abilita cron jobs schedulati (sync tmdb, cleanup)

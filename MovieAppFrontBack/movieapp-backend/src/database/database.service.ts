@@ -17,8 +17,6 @@ export class DatabaseService {
     private movieRepository: Repository<MovieEntity>,
   ) {}
 
-  // ===== conversioni entity <-> model =====
-
   // converte model movie in entity typeorm per il salvataggio
   private movieToEntity(movie: Movie): MovieEntity {
     const entity = new MovieEntity();
@@ -340,8 +338,6 @@ export class DatabaseService {
       throw error;
     }
   }
-
-  // ===== analytics cache management =====
 
   // recupera dati analytics dalla cache se non scaduti
   getCachedAnalytics(key: string): any {

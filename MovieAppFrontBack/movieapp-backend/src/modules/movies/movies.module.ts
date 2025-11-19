@@ -1,5 +1,3 @@
-// ottimizzato: rimosso tmdb cache entity (non necessaria)
-
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MoviesController } from './movies.controller';

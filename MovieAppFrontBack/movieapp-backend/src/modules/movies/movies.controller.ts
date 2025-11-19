@@ -4,7 +4,6 @@ import {
   Controller,
   Get,
   Post,
-  Delete,
   Body,
   Param,
   Query,
@@ -30,8 +29,6 @@ export class MoviesController {
   private readonly logger = new Logger(MoviesController.name);
 
   constructor(private readonly moviesService: MoviesService) {}
-
-  // ===== HEALTH & STATUS =====
 
   // GET /api/v1/movies/health
   // verifica stato sistema e connessioni
@@ -120,8 +117,6 @@ export class MoviesController {
       );
     }
   }
-
-  // ===== ENRICHMENT ENDPOINTS =====
 
   // POST /api/v1/movies/enrich
   // arricchisce film con dati tmdb usando cache intelligente
@@ -245,8 +240,6 @@ export class MoviesController {
     }
   }
 
-  // ===== GESTIONE FILM =====
-
   // GET /api/v1/movies/user/:userId
   // recupera tutti i film di un utente specifico con filtro status opzionale
   @Get('user/:userId')
@@ -309,8 +302,7 @@ export class MoviesController {
     }
   }
 
-  // GET /api/v1/movies/all
-  // endpoint deprecato - usare /user/:userId invece
+  // GET /user/:userId invece
   @Get('all')
   async getAllMovies(@Headers('x-user-id') userId?: string): Promise<ApiResponse> {
     this.logger.warn('endpoint /all deprecato. usare /user/:userId');

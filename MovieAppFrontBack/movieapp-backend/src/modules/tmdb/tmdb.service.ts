@@ -56,7 +56,7 @@ export class TmdbService {
 
       this.logger.log(`trovato via titolo: ${tmdbData.id} per ${movie.title}`);
 
-      // CRITICO: mantieni l'id originale del film (lbxd_xxx o imdb_xxx)
+      //mantengo l'id originale del film (lbxd_xxx o imdb_xxx)
       const enrichedMovie: Movie = {
         id: movie.id,  // usa l'id originale, non tmdb_id
         title: tmdbData.title || movie.title,

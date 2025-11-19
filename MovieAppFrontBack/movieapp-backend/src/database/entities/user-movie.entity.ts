@@ -25,8 +25,6 @@ export class UserMovieEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // ===== RELAZIONI =====
-
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
@@ -40,8 +38,6 @@ export class UserMovieEntity {
   @ManyToOne(() => MovieEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'movie_id' })
   movie: MovieEntity; // riferimento al film
-
-  // ===== STATO E DATI UTENTE =====
 
   @Column({
     type: 'varchar',
@@ -61,8 +57,6 @@ export class UserMovieEntity {
 
   @Column({ name: 'is_favorite', type: 'boolean', default: false })
   isFavorite?: boolean; // film preferito dell'utente
-
-  // ===== TIMESTAMP =====
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date; // quando l'utente ha aggiunto il film

@@ -75,27 +75,7 @@ export class TmdbScheduler {
     }
   }
 
-  // pulizia cache: ogni domenica alle 04:00
-  // rimuove film non arricchiti e non usati da 6+ mesi
-  @Cron('0 4 * * 0', {
-    name: 'cleanup-unused-movies',
-    timeZone: 'Europe/Rome',
-  })
-  async cleanupUnusedMovies() {
-    if (!this.enableAutoSync) {
-      return;
-    }
-
-    this.logger.log('🧹 avvio pulizia film non usati');
-
-    // todo: implementa logica pulizia
-    // rimuovi film con is_enriched=false e created_at < 6 mesi fa
-    // che non sono associati a nessun utente in user_movies
-
-    this.logger.log('⚠️ pulizia non ancora implementata');
-  }
-
-  // metodo manuale per testare sync (non schedulato)
+  // metodo manuale per testare sync
   async testSync() {
     this.logger.log('🧪 test sync manuale (10 film)');
     

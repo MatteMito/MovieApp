@@ -16,13 +16,9 @@ import {
 @Index(['source'])
 @Index(['is_enriched'])
 export class MovieEntity {
-  
-  // ===== IDENTIFICATORI =====
-  
+    
   @PrimaryColumn({ type: 'varchar', length: 255 })
   id: string; // id composito o da fonte esterna
-
-  // ===== DATI BASE =====
   
   @Column({ length: 500 })
   title: string;
@@ -32,8 +28,6 @@ export class MovieEntity {
 
   @Column({ length: 50, default: 'UNKNOWN' })
   source: string; // fonte dati: IMDB, LETTERBOXD, TMDB, etc.
-
-  // ===== DATI TMDB ARRICCHITI =====
   
   @Column({ nullable: true })
   tmdb_id?: number; // id del film su tmdb
@@ -58,16 +52,12 @@ export class MovieEntity {
 
   @Column({ nullable: true })
   runtime?: number; // durata in minuti
-
-  // ===== POSTER E IMMAGINI =====
   
   @Column({ nullable: true, length: 500 })
   poster_url?: string; // url poster tmdb
 
   @Column({ nullable: true, length: 500 })
   backdrop_url?: string; // url immagine sfondo tmdb
-
-  // ===== RATING E POPOLARITÀ TMDB =====
   
   @Column('decimal', { precision: 3, scale: 1, nullable: true })
   tmdb_rating?: number; // rating medio tmdb (0-10)
@@ -77,8 +67,6 @@ export class MovieEntity {
 
   @Column('decimal', { precision: 10, scale: 3, nullable: true })
   popularity?: number; // punteggio popolarità tmdb
-
-  // ===== DATI PRODUZIONE =====
   
   @Column('bigint', { nullable: true })
   budget?: number; // budget in dollari
@@ -94,8 +82,6 @@ export class MovieEntity {
 
   @Column('text', { array: true, default: '{}' })
   production_countries: string[]; // paesi di produzione
-
-  // ===== LINGUE E TITOLO ORIGINALE =====
   
   @Column({ nullable: true, length: 10 })
   original_language?: string; // codice lingua originale
@@ -105,8 +91,6 @@ export class MovieEntity {
 
   @Column('text', { array: true, default: '{}' })
   spoken_languages: string[]; // lingue parlate nel film
-
-  // ===== METADATA VARI =====
   
   @Column({ default: false })
   adult: boolean; // film per adulti
@@ -125,8 +109,6 @@ export class MovieEntity {
 
   @Column({ nullable: true, length: 500 })
   trailer_url?: string; // url trailer (youtube, etc)
-
-  // ===== TIMESTAMP AUTOMATICI =====
   
   @CreateDateColumn()
   created_at: Date; // data creazione record

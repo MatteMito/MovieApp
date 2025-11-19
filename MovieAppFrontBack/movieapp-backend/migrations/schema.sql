@@ -36,7 +36,7 @@ $$ LANGUAGE plpgsql;
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL, -- da hashare nell'app
+    password VARCHAR(255) NOT NULL,
     username VARCHAR(100),
     avatar_url TEXT,
     is_active BOOLEAN DEFAULT true,
@@ -60,14 +60,14 @@ CREATE TRIGGER update_users_updated_at
 
 -- catalogo film con metadati completi da tmdb
 CREATE TABLE movies (
-    id VARCHAR(255) PRIMARY KEY, -- id composito o da fonte esterna
+    id VARCHAR(255) PRIMARY KEY,
     title VARCHAR(500) NOT NULL,
     year INTEGER,
-    source VARCHAR(50) DEFAULT 'UNKNOWN', -- fonte dei dati (tmdb, imdb, etc)
+    source VARCHAR(50) DEFAULT 'UNKNOWN',
     
     -- dati tmdb
     tmdb_id INTEGER,
-    is_enriched BOOLEAN DEFAULT false, -- flag per sapere se arricchito
+    is_enriched BOOLEAN DEFAULT false,
     
     -- metadati base
     genres TEXT[] DEFAULT '{}',
@@ -75,21 +75,21 @@ CREATE TABLE movies (
     actors TEXT[],
     overview TEXT,
     tagline VARCHAR(500),
-    runtime INTEGER, -- durata in minuti
+    runtime INTEGER,
     
     -- immagini
     poster_url TEXT,
     backdrop_url TEXT,
     
     -- valutazioni
-    tmdb_rating DECIMAL(3,1), -- rating tmdb (0-10)
+    tmdb_rating DECIMAL(3,1),
     vote_count INTEGER,
     popularity DECIMAL(10,3),
     
     -- dati produzione
     budget BIGINT,
     revenue BIGINT,
-    status VARCHAR(100), -- released, post-production, etc
+    status VARCHAR(100),
     release_date DATE,
     production_companies TEXT[] DEFAULT '{}',
     production_countries TEXT[] DEFAULT '{}',
@@ -104,7 +104,7 @@ CREATE TABLE movies (
     homepage VARCHAR(500),
     imdb_id VARCHAR(20),
     keywords TEXT[] DEFAULT '{}',
-    certification VARCHAR(20), -- rating censura (PG-13, R, etc)
+    certification VARCHAR(20),
     trailer_url VARCHAR(500),
     
     -- timestamp
@@ -115,7 +115,7 @@ CREATE TABLE movies (
 -- indici per performance su query comuni
 CREATE INDEX idx_movies_title ON movies(title);
 CREATE INDEX idx_movies_year ON movies(year);
-CREATE INDEX idx_movies_title_year ON movies(title, year); -- ricerca combinata
+CREATE INDEX idx_movies_title_year ON movies(title, year);
 CREATE INDEX idx_movies_tmdb_id ON movies(tmdb_id);
 CREATE INDEX idx_movies_director ON movies(director);
 CREATE INDEX idx_movies_source ON movies(source);
@@ -138,12 +138,12 @@ CREATE TABLE user_movies (
     movie_id VARCHAR(255) NOT NULL,
     
     -- stato del film per l'utente
-    status VARCHAR(20) DEFAULT 'watchlist', -- watched o watchlist
+    status VARCHAR(20) DEFAULT 'watchlist',
     
     -- dati personali dell'utente sul film
-    user_rating DECIMAL(3,1), -- voto personale 0-10
-    watched_date DATE, -- quando l'ha visto
-    user_review TEXT, -- recensione personale
+    user_rating DECIMAL(3,1),
+    watched_date DATE,
+    user_review TEXT,
     is_favorite BOOLEAN DEFAULT false,
     
     -- timestamp
@@ -155,7 +155,7 @@ CREATE TABLE user_movies (
         REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_user_movies_movie FOREIGN KEY (movie_id) 
         REFERENCES movies(id) ON DELETE CASCADE,
-    CONSTRAINT unique_user_movie UNIQUE (user_id, movie_id), -- un utente può aggiungere un film una sola volta
+    CONSTRAINT unique_user_movie UNIQUE (user_id, movie_id),
     CONSTRAINT check_status CHECK (status IN ('watched', 'watchlist')),
     CONSTRAINT check_rating CHECK (user_rating IS NULL OR (user_rating >= 0 AND user_rating <= 10))
 );
@@ -183,16 +183,16 @@ CREATE TABLE movie_lists (
     -- dati lista
     name VARCHAR(200) NOT NULL,
     description TEXT,
-    movie_ids TEXT[] DEFAULT '{}', -- array di id film nella lista
+    movie_ids TEXT[] DEFAULT '{}',
     
     -- pianificazione opzionale (es: "film da vedere questo mese")
     target_date TIMESTAMP,
-    frequency VARCHAR(50), -- weekly, monthly, etc
+    frequency VARCHAR(50),
     
     -- funzionalità social
-    is_public BOOLEAN DEFAULT false, -- lista visibile agli altri
-    followers_count INTEGER DEFAULT 0, -- contatore follower
-    follower_ids TEXT[] DEFAULT '{}', -- id utenti che seguono la lista
+    is_public BOOLEAN DEFAULT false,
+    followers_count INTEGER DEFAULT 0,
+    follower_ids TEXT[] DEFAULT '{}',
     
     -- timestamp
     created_at TIMESTAMP DEFAULT NOW(),

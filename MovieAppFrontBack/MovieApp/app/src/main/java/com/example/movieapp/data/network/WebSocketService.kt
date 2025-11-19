@@ -12,7 +12,6 @@ import java.net.URISyntaxException
 
 /**
  * Servizio WebSocket per notifiche real-time
- * Progress bar funzionante in tempo reale
  */
 class WebSocketService private constructor() {
 
@@ -52,7 +51,6 @@ class WebSocketService private constructor() {
             return
         }
 
-        // COSTRUISCE URL COMPLETO: http://192.168.1.163:3001/ws
         val fullUrl = "${AppConfig.WEBSOCKET_URL}${AppConfig.WEBSOCKET_NAMESPACE}"
 
         Log.d(TAG, "🔌 Connessione a $fullUrl")
@@ -88,7 +86,6 @@ class WebSocketService private constructor() {
     private fun setupSocketListeners() {
         socket?.apply {
             //EVENTI CONNESSIONE
-
             on(Socket.EVENT_CONNECT) {
                 Log.d(TAG, "✅ WebSocket CONNESSO!")
                 _connectionStatus.value = ConnectionStatus.CONNECTED
@@ -109,7 +106,6 @@ class WebSocketService private constructor() {
             }
 
             //EVENTO BENVENUTO
-
             on("connection") { args ->
                 try {
                     val data = args[0] as JSONObject
@@ -122,8 +118,7 @@ class WebSocketService private constructor() {
                 }
             }
 
-            //EVENTI ENRICHMENT (PROGRESS BAR!)
-
+            //EVENTI ENRICHMENT
             on("enrichment:progress") { args ->
                 try {
                     val data = args[0] as JSONObject
@@ -204,7 +199,6 @@ class WebSocketService private constructor() {
             }
 
             //EVENTI DEBUG
-
             on("error") { args ->
                 val error = args.firstOrNull()?.toString() ?: "unknown"
                 Log.e(TAG, "❌ Socket error: $error")
@@ -235,7 +229,6 @@ class WebSocketService private constructor() {
 }
 
 //DATA CLASSES
-
 enum class ConnectionStatus {
     DISCONNECTED,
     CONNECTING,
@@ -245,7 +238,7 @@ enum class ConnectionStatus {
 
 data class EnrichmentUpdate(
     val sessionId: String,
-    val type: String, // "progress", "completed", "error"
+    val type: String,
     val total: Int,
     val processed: Int,
     val currentMovie: String,

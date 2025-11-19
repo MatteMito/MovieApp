@@ -12,7 +12,6 @@ import java.util.*
 
 /**
  * processor csv robusto per imdb e letterboxd
- * parsing avanzato con gestione errori e validazione
  */
 class CsvProcessor {
 

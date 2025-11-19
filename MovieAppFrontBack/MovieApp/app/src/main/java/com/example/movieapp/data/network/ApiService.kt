@@ -16,7 +16,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 import java.util.concurrent.TimeUnit
 
-
 // DATA CLASSES PER RISPOSTE BACKEND
 data class ApiResponse<T>(
     val success: Boolean,
@@ -172,26 +171,6 @@ data class MoviesListResponse(
     val movies: List<EnrichedMovieDto>
 )
 
-data class UserStatsResponse(
-    val user_id: String,
-    val total_movies: Int,
-    val watched_count: Int,
-    val watchlist_count: Int,
-    val average_rating: Double
-)
-
-// TMDB
-data class AddMovieFromTmdbRequest(
-    @SerializedName("tmdb_id")
-    val tmdbId: Int,
-
-    @SerializedName("user_id")
-    val userId: String,
-
-    @SerializedName("status")
-    val status: String = "watchlist"
-)
-
 // LISTS
 data class CreateListRequest(
     val user_id: String,
@@ -218,7 +197,6 @@ data class CopyListRequest(
 )
 
 // RETROFIT INTERFACE
-
 interface ApiInterface {
 
     // AUTH

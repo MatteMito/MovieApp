@@ -70,7 +70,7 @@ export class AnalyticsController {
   }
 
   // GET /api/v1/analytics/basic?userId=xxx
-  // statistiche base: totali, medie, conteggi (retrocompatibilità)
+  // statistiche base: totali, medie, conteggi
   @Get('basic')
   async getBasicStats(@Query('userId') userId: string): Promise<ApiResponse> {
     try {
@@ -100,7 +100,7 @@ export class AnalyticsController {
   }
 
   // GET /api/v1/analytics/genres?userId=xxx&limit=10
-  // statistiche generi con conteggi e percentuali (retrocompatibilità)
+  // statistiche generi con conteggi e percentuali
   @Get('genres')
   async getGenreStats(
     @Query('userId') userId: string,
@@ -136,7 +136,7 @@ export class AnalyticsController {
   }
 
   // GET /api/v1/analytics/directors?userId=xxx&limit=10
-  // statistiche registi con conteggi e medie rating (retrocompatibilità)
+  // statistiche registi con conteggi e medie rating
   @Get('directors')
   async getDirectorStats(
     @Query('userId') userId: string,
@@ -172,7 +172,7 @@ export class AnalyticsController {
   }
 
   // GET /api/v1/analytics/advanced?userId=xxx
-  // analytics avanzate: timeline, distribuzioni, top rated (retrocompatibilità)
+  // analytics avanzate: timeline, distribuzioni, top rated
   @Get('advanced')
   async getAdvancedAnalytics(@Query('userId') userId: string): Promise<ApiResponse> {
     try {

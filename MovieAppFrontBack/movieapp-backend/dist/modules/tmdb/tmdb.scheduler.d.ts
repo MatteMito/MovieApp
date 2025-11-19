@@ -8,7 +8,6 @@ export declare class TmdbScheduler {
     constructor(tmdbService: TmdbService, configService: ConfigService);
     syncPopularMoviesFull(): Promise<void>;
     syncPopularMoviesIncremental(): Promise<void>;
-    cleanupUnusedMovies(): Promise<void>;
     testSync(): Promise<{
         synced: number;
         errors: number;

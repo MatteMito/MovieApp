@@ -20,7 +20,7 @@ import { JwtStrategy } from './jwt.strategy';
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'), // chiave segreta per firmare token
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRATION', '7d'), // durata validita token (default 7 giorni)
+          expiresIn: configService.get<string>('JWT_EXPIRATION', '7d'),
         },
       }),
       inject: [ConfigService],

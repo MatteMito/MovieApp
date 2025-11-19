@@ -22,8 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  // metodo chiamato automaticamente dopo verifica firma token
-  // riceve payload decodificato e deve validare l'utente
+  // metodo chiamato automaticamente dopo verifica firma token e riceve payload decodificato e deve validare l'utente
   async validate(payload: any) {
     // verifica che l'utente esista ancora nel database
     const user = await this.authService.getUserById(payload.sub);
