@@ -1,4 +1,4 @@
-package com.example.movieapp.data.repository
+package com.example.movieapp.data.worker
 
 import android.content.Context
 import android.util.Log
@@ -6,9 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.example.movieapp.data.models.Movie
 import com.example.movieapp.data.network.ApiService
-import com.example.movieapp.data.network.WebSocketService
 import com.example.movieapp.data.parser.CsvProcessor
 import com.example.movieapp.data.parser.CsvParseResult
 import com.example.movieapp.data.network.NotificationHelper

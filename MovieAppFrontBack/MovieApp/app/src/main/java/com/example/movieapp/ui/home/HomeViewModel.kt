@@ -12,7 +12,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.workDataOf
 import com.example.movieapp.data.models.Movie
-import com.example.movieapp.data.repository.ImportWorker
+import com.example.movieapp.data.worker.ImportWorker
 import com.example.movieapp.data.repository.MovieRepository
 import com.example.movieapp.data.network.WebSocketService
 import com.example.movieapp.data.network.EnrichmentUpdate
