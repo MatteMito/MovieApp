@@ -83,15 +83,7 @@ export class ListsNotificationsService {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // FUNZIONE PER CALCOLARE IL RITMO CONSIGLIATO DI VISIONE
-  // ---------------------------------------------------------------------
-
-  /**
-   * Calcola il ritmo consigliato (film/giorno, film/settimana, film/mese).
-   * Tiene conto di: film totali, film che "dovrebbero" essere già visti, giorni rimanenti.
-   * Restituisce una stringa leggibile es.: "1 film ogni 9 giorni".
-   */
+  // funzione per calcolare il ritmo consigliato di visione
   private getRecommendedPace(
     totalMovies: number,
     expectedWatched: number,
@@ -179,18 +171,7 @@ export class ListsNotificationsService {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // LOGICA PER STABILIRE SE INVIARE UNA NOTIFICA
-  // ---------------------------------------------------------------------
-
-  /**
-   * Stabilisce se bisogna inviare una notifica per una lista specifica.
-   * Considera:
-   * - data target
-   * - ultima notifica inviata
-   * - avanzamento previsto
-   * - frequenza scelta
-   */
+  // logica per stabilire se inviare una notifica
   private async shouldSendNotification(
     list: MovieListEntity,
   ): Promise<NotificationCheck> {

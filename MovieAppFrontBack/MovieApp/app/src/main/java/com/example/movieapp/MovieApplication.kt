@@ -48,11 +48,9 @@ class MovieApplication : Application() {
     }
 
     private fun scheduleNotificationWorker() {
-        // configura worker per controllare notifiche ogni 15 minuti (per test)
-        // in produzione: cambia a 1 giorno (1, TimeUnit.DAYS)
+        // configura worker per controllare notifiche ogni 15 minuti
         val notificationWork = PeriodicWorkRequestBuilder<NotificationWorker>(
-            1, TimeUnit.MINUTES // ← per test rapido
-            // 1, TimeUnit.DAYS // ← per produzione
+            1, TimeUnit.DAYS // ← 1 giorno
         )
             .setConstraints(
                 Constraints.Builder()
