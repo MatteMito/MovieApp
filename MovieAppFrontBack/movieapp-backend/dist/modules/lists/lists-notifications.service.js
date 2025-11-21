@@ -51,6 +51,56 @@ let ListsNotificationsService = ListsNotificationsService_1 = class ListsNotific
             this.logger.error('errore controllo notifiche', error);
         }
     }
+    getRecommendedPace(totalMovies, expectedWatched, remainingDays, frequency) {
+        const moviesRemaining = Math.max(0, totalMovies - expectedWatched);
+        if (moviesRemaining === 0)
+            return 'Tutti i film già completati';
+        if (!remainingDays || remainingDays <= 0)
+            return 'completare i film rimanenti';
+        const filmsPerDay = moviesRemaining / remainingDays;
+        const pretty = (n) => (n === 1 ? '1' : String(Math.ceil(n)));
+        switch (frequency) {
+            case 'daily': {
+                if (filmsPerDay >= 1) {
+                    return `${pretty(filmsPerDay)} film al giorno`;
+                }
+                const daysPerMovie = Math.ceil(remainingDays / moviesRemaining);
+                return daysPerMovie === 1
+                    ? '1 film al giorno'
+                    : `1 film ogni ${daysPerMovie} giorni`;
+            }
+            case 'weekly': {
+                const weeksRemaining = remainingDays / 7;
+                if (weeksRemaining <= 0)
+                    return 'completare i film rimanenti';
+                const moviesPerWeek = moviesRemaining / weeksRemaining;
+                if (moviesPerWeek >= 1) {
+                    if (moviesPerWeek / 7 >= 1) {
+                        return `circa ${Math.ceil(moviesPerWeek)} film a settimana (≈ ${Math.ceil(moviesPerWeek / 7)} film al giorno)`;
+                    }
+                    return `circa ${Math.ceil(moviesPerWeek)} film a settimana`;
+                }
+                const weeksPerMovie = Math.ceil(1 / moviesPerWeek);
+                return `1 film ogni ${weeksPerMovie} settimane`;
+            }
+            case 'monthly': {
+                const monthsRemaining = remainingDays / 30;
+                if (monthsRemaining <= 0)
+                    return 'completare i film rimanenti';
+                const moviesPerMonth = moviesRemaining / monthsRemaining;
+                if (moviesPerMonth >= 1) {
+                    if (moviesPerMonth / 30 >= 1) {
+                        return `circa ${Math.ceil(moviesPerMonth)} film al mese (≈ ${Math.ceil(moviesPerMonth / 30)} film al giorno)`;
+                    }
+                    return `circa ${Math.ceil(moviesPerMonth)} film al mese`;
+                }
+                const monthsPerMovie = Math.ceil(1 / moviesPerMonth);
+                return `1 film ogni ${monthsPerMovie} mesi`;
+            }
+            default:
+                return 'vedi quando puoi';
+        }
+    }
     async shouldSendNotification(list) {
         const user = await this.userRepository.findOne({
             where: { id: list.user_id },
@@ -62,28 +112,15 @@ let ListsNotificationsService = ListsNotificationsService_1 = class ListsNotific
         now.setHours(0, 0, 0, 0);
         targetDate.setHours(0, 0, 0, 0);
         createdAt.setHours(0, 0, 0, 0);
-        const totalDays = Math.ceil((targetDate.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-        const elapsedDays = Math.ceil((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-        const remainingDays = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const totalDays = Math.ceil((targetDate.getTime() - createdAt.getTime()) / 86400000);
+        const elapsedDays = Math.ceil((now.getTime() - createdAt.getTime()) / 86400000);
+        const remainingDays = Math.ceil((targetDate.getTime() - now.getTime()) / 86400000);
         const totalMovies = list.movie_ids.length;
-        const progressPercentage = totalDays > 0 ? (elapsedDays / totalDays) : 0;
+        const progressPercentage = totalDays > 0
+            ? (elapsedDays / totalDays)
+            : 0;
         const expectedWatched = Math.min(totalMovies, Math.floor(progressPercentage * totalMovies));
-        let recommendedPace = '';
-        switch (list.frequency) {
-            case 'daily':
-                recommendedPace = 'circa 1 film al giorno';
-                break;
-            case 'weekly':
-                const weeksRemaining = Math.ceil(remainingDays / 7);
-                const moviesPerWeek = weeksRemaining > 0 ? Math.ceil(totalMovies / (totalDays / 7)) : totalMovies;
-                recommendedPace = `circa ${moviesPerWeek} film a settimana`;
-                break;
-            case 'monthly':
-                const monthsRemaining = Math.ceil(remainingDays / 30);
-                const moviesPerMonth = monthsRemaining > 0 ? Math.ceil(totalMovies / (totalDays / 30)) : totalMovies;
-                recommendedPace = `circa ${moviesPerMonth} film al mese`;
-                break;
-        }
+        const recommendedPace = this.getRecommendedPace(totalMovies, expectedWatched, remainingDays, list.frequency);
         const check = {
             listId: list.id,
             userId: list.user_id,
@@ -92,9 +129,9 @@ let ListsNotificationsService = ListsNotificationsService_1 = class ListsNotific
             frequency: list.frequency || 'monthly',
             targetDate: list.target_date,
             moviesCount: totalMovies,
-            expectedWatched: expectedWatched,
-            remainingDays: remainingDays,
-            recommendedPace: recommendedPace,
+            expectedWatched,
+            remainingDays,
+            recommendedPace,
             shouldNotify: false,
             reason: '',
         };
@@ -102,7 +139,7 @@ let ListsNotificationsService = ListsNotificationsService_1 = class ListsNotific
             check.reason = 'target date passata, notifica disabilitata';
             return check;
         }
-        if (list.movie_ids.length === 0) {
+        if (totalMovies === 0) {
             check.reason = 'lista vuota';
             return check;
         }
@@ -114,10 +151,10 @@ let ListsNotificationsService = ListsNotificationsService_1 = class ListsNotific
             check.reason = 'prima notifica';
             return check;
         }
-        const daysSinceLastNotification = (now.getTime() - lastSent.getTime()) / (1000 * 60 * 60 * 24);
+        const daysSinceLastNotification = (now.getTime() - lastSent.getTime()) / 86400000;
         switch (list.frequency) {
             case 'daily':
-                check.shouldNotify = daysSinceLastNotification >= 0.01;
+                check.shouldNotify = daysSinceLastNotification >= 1;
                 check.reason = check.shouldNotify
                     ? 'notifica giornaliera'
                     : `troppo presto (${daysSinceLastNotification.toFixed(1)} giorni)`;

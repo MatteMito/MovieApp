@@ -21,6 +21,7 @@ export declare class ListsNotificationsService {
     private readonly logger;
     constructor(listRepository: Repository<MovieListEntity>, userRepository: Repository<UserEntity>);
     checkAndSendNotifications(): Promise<void>;
+    private getRecommendedPace;
     private shouldSendNotification;
     private sendNotification;
     private updateLastNotificationSent;
