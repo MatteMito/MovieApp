@@ -183,16 +183,18 @@ CREATE TABLE movie_lists (
     -- dati lista
     name VARCHAR(200) NOT NULL,
     description TEXT,
-    movie_ids TEXT[] DEFAULT '{}',
+    movie_ids TEXT[] DEFAULT '{}', -- array di id film nella lista
     
-    -- pianificazione opzionale (es: "film da vedere questo mese")
+    -- pianificazione notifiche intelligenti
     target_date TIMESTAMP,
-    frequency VARCHAR(50),
+    frequency VARCHAR(50), -- daily, weekly, monthly
+    notifications_enabled BOOLEAN DEFAULT false,
+    last_notification_sent TIMESTAMP,
     
     -- funzionalità social
-    is_public BOOLEAN DEFAULT false,
-    followers_count INTEGER DEFAULT 0,
-    follower_ids TEXT[] DEFAULT '{}',
+    is_public BOOLEAN DEFAULT false, -- lista visibile agli altri
+    followers_count INTEGER DEFAULT 0, -- contatore follower
+    follower_ids TEXT[] DEFAULT '{}', -- id utenti che seguono la lista
     
     -- timestamp
     created_at TIMESTAMP DEFAULT NOW(),
@@ -207,13 +209,14 @@ CREATE INDEX idx_movie_lists_user_id ON movie_lists(user_id);
 CREATE INDEX idx_movie_lists_is_public ON movie_lists(is_public);
 CREATE INDEX idx_movie_lists_name ON movie_lists(name);
 CREATE INDEX idx_movie_lists_target_date ON movie_lists(target_date);
+CREATE INDEX idx_movie_lists_notifications ON movie_lists(notifications_enabled);
 CREATE INDEX idx_movie_lists_created_at ON movie_lists(created_at);
 
 -- trigger per updated_at
 CREATE TRIGGER update_movie_lists_updated_at
     BEFORE UPDATE ON movie_lists
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column(); 
+    EXECUTE FUNCTION update_updated_at_column();
 
 -- query di verifica: mostra tutte le tabelle create con numero colonne
 SELECT 

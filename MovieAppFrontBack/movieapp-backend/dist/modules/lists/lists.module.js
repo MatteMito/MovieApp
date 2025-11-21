@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const lists_controller_1 = require("./lists.controller");
 const lists_service_1 = require("./lists.service");
+const lists_notifications_service_1 = require("./lists-notifications.service");
 const list_entity_1 = require("../../database/entities/list.entity");
 const movie_entity_1 = require("../../database/entities/movie.entity");
 const user_entity_1 = require("../../database/entities/user.entity");
@@ -27,8 +28,8 @@ exports.ListsModule = ListsModule = __decorate([
             ]),
         ],
         controllers: [lists_controller_1.ListsController],
-        providers: [lists_service_1.ListsService],
-        exports: [lists_service_1.ListsService],
+        providers: [lists_service_1.ListsService, lists_notifications_service_1.ListsNotificationsService],
+        exports: [lists_service_1.ListsService, lists_notifications_service_1.ListsNotificationsService],
     })
 ], ListsModule);
 //# sourceMappingURL=lists.module.js.map

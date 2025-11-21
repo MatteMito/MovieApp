@@ -1,8 +1,10 @@
 import { ListsService } from './lists.service';
+import { ListsNotificationsService } from './lists-notifications.service';
 import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dto/list.dto';
 export declare class ListsController {
     private readonly listsService;
-    constructor(listsService: ListsService);
+    private readonly notificationsService;
+    constructor(listsService: ListsService, notificationsService: ListsNotificationsService);
     getPublicLists(search?: string, sortBy?: string, limit?: string, userId?: string): Promise<any[]>;
     getMyLists(userId: string): Promise<any[]>;
     getListById(id: string, userId?: string): Promise<any>;
@@ -20,4 +22,5 @@ export declare class ListsController {
         userId: string;
         newName?: string;
     }): Promise<any>;
+    checkNotifications(): Promise<import("./lists-notifications.service").NotificationCheck[]>;
 }

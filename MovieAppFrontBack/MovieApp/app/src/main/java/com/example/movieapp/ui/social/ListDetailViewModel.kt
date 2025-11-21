@@ -276,12 +276,15 @@ class ListDetailViewModel : ViewModel() {
         }
     }
 
-    // aggiorna metadati lista (nome, descrizione, visibilità)
+    // aggiorna metadati lista con supporto notifiche
     fun updateList(
         listId: String,
         name: String,
         description: String?,
         isPublic: Boolean,
+        targetDate: String? = null,
+        frequency: String? = null,
+        notificationsEnabled: Boolean = false,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
@@ -293,12 +296,15 @@ class ListDetailViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "aggiornamento lista $listId")
+                Log.d(TAG, "aggiornamento lista $listId (notifiche: $notificationsEnabled)")
 
                 val request = com.example.movieapp.data.network.UpdateListRequest(
                     name = name,
                     description = description,
-                    is_public = isPublic
+                    is_public = isPublic,
+                    target_date = targetDate,
+                    frequency = frequency,
+                    notifications_enabled = notificationsEnabled
                 )
 
                 val response = ApiService.apiInterface.updateList(listId, request, userId)

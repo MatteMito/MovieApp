@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ListsController } from './lists.controller';
 import { ListsService } from './lists.service';
+import { ListsNotificationsService } from './lists-notifications.service';
 import { MovieListEntity } from '../../database/entities/list.entity';
 import { MovieEntity } from '../../database/entities/movie.entity';
 import { UserEntity } from '../../database/entities/user.entity';
@@ -18,7 +19,7 @@ import { UserEntity } from '../../database/entities/user.entity';
     ]),
   ],
   controllers: [ListsController],
-  providers: [ListsService],
-  exports: [ListsService],
+  providers: [ListsService, ListsNotificationsService],
+  exports: [ListsService, ListsNotificationsService],
 })
 export class ListsModule {}

@@ -282,6 +282,10 @@ class SocialFragment : Fragment() {
         viewModel.followList(list.id,
             onSuccess = {
                 Toast.makeText(requireContext(), "Lista seguita!", Toast.LENGTH_SHORT).show()
+
+                // ⭐ RICARICA IMMEDIATAMENTE ENTRAMBE LE LISTE ⭐
+                viewModel.loadPublicLists()
+                viewModel.loadFollowedLists()
             },
             onError = { error ->
                 Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
@@ -298,6 +302,10 @@ class SocialFragment : Fragment() {
                 viewModel.unfollowList(list.id,
                     onSuccess = {
                         Toast.makeText(requireContext(), "Non segui più questa lista", Toast.LENGTH_SHORT).show()
+
+                        // ⭐ RICARICA IMMEDIATAMENTE ENTRAMBE LE LISTE ⭐
+                        viewModel.loadPublicLists()
+                        viewModel.loadFollowedLists()
                     },
                     onError = { error ->
                         Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()

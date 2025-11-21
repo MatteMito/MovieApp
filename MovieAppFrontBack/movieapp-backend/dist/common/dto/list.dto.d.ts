@@ -5,6 +5,7 @@ export declare class CreateListDto {
     movie_ids?: string[];
     target_date?: string;
     frequency?: string;
+    notifications_enabled?: boolean;
     is_public?: boolean;
 }
 export declare class UpdateListDto {
@@ -13,6 +14,7 @@ export declare class UpdateListDto {
     movie_ids?: string[];
     target_date?: string;
     frequency?: string;
+    notifications_enabled?: boolean;
     is_public?: boolean;
 }
 export declare class AddMovieToListDto {

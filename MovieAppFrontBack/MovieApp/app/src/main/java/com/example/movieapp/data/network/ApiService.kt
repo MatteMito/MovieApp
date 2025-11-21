@@ -15,6 +15,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 import java.util.concurrent.TimeUnit
+import com.example.movieapp.data.workers.NotificationCheck
 
 // DATA CLASSES PER RISPOSTE BACKEND
 data class ApiResponse<T>(
@@ -171,22 +172,6 @@ data class MoviesListResponse(
     val movies: List<EnrichedMovieDto>
 )
 
-// LISTS
-data class CreateListRequest(
-    val user_id: String,
-    val name: String,
-    val description: String? = null,
-    val is_public: Boolean = false,
-    val movie_ids: List<String> = emptyList()
-)
-
-data class UpdateListRequest(
-    val name: String? = null,
-    val description: String? = null,
-    val is_public: Boolean? = null,
-    val movie_ids: List<String>? = null
-)
-
 data class AddMovieToListRequest(
     val movie_id: String
 )
@@ -194,6 +179,28 @@ data class AddMovieToListRequest(
 data class CopyListRequest(
     val userId: String,
     val newName: String? = null
+)
+
+// requests per liste con notifiche
+data class CreateListRequest(
+    val user_id: String,
+    val name: String,
+    val description: String? = null,
+    val is_public: Boolean = false,
+    val movie_ids: List<String> = emptyList(),
+    val target_date: String? = null,
+    val frequency: String? = null,
+    val notifications_enabled: Boolean = false
+)
+
+data class UpdateListRequest(
+    val name: String? = null,
+    val description: String? = null,
+    val is_public: Boolean? = null,
+    val movie_ids: List<String>? = null,
+    val target_date: String? = null,
+    val frequency: String? = null,
+    val notifications_enabled: Boolean? = null
 )
 
 // RETROFIT INTERFACE
@@ -230,19 +237,6 @@ interface ApiInterface {
         @Query("query") query: String,
         @Query("limit") limit: Int = 10
     ): Response<ApiResponse<List<Movie>>>
-
-    // LISTS
-    @POST("lists")
-    suspend fun createList(
-        @Body request: CreateListRequest
-    ): Response<MovieList>
-
-    @PUT("lists/{id}")
-    suspend fun updateList(
-        @Path("id") listId: String,
-        @Body request: UpdateListRequest,
-        @Query("userId") userId: String
-    ): Response<MovieList>
 
     @GET("lists/my")
     suspend fun getMyLists(
@@ -298,6 +292,22 @@ interface ApiInterface {
         @Path("id") listId: String,
         @Body body: CopyListRequest
     ): Response<MovieList>
+
+    // LISTS
+    @POST("lists")
+    suspend fun createList(
+        @Body request: CreateListRequest
+    ): Response<MovieList>
+
+    @PUT("lists/{id}")
+    suspend fun updateList(
+        @Path("id") listId: String,
+        @Body request: UpdateListRequest,
+        @Query("userId") userId: String
+    ): Response<MovieList>
+
+    @GET("lists/notifications/check")
+    suspend fun checkNotifications(): Response<List<NotificationCheck>>
 }
 
 

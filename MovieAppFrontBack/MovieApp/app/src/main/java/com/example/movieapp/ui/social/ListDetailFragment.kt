@@ -15,6 +15,8 @@ import com.example.movieapp.data.models.Movie
 import com.example.movieapp.databinding.FragmentListDetailBinding
 import com.google.android.material.chip.Chip
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import java.text.SimpleDateFormat
+import java.util.*
 
 class ListDetailFragment : Fragment() {
 
@@ -106,7 +108,10 @@ class ListDetailFragment : Fragment() {
                     listId = list.id,
                     currentName = list.name,
                     currentDescription = list.description ?: "",
-                    isPublic = list.isPublic
+                    isPublic = list.isPublic,
+                    targetDate = list.targetDate,
+                    frequency = list.frequency,
+                    notificationsEnabled = list.notificationsEnabled
                 )
                 dialog.show(childFragmentManager, "EditListDialog")
             }
@@ -142,6 +147,25 @@ class ListDetailFragment : Fragment() {
                     binding.textFollowerCount.text = "$followerCount follower"
                 } else {
                     binding.layoutFollowerCount.visibility = View.GONE
+                }
+
+                //mostra info pianificazione notifiche se attive
+                if (list.notificationsEnabled && list.targetDate != null) {
+                    binding.layoutNotificationInfo.visibility = View.VISIBLE
+
+                    val frequency = list.getFrequencyDisplay() ?: "Mensile"
+                    val targetDate = try {
+                        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                        val displayFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        val date = dateFormat.parse(list.targetDate)
+                        date?.let { displayFormat.format(it) } ?: list.targetDate
+                    } catch (e: Exception) {
+                        list.targetDate
+                    }
+
+                    binding.textNotificationInfo.text = "📬 Notifiche $frequency fino al $targetDate"
+                } else {
+                    binding.layoutNotificationInfo.visibility = View.GONE
                 }
             }
         }

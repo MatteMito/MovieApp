@@ -98,4 +98,7 @@ dependencies {
 
     // swiperefresh
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
+    // WorkManager per notifiche periodiche
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }

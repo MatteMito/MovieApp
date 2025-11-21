@@ -260,11 +260,14 @@ class SocialViewModel : ViewModel() {
 
     // azioni crud liste
 
-    // crea nuova lista
+    // crea nuova lista con supporto notifiche
     fun createList(
         name: String,
         description: String?,
         isPublic: Boolean,
+        targetDate: String? = null,
+        frequency: String? = null,
+        notificationsEnabled: Boolean = false,
         onSuccess: (MovieList) -> Unit,
         onError: (String) -> Unit
     ) {
@@ -276,13 +279,16 @@ class SocialViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "creazione lista: $name")
+                Log.d(TAG, "creazione lista: $name (notifiche: $notificationsEnabled)")
 
                 val request = com.example.movieapp.data.network.CreateListRequest(
                     user_id = userId,
                     name = name,
                     description = description,
-                    is_public = isPublic
+                    is_public = isPublic,
+                    target_date = targetDate,
+                    frequency = frequency,
+                    notifications_enabled = notificationsEnabled
                 )
 
                 val response = ApiService.apiInterface.createList(request)
@@ -350,10 +356,12 @@ class SocialViewModel : ViewModel() {
                 val response = ApiService.apiInterface.followList(listId, body)
 
                 if (response.isSuccessful) {
-                    Log.d(TAG, "lista seguita")
-                    // ricarica liste pubbliche e seguite
+                    Log.d(TAG, "lista seguita con successo")
+
+                    // ⭐ RICARICA LISTE PRIMA DI CHIAMARE onSuccess ⭐
                     loadPublicLists()
                     loadFollowedLists()
+
                     onSuccess()
                 } else {
                     val errorMsg = "errore follow: ${response.code()}"
@@ -381,10 +389,12 @@ class SocialViewModel : ViewModel() {
                 val response = ApiService.apiInterface.unfollowList(listId, userId)
 
                 if (response.isSuccessful) {
-                    Log.d(TAG, "lista non seguita piu")
-                    // ricarica liste pubbliche e seguite
+                    Log.d(TAG, "lista non seguita più")
+
+                    // ⭐ RICARICA LISTE PRIMA DI CHIAMARE onSuccess ⭐
                     loadPublicLists()
                     loadFollowedLists()
+
                     onSuccess()
                 } else {
                     val errorMsg = "errore unfollow: ${response.code()}"

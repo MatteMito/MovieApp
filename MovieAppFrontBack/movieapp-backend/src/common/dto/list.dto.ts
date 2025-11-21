@@ -9,6 +9,7 @@ import {
   MinLength,
   MaxLength,
   IsUUID,
+  IsIn,
 } from 'class-validator';
 
 // dto per creazione nuova lista
@@ -36,8 +37,12 @@ export class CreateListDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(50)
-  frequency?: string; // frequenza di aggiornamento (weekly, monthly, etc)
+  @IsIn(['daily', 'weekly', 'monthly'])
+  frequency?: string; // frequenza notifiche
+
+  @IsOptional()
+  @IsBoolean()
+  notifications_enabled?: boolean; // abilita notifiche
 
   @IsOptional()
   @IsBoolean()
@@ -67,8 +72,12 @@ export class UpdateListDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(50)
+  @IsIn(['daily', 'weekly', 'monthly'])
   frequency?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  notifications_enabled?: boolean;
 
   @IsOptional()
   @IsBoolean()

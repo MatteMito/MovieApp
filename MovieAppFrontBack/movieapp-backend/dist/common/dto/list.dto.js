@@ -43,9 +43,14 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MaxLength)(50),
+    (0, class_validator_1.IsIn)(['daily', 'weekly', 'monthly']),
     __metadata("design:type", String)
 ], CreateListDto.prototype, "frequency", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateListDto.prototype, "notifications_enabled", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),
@@ -80,9 +85,14 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MaxLength)(50),
+    (0, class_validator_1.IsIn)(['daily', 'weekly', 'monthly']),
     __metadata("design:type", String)
 ], UpdateListDto.prototype, "frequency", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateListDto.prototype, "notifications_enabled", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),

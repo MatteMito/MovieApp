@@ -47,13 +47,21 @@ __decorate([
     __metadata("design:type", Number)
 ], MovieListEntity.prototype, "followers_count", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'target_date', type: 'date', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'target_date', type: 'timestamp', nullable: true }),
     __metadata("design:type", Date)
 ], MovieListEntity.prototype, "target_date", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
     __metadata("design:type", String)
 ], MovieListEntity.prototype, "frequency", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'notifications_enabled', type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
+], MovieListEntity.prototype, "notifications_enabled", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'last_notification_sent', type: 'timestamp', nullable: true }),
+    __metadata("design:type", Date)
+], MovieListEntity.prototype, "last_notification_sent", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)

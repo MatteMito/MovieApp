@@ -13,6 +13,7 @@ export declare class ListsService {
     getPublicLists(options: {
         search?: string;
         sortBy?: string;
+        userId?: string;
     }): Promise<any[]>;
     getUserLists(userId: string): Promise<any[]>;
     getListById(listId: string, userId?: string): Promise<any>;

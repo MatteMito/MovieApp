@@ -33,11 +33,18 @@ export class MovieListEntity {
   @Column({ name: 'followers_count', type: 'int', default: 0 })
   followers_count: number; // contatore follower
 
-  @Column({ name: 'target_date', type: 'date', nullable: true })
-  target_date: Date; // data target per completare la lista
+  // pianificazione notifiche intelligenti
+  @Column({ name: 'target_date', type: 'timestamp', nullable: true })
+  target_date: Date; // data obiettivo per completare la lista
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  frequency: string; // frequenza di aggiornamento (weekly, monthly, etc)
+  frequency: string; // frequenza notifiche: daily, weekly, monthly
+
+  @Column({ name: 'notifications_enabled', type: 'boolean', default: false })
+  notifications_enabled: boolean; // se le notifiche sono attive
+
+  @Column({ name: 'last_notification_sent', type: 'timestamp', nullable: true })
+  last_notification_sent: Date; // ultima notifica inviata
 
   @CreateDateColumn({ name: 'created_at' })
   created_at: Date; // data creazione

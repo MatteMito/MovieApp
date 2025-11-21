@@ -15,10 +15,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ListsController = void 0;
 const common_1 = require("@nestjs/common");
 const lists_service_1 = require("./lists.service");
+const lists_notifications_service_1 = require("./lists-notifications.service");
 const list_dto_1 = require("../../common/dto/list.dto");
 let ListsController = class ListsController {
-    constructor(listsService) {
+    constructor(listsService, notificationsService) {
         this.listsService = listsService;
+        this.notificationsService = notificationsService;
     }
     async getPublicLists(search, sortBy, limit, userId) {
         const parsedLimit = limit ? parseInt(limit, 10) : 20;
@@ -81,11 +83,14 @@ let ListsController = class ListsController {
         return this.listsService.getListFollowers(listId);
     }
     async copyList(listId, body) {
-        const { userId, newName } = body;
+        const userId = body.userId;
         if (!userId) {
             throw new common_1.HttpException('userId richiesto', common_1.HttpStatus.BAD_REQUEST);
         }
-        return this.listsService.copyList(listId, userId, newName);
+        return this.listsService.copyList(listId, userId, body.newName);
+    }
+    async checkNotifications() {
+        return this.notificationsService.triggerNotificationsManually();
     }
 };
 exports.ListsController = ListsController;
@@ -187,8 +192,15 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "copyList", null);
+__decorate([
+    (0, common_1.Get)('notifications/check'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], ListsController.prototype, "checkNotifications", null);
 exports.ListsController = ListsController = __decorate([
     (0, common_1.Controller)('api/v1/lists'),
-    __metadata("design:paramtypes", [lists_service_1.ListsService])
+    __metadata("design:paramtypes", [lists_service_1.ListsService,
+        lists_notifications_service_1.ListsNotificationsService])
 ], ListsController);
 //# sourceMappingURL=lists.controller.js.map
