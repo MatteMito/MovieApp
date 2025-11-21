@@ -48,25 +48,23 @@ class MovieApplication : Application() {
     }
 
     private fun scheduleNotificationWorker() {
-        // configura worker per controllare notifiche ogni 15 minuti
         val notificationWork = PeriodicWorkRequestBuilder<NotificationWorker>(
-            1, TimeUnit.DAYS // ← 1 giorno
+            1, TimeUnit.DAYS // ← 1 giorno (produzione)
         )
             .setConstraints(
                 Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED) // serve internet
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build()
             )
-            .setInitialDelay(1, TimeUnit.MINUTES) // prima esecuzione dopo 1 minuto
+            .setInitialDelay(1, TimeUnit.HOURS) // ← 1 ora dopo installazione
             .build()
 
-        // schedula con politica KEEP (non duplica se già esiste)
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "list_notifications_check",
             ExistingPeriodicWorkPolicy.KEEP,
             notificationWork
         )
 
-        Log.d(TAG, "worker notifiche schedulato (ogni 15 minuti per test)")
+        Log.d(TAG, "worker notifiche schedulato (ogni 1 giorno)")
     }
 }
