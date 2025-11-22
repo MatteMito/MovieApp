@@ -13,6 +13,7 @@ import {
   Request,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ListsService } from './lists.service';
@@ -21,6 +22,8 @@ import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dt
 
 @Controller('api/v1/lists')
 export class ListsController {
+  private readonly logger = new Logger(ListsController.name);
+
   constructor(
     private readonly listsService: ListsService,
     private readonly notificationsService: ListsNotificationsService,
@@ -32,13 +35,14 @@ export class ListsController {
   // ottieni tutte le liste pubbliche con filtri opzionali
   @Get('public')
   async getPublicLists(
-    @Query('search') search?: string, // ricerca testuale nel nome/descrizione
-    @Query('sortBy') sortBy?: string, // ordinamento (es: followers, created_at)
-    @Query('limit') limit?: string, // numero massimo risultati
-    @Query('userId') userId?: string, // filtra per utente specifico
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('limit') limit?: string,
+    @Query('userId') userId?: string,
   ) {
+    this.logger.log(`getPublicLists chiamato con userId=${userId}`);
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
-    return this.listsService.getPublicLists({ search, sortBy });
+    return this.listsService.getPublicLists({ search, sortBy, userId });
   }
 
   // ===== ENDPOINT AUTENTICATI =====
@@ -72,7 +76,7 @@ export class ListsController {
   }
 
   // PUT /api/v1/lists/:id
-  // aggiorna nome, descrizione, visibilità di una lista
+  // aggiorna nome, descrizione, visibilita di una lista
   @Put(':id')
   async updateList(
     @Param('id') id: string,

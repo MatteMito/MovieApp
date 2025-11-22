@@ -11,20 +11,23 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var ListsController_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ListsController = void 0;
 const common_1 = require("@nestjs/common");
 const lists_service_1 = require("./lists.service");
 const lists_notifications_service_1 = require("./lists-notifications.service");
 const list_dto_1 = require("../../common/dto/list.dto");
-let ListsController = class ListsController {
+let ListsController = ListsController_1 = class ListsController {
     constructor(listsService, notificationsService) {
         this.listsService = listsService;
         this.notificationsService = notificationsService;
+        this.logger = new common_1.Logger(ListsController_1.name);
     }
     async getPublicLists(search, sortBy, limit, userId) {
+        this.logger.log(`getPublicLists chiamato con userId=${userId}`);
         const parsedLimit = limit ? parseInt(limit, 10) : 20;
-        return this.listsService.getPublicLists({ search, sortBy });
+        return this.listsService.getPublicLists({ search, sortBy, userId });
     }
     async getMyLists(userId) {
         if (!userId) {
@@ -198,7 +201,7 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], ListsController.prototype, "checkNotifications", null);
-exports.ListsController = ListsController = __decorate([
+exports.ListsController = ListsController = ListsController_1 = __decorate([
     (0, common_1.Controller)('api/v1/lists'),
     __metadata("design:paramtypes", [lists_service_1.ListsService,
         lists_notifications_service_1.ListsNotificationsService])

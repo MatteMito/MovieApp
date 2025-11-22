@@ -4,6 +4,7 @@ import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dt
 export declare class ListsController {
     private readonly listsService;
     private readonly notificationsService;
+    private readonly logger;
     constructor(listsService: ListsService, notificationsService: ListsNotificationsService);
     getPublicLists(search?: string, sortBy?: string, limit?: string, userId?: string): Promise<any[]>;
     getMyLists(userId: string): Promise<any[]>;

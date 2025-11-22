@@ -45,6 +45,7 @@ let ListsService = class ListsService {
         return user?.username || null;
     }
     async getPublicLists(options) {
+        console.log(`[ListsService] getPublicLists chiamato con userId=${options.userId}`);
         let query = this.listRepository
             .createQueryBuilder('list')
             .where('list.is_public = :isPublic', { isPublic: true });
@@ -70,6 +71,7 @@ let ListsService = class ListsService {
             const isFollowing = options.userId
                 ? (list.follower_ids && Array.isArray(list.follower_ids) && list.follower_ids.includes(options.userId))
                 : false;
+            console.log(`[ListsService] Lista "${list.name}": follower_ids=${JSON.stringify(list.follower_ids)}, userId=${options.userId}, isFollowing=${isFollowing}`);
             return {
                 id: list.id,
                 user_id: list.user_id,

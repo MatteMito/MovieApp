@@ -155,7 +155,7 @@ class SocialFragment : Fragment() {
             showSortMenu(it)
         }
 
-        // bottone per menu filtro visibilità
+        // bottone per menu filtro visibilita
         binding.btnFilter.setOnClickListener {
             showFilterMenu(it)
         }
@@ -262,7 +262,7 @@ class SocialFragment : Fragment() {
     private fun confirmDeleteList(listId: String) {
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Elimina Lista")
-            .setMessage("Vuoi eliminare questa lista? Questa azione non può essere annullata.")
+            .setMessage("Vuoi eliminare questa lista? Questa azione non puo essere annullata.")
             .setPositiveButton("Elimina") { _, _ ->
                 viewModel.deleteList(listId,
                     onSuccess = {
@@ -282,10 +282,8 @@ class SocialFragment : Fragment() {
         viewModel.followList(list.id,
             onSuccess = {
                 Toast.makeText(requireContext(), "Lista seguita!", Toast.LENGTH_SHORT).show()
-
-                // ⭐ RICARICA IMMEDIATAMENTE ENTRAMBE LE LISTE ⭐
-                viewModel.loadPublicLists()
-                viewModel.loadFollowedLists()
+                // NON chiamare loadPublicLists() e loadFollowedLists() qui!
+                // è già fatto nel ViewModel!
             },
             onError = { error ->
                 Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
@@ -298,14 +296,12 @@ class SocialFragment : Fragment() {
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Smetti di seguire")
             .setMessage("Vuoi smettere di seguire la lista \"${list.name}\"?")
-            .setPositiveButton("Conferma") { _, _ ->
+            .setPositiveButton("Smetti di seguire") { _, _ ->
                 viewModel.unfollowList(list.id,
                     onSuccess = {
-                        Toast.makeText(requireContext(), "Non segui più questa lista", Toast.LENGTH_SHORT).show()
-
-                        // ⭐ RICARICA IMMEDIATAMENTE ENTRAMBE LE LISTE ⭐
-                        viewModel.loadPublicLists()
-                        viewModel.loadFollowedLists()
+                        Toast.makeText(requireContext(), "Lista non seguita piu", Toast.LENGTH_SHORT).show()
+                        // NON chiamare loadPublicLists() e loadFollowedLists() qui!
+                        // è già fatto nel ViewModel!
                     },
                     onError = { error ->
                         Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
@@ -316,25 +312,29 @@ class SocialFragment : Fragment() {
             .show()
     }
 
-    // copia lista con possibilità di rinominarla
+    // copia lista pubblica con nome personalizzato
     private fun copyList(list: MovieList) {
-        val input = android.widget.EditText(requireContext())
-        input.hint = list.name
+        val editText = android.widget.EditText(requireContext())
+        editText.setText("${list.name} (copia)")
 
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Copia Lista")
-            .setMessage("Inserisci un nuovo nome (opzionale):")
-            .setView(input)
+            .setMessage("Scegli un nome per la copia:")
+            .setView(editText)
             .setPositiveButton("Copia") { _, _ ->
-                val newName = input.text.toString().trim().ifBlank { null }
-                executeCopyList(list.id, newName)
+                val newName = editText.text.toString().trim()
+                if (newName.isNotEmpty()) {
+                    performCopyList(list.id, newName)
+                } else {
+                    Toast.makeText(requireContext(), "Nome non valido", Toast.LENGTH_SHORT).show()
+                }
             }
             .setNegativeButton("Annulla", null)
             .show()
     }
 
-    // esegue copia lista e passa a tab mie liste
-    private fun executeCopyList(listId: String, newName: String?) {
+    // esegue copia lista
+    private fun performCopyList(listId: String, newName: String) {
         viewModel.copyList(listId, newName,
             onSuccess = { copiedList ->
                 Toast.makeText(requireContext(), "Lista copiata: ${copiedList.name}", Toast.LENGTH_SHORT).show()
@@ -353,7 +353,7 @@ class SocialFragment : Fragment() {
         val popup = PopupMenu(requireContext(), anchor)
         popup.menu.add(0, 1, 0, "Nome (A-Z)")
         popup.menu.add(0, 2, 0, "Nome (Z-A)")
-        popup.menu.add(0, 3, 0, "Più popolari")
+        popup.menu.add(0, 3, 0, "Piu popolari")
 
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -367,7 +367,7 @@ class SocialFragment : Fragment() {
         popup.show()
     }
 
-    // menu popup per filtro visibilità liste
+    // menu popup per filtro visibilita liste
     private fun showFilterMenu(anchor: View) {
         val popup = PopupMenu(requireContext(), anchor)
         popup.menu.add(0, 1, 0, "Tutte")

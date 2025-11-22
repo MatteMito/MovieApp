@@ -9,6 +9,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.movieapp.data.models.Movie
 import com.example.movieapp.data.models.MovieList
 import com.example.movieapp.data.network.ApiService
+import com.example.movieapp.data.network.CreateListRequest
+import com.example.movieapp.data.network.UpdateListRequest
+import com.example.movieapp.data.network.CopyListRequest
 import kotlinx.coroutines.launch
 
 // viewmodel per gestione liste condivise con ricerca, filtri e ordinamento
@@ -56,13 +59,10 @@ class SocialViewModel : ViewModel() {
 
     fun initialize(context: Context) {
         this.context = context
-        // carica tutte le liste all'inizializzazione
-        loadMyLists()
-        loadPublicLists()
-        loadFollowedLists()
+        refreshLists()
     }
 
-    // carica liste personali dell'utente corrente
+    // carica mie liste personali (pubbliche e private)
     fun loadMyLists() {
         viewModelScope.launch {
             try {
@@ -72,28 +72,24 @@ class SocialViewModel : ViewModel() {
                 val userId = ApiService.getCurrentUserId()
                 if (userId == null) {
                     _error.value = "utente non autenticato"
-                    Log.e(TAG, "userid null")
+                    Log.e(TAG, "userid null per my lists")
                     _loading.value = false
                     return@launch
                 }
 
-                Log.d(TAG, "carico liste per user: $userId")
-                val response = ApiService.apiInterface.getMyLists(userId)
+                Log.d(TAG, "carico mie liste per user: $userId")
 
-                Log.d(TAG, "response code: ${response.code()}")
+                val response = ApiService.apiInterface.getMyLists(userId)
 
                 if (response.isSuccessful) {
                     val lists = response.body() ?: emptyList()
                     _myLists.value = lists
-                    // applica filtri correnti
                     applyFilters()
-                    Log.d(TAG, "caricate ${lists.size} liste personali")
+                    Log.d(TAG, "caricate ${lists.size} mie liste")
                 } else {
-                    val errorMsg = "errore caricamento liste: ${response.code()}"
+                    val errorMsg = "errore caricamento mie liste: ${response.code()}"
                     _error.value = errorMsg
                     Log.e(TAG, errorMsg)
-                    Log.e(TAG, "message: ${response.message()}")
-                    Log.e(TAG, "errorbody: ${response.errorBody()?.string()}")
                 }
             } catch (e: Exception) {
                 _error.value = "errore di rete: ${e.message}"
@@ -104,81 +100,98 @@ class SocialViewModel : ViewModel() {
         }
     }
 
-    // carica liste pubbliche escludendo quelle già seguite
-    fun loadPublicLists() {
-        viewModelScope.launch {
-            try {
-                _loading.value = true
-                _error.value = null
-
-                val userId = ApiService.getCurrentUserId()
-                Log.d(TAG, "carico liste pubbliche (exclude: $userId)")
-
-                val response = ApiService.apiInterface.getPublicLists(20, userId)
-
-                Log.d(TAG, "response code: ${response.code()}")
-
-                if (response.isSuccessful) {
-                    val allLists = response.body() ?: emptyList()
-                    // filtra solo liste non ancora seguite
-                    val publicListsNotFollowed = allLists.filter { !it.isFollowing }
-                    _publicLists.value = publicListsNotFollowed
-                    applyFilters()
-                    Log.d(TAG, "caricate ${publicListsNotFollowed.size} liste pubbliche (non seguite)")
-                } else {
-                    val errorMsg = "errore caricamento liste pubbliche: ${response.code()}"
-                    _error.value = errorMsg
-                    Log.e(TAG, errorMsg)
-                    Log.e(TAG, "message: ${response.message()}")
-                    Log.e(TAG, "errorbody: ${response.errorBody()?.string()}")
-                }
-            } catch (e: Exception) {
-                _error.value = "errore di rete: ${e.message}"
-                Log.e(TAG, "eccezione loadpubliclists", e)
-            } finally {
-                _loading.value = false
+    // carica liste pubbliche non ancora seguite (versione sincrona interna)
+    private suspend fun loadPublicListsInternal() {
+        try {
+            val userId = ApiService.getCurrentUserId()
+            if (userId == null) {
+                Log.e(TAG, "userid null per public lists")
+                return
             }
+
+            Log.d(TAG, "carico liste pubbliche per user: $userId")
+
+            val response = ApiService.apiInterface.getPublicLists(100, userId)
+
+            if (response.isSuccessful) {
+                val allLists = response.body() ?: emptyList()
+                Log.d(TAG, "=== RISPOSTA BACKEND: ${allLists.size} liste pubbliche totali ===")
+
+                // stampa TUTTE le liste con il loro stato isFollowing
+                allLists.forEachIndexed { index, list ->
+                    Log.d(TAG, "Lista $index: ${list.name} | isFollowing=${list.isFollowing} | followers=${list.followerIds}")
+                }
+
+                // filtra solo liste non ancora seguite
+                val publicListsNotFollowed = allLists.filter { !it.isFollowing }
+                _publicLists.value = publicListsNotFollowed
+                applyFilters()
+                Log.d(TAG, "=== DOPO FILTRO: ${publicListsNotFollowed.size} liste pubbliche (non seguite) ===")
+            } else {
+                val errorMsg = "errore caricamento liste pubbliche: ${response.code()}"
+                _error.value = errorMsg
+                Log.e(TAG, errorMsg)
+            }
+        } catch (e: Exception) {
+            _error.value = "errore di rete: ${e.message}"
+            Log.e(TAG, "eccezione loadpubliclists", e)
         }
     }
 
-    // carica liste pubbliche che l'utente sta seguendo
+    // versione pubblica per chiamate esterne
+    fun loadPublicLists() {
+        viewModelScope.launch {
+            _loading.value = true
+            loadPublicListsInternal()
+            _loading.value = false
+        }
+    }
+
+    // carica liste pubbliche che l'utente sta seguendo (versione sincrona interna)
+    private suspend fun loadFollowedListsInternal() {
+        try {
+            val userId = ApiService.getCurrentUserId()
+            if (userId == null) {
+                Log.e(TAG, "userid null per followed lists")
+                return
+            }
+
+            Log.d(TAG, "carico liste seguite per user: $userId")
+
+            // ottieni tutte le liste pubbliche e filtra quelle seguite
+            val response = ApiService.apiInterface.getPublicLists(100, userId)
+
+            if (response.isSuccessful) {
+                val allPublicLists = response.body() ?: emptyList()
+                Log.d(TAG, "=== RISPOSTA BACKEND: ${allPublicLists.size} liste pubbliche totali ===")
+
+                // stampa TUTTE le liste con il loro stato isFollowing
+                allPublicLists.forEachIndexed { index, list ->
+                    Log.d(TAG, "Lista $index: ${list.name} | isFollowing=${list.isFollowing} | followers=${list.followerIds}")
+                }
+
+                // filtra solo liste con flag isFollowing true
+                val followedLists = allPublicLists.filter { it.isFollowing }
+                _followedLists.value = followedLists
+                applyFilters()
+                Log.d(TAG, "=== DOPO FILTRO: ${followedLists.size} liste seguite ===")
+            } else {
+                val errorMsg = "errore caricamento liste seguite: ${response.code()}"
+                _error.value = errorMsg
+                Log.e(TAG, errorMsg)
+            }
+        } catch (e: Exception) {
+            _error.value = "errore di rete: ${e.message}"
+            Log.e(TAG, "eccezione loadfollowedlists", e)
+        }
+    }
+
+    // versione pubblica per chiamate esterne
     fun loadFollowedLists() {
         viewModelScope.launch {
-            try {
-                _loading.value = true
-                _error.value = null
-
-                val userId = ApiService.getCurrentUserId()
-                if (userId == null) {
-                    _error.value = "utente non autenticato"
-                    Log.e(TAG, "userid null per followed lists")
-                    _loading.value = false
-                    return@launch
-                }
-
-                Log.d(TAG, "carico liste seguite per user: $userId")
-
-                // ottieni tutte le liste pubbliche e filtra quelle seguite
-                val response = ApiService.apiInterface.getPublicLists(100, userId)
-
-                if (response.isSuccessful) {
-                    val allPublicLists = response.body() ?: emptyList()
-                    // filtra solo liste con flag isFollowing true
-                    val followedLists = allPublicLists.filter { it.isFollowing }
-                    _followedLists.value = followedLists
-                    applyFilters()
-                    Log.d(TAG, "caricate ${followedLists.size} liste seguite")
-                } else {
-                    val errorMsg = "errore caricamento liste seguite: ${response.code()}"
-                    _error.value = errorMsg
-                    Log.e(TAG, errorMsg)
-                }
-            } catch (e: Exception) {
-                _error.value = "errore di rete: ${e.message}"
-                Log.e(TAG, "eccezione loadfollowedlists", e)
-            } finally {
-                _loading.value = false
-            }
+            _loading.value = true
+            loadFollowedListsInternal()
+            _loading.value = false
         }
     }
 
@@ -203,7 +216,7 @@ class SocialViewModel : ViewModel() {
         applyFilters()
     }
 
-    // applica filtro visibilità (pubbliche/private)
+    // applica filtro visibilita (pubbliche/private)
     fun applyVisibilityFilter(isPublic: Boolean?) {
         currentVisibilityFilter = isPublic
         applyFilters()
@@ -227,23 +240,22 @@ class SocialViewModel : ViewModel() {
         _filteredFollowedLists.value = filteredFollowedLists
     }
 
-    // filtra e ordina lista in base ai filtri correnti
+    // filtra e ordina lista in base a filtri correnti
     private fun filterAndSortLists(lists: List<MovieList>): List<MovieList> {
         var result = lists
 
-        // ricerca testuale su nome e descrizione
+        // filtro ricerca testuale
         if (currentSearchQuery.isNotEmpty()) {
-            result = result.filter { list ->
-                list.name.lowercase().contains(currentSearchQuery) ||
-                        list.description?.lowercase()?.contains(currentSearchQuery) == true
+            result = result.filter {
+                it.name.lowercase().contains(currentSearchQuery) ||
+                        (it.description?.lowercase()?.contains(currentSearchQuery) == true) ||
+                        (it.username?.lowercase()?.contains(currentSearchQuery) == true)
             }
         }
 
-        // filtro visibilità pubblico/privato
-        when (currentVisibilityFilter) {
-            true -> result = result.filter { it.isPublic }
-            false -> result = result.filter { !it.isPublic }
-            null -> {} // mostra tutte
+        // filtro visibilita
+        currentVisibilityFilter?.let { isPublic ->
+            result = result.filter { it.isPublic == isPublic }
         }
 
         // ordinamento
@@ -258,16 +270,16 @@ class SocialViewModel : ViewModel() {
         return result
     }
 
-    // azioni crud liste
+    // operazioni crud liste
 
-    // crea nuova lista con supporto notifiche
+    // crea nuova lista
     fun createList(
         name: String,
         description: String?,
         isPublic: Boolean,
-        targetDate: String? = null,
-        frequency: String? = null,
-        notificationsEnabled: Boolean = false,
+        targetDate: String?,
+        frequency: String?,
+        notificationsEnabled: Boolean,
         onSuccess: (MovieList) -> Unit,
         onError: (String) -> Unit
     ) {
@@ -279,13 +291,14 @@ class SocialViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "creazione lista: $name (notifiche: $notificationsEnabled)")
+                Log.d(TAG, "creo nuova lista: $name (pubblica=$isPublic)")
 
-                val request = com.example.movieapp.data.network.CreateListRequest(
+                val request = CreateListRequest(
                     user_id = userId,
                     name = name,
                     description = description,
                     is_public = isPublic,
+                    movie_ids = emptyList(),
                     target_date = targetDate,
                     frequency = frequency,
                     notifications_enabled = notificationsEnabled
@@ -293,26 +306,34 @@ class SocialViewModel : ViewModel() {
 
                 val response = ApiService.apiInterface.createList(request)
 
-                if (response.isSuccessful && response.body() != null) {
-                    val newList = response.body()!!
-                    Log.d(TAG, "lista creata: ${newList.id}")
-                    // ricarica mie liste
-                    loadMyLists()
-                    onSuccess(newList)
+                if (response.isSuccessful) {
+                    val newList = response.body()
+                    if (newList != null) {
+                        Log.d(TAG, "lista creata: ${newList.id}")
+                        refreshLists()
+                        onSuccess(newList)
+                    } else {
+                        onError("risposta vuota dal server")
+                    }
                 } else {
-                    val errorMsg = "errore creazione: ${response.code()}"
-                    Log.e(TAG, errorMsg)
+                    val errorMsg = response.errorBody()?.string() ?: "errore sconosciuto"
+                    Log.e(TAG, "errore creazione lista: $errorMsg")
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
+                val errorMsg = "errore di rete: ${e.message}"
                 Log.e(TAG, "eccezione createlist", e)
-                onError("errore: ${e.message}")
+                onError(errorMsg)
             }
         }
     }
 
     // elimina lista
-    fun deleteList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun deleteList(
+        listId: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 val userId = ApiService.getCurrentUserId()
@@ -321,28 +342,33 @@ class SocialViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "eliminazione lista: $listId")
+                Log.d(TAG, "elimino lista: $listId")
+
                 val response = ApiService.apiInterface.deleteList(listId, userId)
 
                 if (response.isSuccessful) {
-                    Log.d(TAG, "lista eliminata")
-                    // ricarica mie liste
-                    loadMyLists()
+                    Log.d(TAG, "lista eliminata con successo")
+                    refreshLists()
                     onSuccess()
                 } else {
-                    val errorMsg = "errore eliminazione: ${response.code()}"
-                    Log.e(TAG, errorMsg)
+                    val errorMsg = response.errorBody()?.string() ?: "errore sconosciuto"
+                    Log.e(TAG, "errore eliminazione lista: $errorMsg")
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
+                val errorMsg = "errore di rete: ${e.message}"
                 Log.e(TAG, "eccezione deletelist", e)
-                onError("errore: ${e.message}")
+                onError(errorMsg)
             }
         }
     }
 
     // segui lista pubblica
-    fun followList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun followList(
+        listId: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 val userId = ApiService.getCurrentUserId()
@@ -351,32 +377,46 @@ class SocialViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "follow lista: $listId")
+                Log.d(TAG, "=== INIZIO FOLLOW LISTA $listId ===")
+
                 val body = mapOf("userId" to userId)
                 val response = ApiService.apiInterface.followList(listId, body)
 
                 if (response.isSuccessful) {
-                    Log.d(TAG, "lista seguita con successo")
+                    Log.d(TAG, "lista seguita con successo sul backend")
 
-                    // ⭐ RICARICA LISTE PRIMA DI CHIAMARE onSuccess ⭐
-                    loadPublicLists()
-                    loadFollowedLists()
+                    // aspetta che entrambe le liste si ricarichino completamente
+                    Log.d(TAG, "ricarico liste pubbliche...")
+                    loadPublicListsInternal()
+                    Log.d(TAG, "liste pubbliche ricaricate")
 
+                    Log.d(TAG, "ricarico liste seguite...")
+                    loadFollowedListsInternal()
+                    Log.d(TAG, "liste seguite ricaricate")
+
+                    Log.d(TAG, "=== FINE FOLLOW LISTA ===")
+
+                    // ora chiama onsuccess
                     onSuccess()
                 } else {
-                    val errorMsg = "errore follow: ${response.code()}"
-                    Log.e(TAG, errorMsg)
+                    val errorMsg = response.errorBody()?.string() ?: "errore sconosciuto"
+                    Log.e(TAG, "errore follow lista: $errorMsg")
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
+                val errorMsg = "errore di rete: ${e.message}"
                 Log.e(TAG, "eccezione followlist", e)
-                onError("errore: ${e.message}")
+                onError(errorMsg)
             }
         }
     }
 
     // smetti di seguire lista
-    fun unfollowList(listId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun unfollowList(
+        listId: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 val userId = ApiService.getCurrentUserId()
@@ -385,31 +425,46 @@ class SocialViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "unfollow lista: $listId")
+                Log.d(TAG, "=== INIZIO UNFOLLOW LISTA $listId ===")
+
                 val response = ApiService.apiInterface.unfollowList(listId, userId)
 
                 if (response.isSuccessful) {
-                    Log.d(TAG, "lista non seguita più")
+                    Log.d(TAG, "lista non seguita piu sul backend")
 
-                    // ⭐ RICARICA LISTE PRIMA DI CHIAMARE onSuccess ⭐
-                    loadPublicLists()
-                    loadFollowedLists()
+                    // aspetta che entrambe le liste si ricarichino completamente
+                    Log.d(TAG, "ricarico liste pubbliche...")
+                    loadPublicListsInternal()
+                    Log.d(TAG, "liste pubbliche ricaricate")
 
+                    Log.d(TAG, "ricarico liste seguite...")
+                    loadFollowedListsInternal()
+                    Log.d(TAG, "liste seguite ricaricate")
+
+                    Log.d(TAG, "=== FINE UNFOLLOW LISTA ===")
+
+                    // ora chiama onsuccess
                     onSuccess()
                 } else {
-                    val errorMsg = "errore unfollow: ${response.code()}"
-                    Log.e(TAG, errorMsg)
+                    val errorMsg = response.errorBody()?.string() ?: "errore sconosciuto"
+                    Log.e(TAG, "errore unfollow lista: $errorMsg")
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
+                val errorMsg = "errore di rete: ${e.message}"
                 Log.e(TAG, "eccezione unfollowlist", e)
-                onError("errore: ${e.message}")
+                onError(errorMsg)
             }
         }
     }
 
-    // copia lista pubblica nelle proprie liste
-    fun copyList(listId: String, newName: String?, onSuccess: (MovieList) -> Unit, onError: (String) -> Unit) {
+    // copia lista pubblica nelle mie liste
+    fun copyList(
+        listId: String,
+        newName: String,
+        onSuccess: (MovieList) -> Unit,
+        onError: (String) -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 val userId = ApiService.getCurrentUserId()
@@ -418,29 +473,33 @@ class SocialViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "copia lista: $listId")
+                Log.d(TAG, "copio lista: $listId con nome: $newName")
 
-                val request = com.example.movieapp.data.network.CopyListRequest(
+                val request = CopyListRequest(
                     userId = userId,
                     newName = newName
                 )
 
                 val response = ApiService.apiInterface.copyList(listId, request)
 
-                if (response.isSuccessful && response.body() != null) {
-                    val copiedList = response.body()!!
-                    Log.d(TAG, "lista copiata: ${copiedList.id}")
-                    // ricarica mie liste per visualizzare copia
-                    loadMyLists()
-                    onSuccess(copiedList)
+                if (response.isSuccessful) {
+                    val copiedList = response.body()
+                    if (copiedList != null) {
+                        Log.d(TAG, "lista copiata: ${copiedList.id}")
+                        refreshLists()
+                        onSuccess(copiedList)
+                    } else {
+                        onError("risposta vuota dal server")
+                    }
                 } else {
-                    val errorMsg = "errore copia: ${response.code()}"
-                    Log.e(TAG, errorMsg)
+                    val errorMsg = response.errorBody()?.string() ?: "errore sconosciuto"
+                    Log.e(TAG, "errore copia lista: $errorMsg")
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
+                val errorMsg = "errore di rete: ${e.message}"
                 Log.e(TAG, "eccezione copylist", e)
-                onError("errore: ${e.message}")
+                onError(errorMsg)
             }
         }
     }
