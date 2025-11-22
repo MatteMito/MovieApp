@@ -11,7 +11,6 @@ import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.movieapp.R
@@ -282,8 +281,6 @@ class SocialFragment : Fragment() {
         viewModel.followList(list.id,
             onSuccess = {
                 Toast.makeText(requireContext(), "Lista seguita!", Toast.LENGTH_SHORT).show()
-                // NON chiamare loadPublicLists() e loadFollowedLists() qui!
-                // è già fatto nel ViewModel!
             },
             onError = { error ->
                 Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()
@@ -300,8 +297,6 @@ class SocialFragment : Fragment() {
                 viewModel.unfollowList(list.id,
                     onSuccess = {
                         Toast.makeText(requireContext(), "Lista non seguita piu", Toast.LENGTH_SHORT).show()
-                        // NON chiamare loadPublicLists() e loadFollowedLists() qui!
-                        // è già fatto nel ViewModel!
                     },
                     onError = { error ->
                         Toast.makeText(requireContext(), "Errore: $error", Toast.LENGTH_LONG).show()

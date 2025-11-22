@@ -42,7 +42,7 @@ export class ListsService {
     const movieMap = new Map(movies.map(m => [m.id, m]));
     return movieIds
       .map(id => movieMap.get(id))
-      .filter(m => m !== undefined); // rimuovi film non trovati
+      .filter(m => m !== undefined);
   }
 
   // helper per ottenere username da userId
@@ -60,8 +60,6 @@ export class ListsService {
     sortBy?: string;
     userId?: string;
   }): Promise<any[]> {
-    console.log(`[ListsService] getPublicLists chiamato con userId=${options.userId}`);
-
     let query = this.listRepository
       .createQueryBuilder('list')
       .where('list.is_public = :isPublic', { isPublic: true });
@@ -99,9 +97,6 @@ export class ListsService {
         const isFollowing = options.userId 
           ? (list.follower_ids && Array.isArray(list.follower_ids) && list.follower_ids.includes(options.userId))
           : false;
-
-        // ⭐ LOG DI DEBUG ⭐
-        console.log(`[ListsService] Lista "${list.name}": follower_ids=${JSON.stringify(list.follower_ids)}, userId=${options.userId}, isFollowing=${isFollowing}`);
 
         return {
           id: list.id,
@@ -150,7 +145,7 @@ export class ListsService {
           is_public: list.is_public,
           follower_ids: list.follower_ids || [],
           followers_count: list.followers_count || 0,
-          isFollowing: false, // le proprie liste non hanno isFollowing
+          isFollowing: false,
           target_date: list.target_date,
           frequency: list.frequency,
           notifications_enabled: list.notifications_enabled,
@@ -165,7 +160,6 @@ export class ListsService {
   }
 
   // ottieni lista per id con controllo accesso
-  // permette accesso se: lista pubblica, sei proprietario
   async getListById(listId: string, userId?: string): Promise<any> {
     const list = await this.listRepository.findOne({ where: { id: listId } });
 
@@ -174,7 +168,6 @@ export class ListsService {
     }
 
     // verifica accesso per liste private
-    // blocca se lista privata e non sei il proprietario
     if (!list.is_public) {
       if (!userId || list.user_id !== userId) {
         throw new ForbiddenException('non hai accesso a questa lista privata');
@@ -304,7 +297,7 @@ export class ListsService {
       throw new NotFoundException('film non trovato');
     }
 
-    // verifica se film già presente
+    // verifica se film gia presente
     if (list.movie_ids.includes(movieId)) {
       throw new BadRequestException('film gia presente nella lista');
     }
@@ -450,11 +443,11 @@ export class ListsService {
 
     // crea nuova lista privata con film copiati
     const copiedList = this.listRepository.create({
-      user_id: userId, // nuovo proprietario
+      user_id: userId,
       name: newName || `${originalList.name} (copia)`,
       description: originalList.description,
-      is_public: false, // copia sempre privata
-      movie_ids: [...originalList.movie_ids], // duplica array film
+      is_public: false,
+      movie_ids: [...originalList.movie_ids],
     });
 
     const saved = await this.listRepository.save(copiedList);

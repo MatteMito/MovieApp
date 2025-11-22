@@ -51,7 +51,7 @@ class SocialListAdapter(
                 // numero film nella lista
                 tvMovieCount.text = "${list.movies.size} film"
 
-                // badge visibilità pubblica/privata
+                // badge visibilita pubblica/privata
                 badgeVisibility.text = if (list.isPublic) "PUBBLICA" else "PRIVATA"
                 badgeVisibility.visibility = View.VISIBLE
 
@@ -92,7 +92,7 @@ class SocialListAdapter(
                     btnFollow.visibility = View.VISIBLE
 
                     if (list.isFollowing) {
-                        // stato: già seguito, mostra bottone "seguito" per unfollow
+                        // stato: gia seguito, mostra bottone "seguito" per unfollow
                         btnFollow.text = "seguito"
                         btnFollow.isEnabled = true
                         btnFollow.setIconResource(R.drawable.ic_notifications)

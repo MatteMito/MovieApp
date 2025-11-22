@@ -115,18 +115,11 @@ class SocialViewModel : ViewModel() {
 
             if (response.isSuccessful) {
                 val allLists = response.body() ?: emptyList()
-                Log.d(TAG, "=== RISPOSTA BACKEND: ${allLists.size} liste pubbliche totali ===")
-
-                // stampa TUTTE le liste con il loro stato isFollowing
-                allLists.forEachIndexed { index, list ->
-                    Log.d(TAG, "Lista $index: ${list.name} | isFollowing=${list.isFollowing} | followers=${list.followerIds}")
-                }
-
                 // filtra solo liste non ancora seguite
                 val publicListsNotFollowed = allLists.filter { !it.isFollowing }
                 _publicLists.value = publicListsNotFollowed
                 applyFilters()
-                Log.d(TAG, "=== DOPO FILTRO: ${publicListsNotFollowed.size} liste pubbliche (non seguite) ===")
+                Log.d(TAG, "caricate ${publicListsNotFollowed.size} liste pubbliche (non seguite)")
             } else {
                 val errorMsg = "errore caricamento liste pubbliche: ${response.code()}"
                 _error.value = errorMsg
@@ -163,18 +156,11 @@ class SocialViewModel : ViewModel() {
 
             if (response.isSuccessful) {
                 val allPublicLists = response.body() ?: emptyList()
-                Log.d(TAG, "=== RISPOSTA BACKEND: ${allPublicLists.size} liste pubbliche totali ===")
-
-                // stampa TUTTE le liste con il loro stato isFollowing
-                allPublicLists.forEachIndexed { index, list ->
-                    Log.d(TAG, "Lista $index: ${list.name} | isFollowing=${list.isFollowing} | followers=${list.followerIds}")
-                }
-
                 // filtra solo liste con flag isFollowing true
                 val followedLists = allPublicLists.filter { it.isFollowing }
                 _followedLists.value = followedLists
                 applyFilters()
-                Log.d(TAG, "=== DOPO FILTRO: ${followedLists.size} liste seguite ===")
+                Log.d(TAG, "caricate ${followedLists.size} liste seguite")
             } else {
                 val errorMsg = "errore caricamento liste seguite: ${response.code()}"
                 _error.value = errorMsg
@@ -377,7 +363,7 @@ class SocialViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "=== INIZIO FOLLOW LISTA $listId ===")
+                Log.d(TAG, "seguo lista: $listId")
 
                 val body = mapOf("userId" to userId)
                 val response = ApiService.apiInterface.followList(listId, body)
@@ -386,15 +372,8 @@ class SocialViewModel : ViewModel() {
                     Log.d(TAG, "lista seguita con successo sul backend")
 
                     // aspetta che entrambe le liste si ricarichino completamente
-                    Log.d(TAG, "ricarico liste pubbliche...")
                     loadPublicListsInternal()
-                    Log.d(TAG, "liste pubbliche ricaricate")
-
-                    Log.d(TAG, "ricarico liste seguite...")
                     loadFollowedListsInternal()
-                    Log.d(TAG, "liste seguite ricaricate")
-
-                    Log.d(TAG, "=== FINE FOLLOW LISTA ===")
 
                     // ora chiama onsuccess
                     onSuccess()
@@ -425,7 +404,7 @@ class SocialViewModel : ViewModel() {
                     return@launch
                 }
 
-                Log.d(TAG, "=== INIZIO UNFOLLOW LISTA $listId ===")
+                Log.d(TAG, "smetto di seguire lista: $listId")
 
                 val response = ApiService.apiInterface.unfollowList(listId, userId)
 
@@ -433,15 +412,8 @@ class SocialViewModel : ViewModel() {
                     Log.d(TAG, "lista non seguita piu sul backend")
 
                     // aspetta che entrambe le liste si ricarichino completamente
-                    Log.d(TAG, "ricarico liste pubbliche...")
                     loadPublicListsInternal()
-                    Log.d(TAG, "liste pubbliche ricaricate")
-
-                    Log.d(TAG, "ricarico liste seguite...")
                     loadFollowedListsInternal()
-                    Log.d(TAG, "liste seguite ricaricate")
-
-                    Log.d(TAG, "=== FINE UNFOLLOW LISTA ===")
 
                     // ora chiama onsuccess
                     onSuccess()

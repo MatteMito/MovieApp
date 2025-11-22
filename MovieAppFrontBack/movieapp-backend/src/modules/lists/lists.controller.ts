@@ -13,7 +13,6 @@ import {
   Request,
   HttpException,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ListsService } from './lists.service';
@@ -22,8 +21,6 @@ import { CreateListDto, UpdateListDto, AddMovieToListDto } from '../../common/dt
 
 @Controller('api/v1/lists')
 export class ListsController {
-  private readonly logger = new Logger(ListsController.name);
-
   constructor(
     private readonly listsService: ListsService,
     private readonly notificationsService: ListsNotificationsService,
@@ -40,7 +37,6 @@ export class ListsController {
     @Query('limit') limit?: string,
     @Query('userId') userId?: string,
   ) {
-    this.logger.log(`getPublicLists chiamato con userId=${userId}`);
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
     return this.listsService.getPublicLists({ search, sortBy, userId });
   }
