@@ -189,7 +189,6 @@ let ListsNotificationsService = ListsNotificationsService_1 = class ListsNotific
         });
     }
     async triggerNotificationsManually() {
-        this.logger.log('trigger manuale notifiche');
         const listsToCheck = await this.listRepository.find({
             where: {
                 notifications_enabled: true,

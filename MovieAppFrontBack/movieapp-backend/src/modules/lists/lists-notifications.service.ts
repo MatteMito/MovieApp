@@ -317,8 +317,6 @@ export class ListsNotificationsService {
    * Endpoint manuale per debugging e testing delle notifiche.
    */
   async triggerNotificationsManually(): Promise<NotificationCheck[]> {
-    this.logger.log('trigger manuale notifiche');
-
     const listsToCheck = await this.listRepository.find({
       where: {
         notifications_enabled: true,
