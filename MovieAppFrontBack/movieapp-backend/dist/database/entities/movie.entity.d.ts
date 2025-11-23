@@ -1,0 +1,35 @@
+export declare class MovieEntity {
+    id: string;
+    title: string;
+    year?: number;
+    source: string;
+    tmdb_id?: number;
+    is_enriched: boolean;
+    genres: string[];
+    director?: string;
+    actors?: string[];
+    overview?: string;
+    tagline?: string;
+    runtime?: number;
+    poster_url?: string;
+    backdrop_url?: string;
+    tmdb_rating?: number;
+    vote_count?: number;
+    popularity?: number;
+    budget?: number;
+    revenue?: number;
+    status?: string;
+    production_companies: string[];
+    production_countries: string[];
+    original_language?: string;
+    original_title?: string;
+    spoken_languages: string[];
+    adult: boolean;
+    homepage?: string;
+    imdb_id?: string;
+    keywords: string[];
+    certification?: string;
+    trailer_url?: string;
+    created_at: Date;
+    updated_at: Date;
+}
