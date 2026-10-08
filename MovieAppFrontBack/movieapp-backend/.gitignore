@@ -1,0 +1,12 @@
+# Segreti (mai su GitHub)
+.env
+.env.*
+!.env.example
+
+# Dipendenze e build (si rigenerano con npm install / npm run build)
+node_modules/
+dist/
+
+# Log e file di sistema
+*.log
+.DS_Store
