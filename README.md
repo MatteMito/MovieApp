@@ -40,21 +40,24 @@ Back-end modules: `auth`, `movies`, `lists`, `analytics`, `tmdb`, `websocket`.
 
 ## Running it locally
 
+**Requirements:** Node.js 18+, PostgreSQL, Android Studio, and a free TMDB API key from [themoviedb.org](https://www.themoviedb.org/settings/api).
+
 ### Back end
 
 ```bash
 cd MovieAppFrontBack/movieapp-backend
-cp .env.example .env      # then fill in your own values
+cp .env.example .env      # then fill in DB_PASSWORD, JWT_SECRET and TMDB_API_KEY
 npm install
-psql -U postgres -f migrations/schema.sql
+createdb -U postgres movieapp
+psql -U postgres -d movieapp -f migrations/schema.sql
 npm run start:dev
 ```
 
-You need a free TMDB API key from [themoviedb.org](https://www.themoviedb.org/settings/api).
+The API starts on port 3001.
 
 ### Android app
 
-Open `MovieAppFrontBack/MovieApp` in Android Studio, set the back-end address in `config/AppConfig.kt` and run it on an emulator or device.
+Open `MovieAppFrontBack/MovieApp` in Android Studio. In `config/AppConfig.kt`, set `BACKEND_HOST` to the IP address of the computer running the back end (use `10.0.2.2` on the Android emulator), then run the app on an emulator or device.
 
 ## Author
 
